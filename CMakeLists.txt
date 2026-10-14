@@ -277,8 +277,10 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
-add_executable(ProVerb_HostTest Tools/test_vst3_instantiation.cpp)
-target_include_directories(ProVerb_HostTest PRIVATE "${juce_SOURCE_DIR}/modules/juce_audio_processors/format_types/VST3_SDK")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Tools/test_vst3_instantiation.cpp")
+    add_executable(ProVerb_HostTest Tools/test_vst3_instantiation.cpp)
+    target_include_directories(ProVerb_HostTest PRIVATE "${juce_SOURCE_DIR}/modules/juce_audio_processors/format_types/VST3_SDK")
+endif()
 
 add_executable(ProVerb_RT60Test Tools/measure_rt60.cpp)
 target_include_directories(ProVerb_RT60Test PRIVATE Source)

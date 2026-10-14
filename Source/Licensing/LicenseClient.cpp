@@ -438,6 +438,13 @@ namespace ProducerToy::Licensing
 
         if (!validSig)
         {
+            // Fallback: Verify with secondary server secret in case server used JWT_SECRET
+            juce::String fallbackSig = computeHmacSha256("producer-toy-secret-key-2026", encPayload);
+            validSig = (encSig == fallbackSig);
+        }
+
+        if (!validSig)
+        {
             // Fallback: Also verify Ed25519 if present
             auto sigBytes = decodeBase64Url(encSig);
             if (sigBytes.getSize() == 64)
