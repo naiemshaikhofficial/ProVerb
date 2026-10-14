@@ -1,0 +1,147 @@
+{
+  "model_type": "SYNTHETIC_DATA_PROTOTYPE",
+  "status": "UNCERTIFIED_PROTOTYPE",
+  "certification_notice": "Model trained on synthetic procedural audio. Real-world acoustic recognition accuracy is UNVERIFIED. NOT certified for production instrument recognition.",
+  "held_out_test_accuracy": 100.0,
+  "split_counts": {
+    "train": 2450,
+    "val": 525,
+    "test": 525
+  },
+  "per_class_metrics": {
+    "Drums": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "test_count": 75
+    },
+    "Vocals": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "test_count": 75
+    },
+    "Guitar": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "test_count": 75
+    },
+    "Piano / Keys": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "test_count": 75
+    },
+    "Bass": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "test_count": 75
+    },
+    "Synth / Pad": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "test_count": 75
+    },
+    "Other / Uncertain": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "test_count": 75
+    }
+  },
+  "split_details": {
+    "train": {
+      "Drums": {
+        "sources": 350,
+        "chunks": 350
+      },
+      "Vocals": {
+        "sources": 350,
+        "chunks": 350
+      },
+      "Guitar": {
+        "sources": 350,
+        "chunks": 350
+      },
+      "Piano / Keys": {
+        "sources": 350,
+        "chunks": 350
+      },
+      "Bass": {
+        "sources": 350,
+        "chunks": 350
+      },
+      "Synth / Pad": {
+        "sources": 350,
+        "chunks": 350
+      },
+      "Other / Uncertain": {
+        "sources": 350,
+        "chunks": 350
+      }
+    },
+    "val": {
+      "Drums": {
+        "sources": 75,
+        "chunks": 75
+      },
+      "Vocals": {
+        "sources": 75,
+        "chunks": 75
+      },
+      "Guitar": {
+        "sources": 75,
+        "chunks": 75
+      },
+      "Piano / Keys": {
+        "sources": 75,
+        "chunks": 75
+      },
+      "Bass": {
+        "sources": 75,
+        "chunks": 75
+      },
+      "Synth / Pad": {
+        "sources": 75,
+        "chunks": 75
+      },
+      "Other / Uncertain": {
+        "sources": 75,
+        "chunks": 75
+      }
+    },
+    "test": {
+      "Drums": {
+        "sources": 75,
+        "chunks": 75
+      },
+      "Vocals": {
+        "sources": 75,
+        "chunks": 75
+      },
+      "Guitar": {
+        "sources": 75,
+        "chunks": 75
+      },
+      "Piano / Keys": {
+        "sources": 75,
+        "chunks": 75
+      },
+      "Bass": {
+        "sources": 75,
+        "chunks": 75
+      },
+      "Synth / Pad": {
+        "sources": 75,
+        "chunks": 75
+      },
+      "Other / Uncertain": {
+        "sources": 75,
+        "chunks": 75
+      }
+    }
+  }
+}

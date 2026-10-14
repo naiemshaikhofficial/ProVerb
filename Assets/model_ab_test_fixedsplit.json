@@ -1,0 +1,120 @@
+{
+  "comparison": "same_baseline_manifest_source_heldout_test_set",
+  "manifest": "training_data_manifest_baseline_fixedsplit.json",
+  "test_samples": 3770,
+  "test_source_groups": 75,
+  "test_source_fingerprint_sha256": "8caad67decb63e7ddd4d6fe6e4e17eee86cd9d9d80c85eb06c2fe76baa0f9820",
+  "models": {
+    "baseline": {
+      "model": "ProVerb_AI_candidate_fixedsplit_baseline.onnx",
+      "accuracy": 0.6840848806366048,
+      "macro_f1": 0.6108100689438327,
+      "per_class": {
+        "Drums": {
+          "precision": 0.8470588235294118,
+          "recall": 0.9448818897637795,
+          "f1": 0.8933002481389578,
+          "support": 381
+        },
+        "Vocals": {
+          "precision": 0.9551451187335093,
+          "recall": 0.8814935064935064,
+          "f1": 0.9168425495989868,
+          "support": 1232
+        },
+        "Guitar": {
+          "precision": 0.43776824034334766,
+          "recall": 0.16037735849056603,
+          "f1": 0.2347525891829689,
+          "support": 636
+        },
+        "Piano / Keys": {
+          "precision": 0.4301994301994302,
+          "recall": 0.7122641509433962,
+          "f1": 0.536412078152753,
+          "support": 212
+        },
+        "Bass": {
+          "precision": 0.5909090909090909,
+          "recall": 0.8282548476454293,
+          "f1": 0.6897347174163784,
+          "support": 361
+        },
+        "Synth / Pad": {
+          "precision": 0.48130841121495327,
+          "recall": 0.3047337278106509,
+          "f1": 0.37318840579710144,
+          "support": 338
+        },
+        "Other / Uncertain": {
+          "precision": 0.5287610619469026,
+          "recall": 0.7836065573770492,
+          "f1": 0.631439894319683,
+          "support": 610
+        }
+      }
+    },
+    "expanded_candidate": {
+      "model": "ProVerb_AI_candidate_fixedsplit_augmented.onnx",
+      "accuracy": 0.6753315649867374,
+      "macro_f1": 0.5796580000427533,
+      "per_class": {
+        "Drums": {
+          "precision": 0.8470588235294118,
+          "recall": 0.9448818897637795,
+          "f1": 0.8933002481389578,
+          "support": 381
+        },
+        "Vocals": {
+          "precision": 0.9826642335766423,
+          "recall": 0.8741883116883117,
+          "f1": 0.9252577319587629,
+          "support": 1232
+        },
+        "Guitar": {
+          "precision": 0.5502183406113537,
+          "recall": 0.19811320754716982,
+          "f1": 0.2913294797687861,
+          "support": 636
+        },
+        "Piano / Keys": {
+          "precision": 0.41694915254237286,
+          "recall": 0.5801886792452831,
+          "f1": 0.48520710059171596,
+          "support": 212
+        },
+        "Bass": {
+          "precision": 0.5784499054820416,
+          "recall": 0.8476454293628809,
+          "f1": 0.6876404494382022,
+          "support": 361
+        },
+        "Synth / Pad": {
+          "precision": 0.3425925925925926,
+          "recall": 0.10946745562130178,
+          "f1": 0.16591928251121077,
+          "support": 338
+        },
+        "Other / Uncertain": {
+          "precision": 0.47518382352941174,
+          "recall": 0.8475409836065574,
+          "f1": 0.6089517078916372,
+          "support": 610
+        }
+      }
+    }
+  },
+  "delta_candidate_minus_baseline": {
+    "accuracy": -0.008753315649867366,
+    "macro_f1": -0.031152068901079466,
+    "per_class_f1": {
+      "Drums": 0.0,
+      "Vocals": 0.008415182359776119,
+      "Guitar": 0.05657689058581719,
+      "Piano / Keys": -0.05120497756103709,
+      "Bass": -0.002094267978176134,
+      "Synth / Pad": -0.20726912328589067,
+      "Other / Uncertain": -0.02248818642804573
+    }
+  }
+}

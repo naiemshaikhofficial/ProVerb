@@ -1,0 +1,100 @@
+{
+  "summary": {
+    "task": "multi_label_source_family_detection",
+    "dataset_provenance": {
+      "OpenMIC-2018": {
+        "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+        "citation": "Humphrey, E. J., Durand, S., & McFee, B. (2018). OpenMIC-2018: An Open Dataset for Multiple Instrument Recognition. ISMIR 2018.",
+        "url": "https://doi.org/10.5281/zenodo.1432913",
+        "total_recordings": 20000,
+        "train_partition": "partitions/split01_train.csv (14,915 disjoint tracks)",
+        "test_partition": "partitions/split01_test.csv (5,085 disjoint tracks)",
+        "track_leakage_overlap": 0
+      },
+      "VocalSet": {
+        "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+        "citation": "Wilkins, J., Seetharaman, P., Wahl, A., & Pardo, B. (2018). VocalSet: A Singing Voice Dataset. ISMIR 2018.",
+        "url": "https://doi.org/10.5281/zenodo.1193957",
+        "held_out_test_singers": ["female5", "female6", "male5", "male6"]
+      },
+      "GuitarSet": {
+        "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+        "citation": "Xi, Q., Bittner, R. M., Pauwels, J., Ye, X., & Bello, J. P. (2018). GuitarSet: A Dataset for Guitar Transcription. ISMIR 2018.",
+        "url": "https://doi.org/10.5281/zenodo.3371780",
+        "held_out_test_player": "player_02"
+      },
+      "SYN-SE1": {
+        "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+        "description": "Synthesizer presets and electronic sound design corpus",
+        "held_out_test_presets": "presets 27-40"
+      },
+      "Slakh2100": {
+        "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+        "citation": "Manilow, E., Gordon, P., & Seetharaman, P. (2019). Slakh2100: A Dataset of Synthetic Polyphonic Music. ISMIR 2019.",
+        "held_out_test_tracks": ["Track00017", "Track00018", "Track00019", "Track00020"]
+      }
+    },
+    "supported_families": [
+      {
+        "id": 0,
+        "name": "Voice",
+        "aliases": ["Lead Vocal", "Spoken/Rap", "Backing Vocals", "Harmonies", "Choir"],
+        "recommended_preset": "Bollywood Pop Lead Vocal"
+      },
+      {
+        "id": 1,
+        "name": "Drums & Percussion",
+        "aliases": ["Kick", "Snare", "Toms", "Cymbals", "Tabla", "Dholak", "Dhol", "Cajon", "Congas", "Bongos", "Frame Drum"],
+        "recommended_preset": "Snare Drum - Tight Studio Room"
+      },
+      {
+        "id": 2,
+        "name": "Bass",
+        "aliases": ["Electric Bass", "Upright/Acoustic Bass", "Synth Bass", "Sub Bass"],
+        "recommended_preset": "Bass Dry / Keep the Low End Tight"
+      },
+      {
+        "id": 3,
+        "name": "Keys & Mallets",
+        "aliases": ["Grand Piano", "Upright Piano", "Rhodes", "Organ", "Harmonium", "Celesta", "Marimba", "Vibraphone"],
+        "recommended_preset": "Grand Piano - Concert Hall"
+      },
+      {
+        "id": 4,
+        "name": "Plucked Strings",
+        "aliases": ["Acoustic Guitar", "Electric Guitar", "Sitar", "Sarod", "Veena", "Tanpura", "Oud", "Saz", "Mandolin", "Banjo", "Harp"],
+        "recommended_preset": "Steel-String Acoustic Guitar"
+      },
+      {
+        "id": 5,
+        "name": "Bowed Strings",
+        "aliases": ["Solo Violin", "Viola", "Cello", "Double Bass", "Pizzicato", "String Section", "Orchestral Strings"],
+        "recommended_preset": "String Section - Lush Scoring Stage"
+      },
+      {
+        "id": 6,
+        "name": "Winds & Brass",
+        "aliases": ["Flute", "Bansuri", "Shakuhachi", "Ney", "Duduk", "Clarinet", "Saxophone", "Trumpet", "Trombone", "Horns"],
+        "recommended_preset": "Flute & Bansuri - Breath of Sky"
+      },
+      {
+        "id": 7,
+        "name": "Electronic",
+        "aliases": ["Synth Lead", "Pluck", "Arpeggio", "Pad", "Texture", "Sound Design FX"],
+        "recommended_preset": "Synth Lead & Pluck - Polished Modern"
+      },
+      {
+        "id": 8,
+        "name": "Mixed / Ensemble",
+        "aliases": ["Polyphonic Audio", "Mixed Instruments", "Song Master / Stem Mix"],
+        "recommended_preset": "Small Acoustic Ensemble - Intimate Glue"
+      },
+      {
+        "id": 9,
+        "name": "Unknown / Low Confidence",
+        "aliases": ["Low Level / Silence", "Non-Musical Audio", "Ambience"],
+        "recommended_preset": null
+      }
+    ]
+  }
+}

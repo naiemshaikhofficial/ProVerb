@@ -1,0 +1,49 @@
+{
+  "description": "ProVerb AI Dataset Compliance Quarantine Log",
+  "action": "REMOVED_FROM_ACTIVE_TRAINING_MANIFEST",
+  "audit_note": "Replaced initial mock references with verified real audio on disk; quarantined unverified template entries.",
+  "quarantined_records": [
+    {
+      "recording_id": "Slakh_Track00001_S01",
+      "file_path": "Data\\Slakh\\Track00001\\stems\\S01_drums.wav",
+      "dataset": "Slakh2100",
+      "reason": "Initial template reference without physical audio on disk. Replaced by verified BabySlakh stems."
+    },
+    {
+      "recording_id": "Slakh_Track00001_S02",
+      "file_path": "Data\\Slakh\\Track00001\\stems\\S02_bass.wav",
+      "dataset": "Slakh2100",
+      "reason": "Initial template reference without physical audio on disk. Replaced by verified BabySlakh stems."
+    },
+    {
+      "recording_id": "Slakh_Track00001_S03",
+      "file_path": "Data\\Slakh\\Track00001\\stems\\S03_guitar.wav",
+      "dataset": "Slakh2100",
+      "reason": "Initial template reference without physical audio on disk. Replaced by verified BabySlakh stems."
+    },
+    {
+      "recording_id": "Slakh_Track00002_S01",
+      "file_path": "Data\\Slakh\\Track00002\\stems\\S01_piano.wav",
+      "dataset": "Slakh2100",
+      "reason": "Initial template reference without physical audio on disk. Replaced by verified BabySlakh stems."
+    },
+    {
+      "recording_id": "Slakh_Track00002_S02",
+      "file_path": "Data\\Slakh\\Track00002\\stems\\S02_pad.wav",
+      "dataset": "Slakh2100",
+      "reason": "Initial template reference without physical audio on disk. Replaced by verified BabySlakh stems."
+    },
+    {
+      "recording_id": "FS_51234",
+      "file_path": "Data\\Freesound\\vocals\\fs_51234_female_vocal_phrase.wav",
+      "dataset": "Freesound",
+      "reason": "Fictional template reference without verified audio on disk. Quarantined from real training pipeline."
+    },
+    {
+      "recording_id": "FS_67890",
+      "file_path": "Data\\Freesound\\guitar\\fs_67890_clean_fingerpicking.wav",
+      "dataset": "Freesound",
+      "reason": "Fictional template reference without verified audio on disk. Quarantined from real training pipeline."
+    }
+  ]
+}

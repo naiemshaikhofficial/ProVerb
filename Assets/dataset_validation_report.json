@@ -1,0 +1,26 @@
+{
+  "manifest_path": "Assets\\training_data_manifest.json",
+  "total_manifest_records": 6157,
+  "successfully_validated_files": 6157,
+  "missing_files_count": 0,
+  "missing_files": [],
+  "hash_mismatches_count": 0,
+  "hash_mismatches": [],
+  "corrupted_audio_count": 0,
+  "corrupted_audio": [],
+  "total_audio_duration_hours": 29.051,
+  "class_counts": {
+    "Drums": 165,
+    "Vocals": 3689,
+    "Guitar": 621,
+    "Piano / Keys": 206,
+    "Bass": 48,
+    "Synth / Pad": 1092,
+    "Other / Uncertain": 336
+  },
+  "unsupported_classes": [],
+  "vocals_class_supported": true,
+  "parent_recording_leakage_violations": 0,
+  "leaked_parent_groups": {},
+  "integrity_status": "PASSED"
+}

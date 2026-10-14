@@ -1,0 +1,67 @@
+name: Build ProVerb Windows & macOS Installers
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    name: Build Windows VST3 & AAX Installer (.exe)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup CMake
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '3.28'
+
+      - name: Configure CMake
+        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build All Targets (VST3, AAX, Standalone)
+        run: cmake --build build --config Release --parallel
+
+      - name: Compile Inno Setup Windows Installer
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "Installer\Windows\ProVerb_Windows_Installer.iss"
+
+      - name: Upload Windows Installer Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ProducerToy_ProVerb_Windows_Installer
+          path: Output/ProducerToy_ProVerb_Windows_Installer.exe
+
+  build-macos:
+    name: Build macOS VST3, AU & AAX Installer (.pkg)
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup CMake
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '3.28'
+
+      - name: Make Build Script Executable
+        run: chmod +x Installer/macOS/build_mac_installer.sh
+
+      - name: Build Universal VST3, AU & AAX and Package .pkg
+        run: ./Installer/macOS/build_mac_installer.sh
+
+      - name: Upload macOS Installer Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ProducerToy_ProVerb_macOS_Installer
+          path: Output/ProducerToy_ProVerb_macOS_Installer.pkg

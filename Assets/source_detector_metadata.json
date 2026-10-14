@@ -1,0 +1,171 @@
+{
+  "model_name": "ProducerToy-Reverb-SourceDetector",
+  "task": "multi_label_source_family_detection",
+  "random_seed": 42,
+  "input_features": [
+    "subRatio",
+    "bassRatio",
+    "vocalCoreRatio",
+    "vocalPresRatio",
+    "airRatio",
+    "crestFactor",
+    "zcr",
+    "transientDensity",
+    "envDynamics",
+    "spectralCentroid",
+    "attackSlope",
+    "temporalSustainRatio"
+  ],
+  "source_families": [
+    "Voice",
+    "Drums & Percussion",
+    "Bass",
+    "Keys & Mallets",
+    "Plucked Strings",
+    "Bowed Strings",
+    "Winds & Brass",
+    "Electronic"
+  ],
+  "class_thresholds": [
+    0.45,
+    0.4,
+    0.45,
+    0.4,
+    0.42,
+    0.45,
+    0.42,
+    0.42
+  ],
+  "feature_mean": [
+    0.25941002368927,
+    0.23460714519023895,
+    0.40578487515449524,
+    0.0852048397064209,
+    0.014992344193160534,
+    4.451437473297119,
+    0.045111581683158875,
+    1.5562463998794556,
+    14.442498207092285,
+    0.09564191848039627,
+    0.35735946893692017,
+    0.8498941659927368
+  ],
+  "feature_std": [
+    0.19758151471614838,
+    0.08376580476760864,
+    0.1735820472240448,
+    0.07745468616485596,
+    0.031062817201018333,
+    1.6991480588912964,
+    0.03898405656218529,
+    1.0279369354248047,
+    16.242168426513672,
+    0.06089760735630989,
+    0.3148728609085083,
+    0.18973857164382935
+  ],
+  "macro_metrics": {
+    "macro_precision": 0.6245,
+    "macro_recall": 0.6955,
+    "macro_f1": 0.6498
+  },
+  "per_class_metrics": {
+    "Voice": {
+      "evaluated_samples": 133,
+      "true_positives": 72,
+      "false_positives": 33,
+      "true_negatives": 16,
+      "false_negatives": 12,
+      "precision": 0.6857,
+      "recall": 0.8571,
+      "f1_score": 0.7619,
+      "threshold": 0.45
+    },
+    "Drums & Percussion": {
+      "evaluated_samples": 219,
+      "true_positives": 126,
+      "false_positives": 35,
+      "true_negatives": 43,
+      "false_negatives": 15,
+      "precision": 0.7826,
+      "recall": 0.8936,
+      "f1_score": 0.8344,
+      "threshold": 0.4
+    },
+    "Bass": {
+      "evaluated_samples": 137,
+      "true_positives": 14,
+      "false_positives": 14,
+      "true_negatives": 86,
+      "false_negatives": 23,
+      "precision": 0.5,
+      "recall": 0.3784,
+      "f1_score": 0.4308,
+      "threshold": 0.45
+    },
+    "Keys & Mallets": {
+      "evaluated_samples": 487,
+      "true_positives": 153,
+      "false_positives": 124,
+      "true_negatives": 153,
+      "false_negatives": 57,
+      "precision": 0.5523,
+      "recall": 0.7286,
+      "f1_score": 0.6283,
+      "threshold": 0.4
+    },
+    "Plucked Strings": {
+      "evaluated_samples": 453,
+      "true_positives": 144,
+      "false_positives": 148,
+      "true_negatives": 119,
+      "false_negatives": 42,
+      "precision": 0.4932,
+      "recall": 0.7742,
+      "f1_score": 0.6025,
+      "threshold": 0.42
+    },
+    "Bowed Strings": {
+      "evaluated_samples": 285,
+      "true_positives": 106,
+      "false_positives": 61,
+      "true_negatives": 74,
+      "false_negatives": 44,
+      "precision": 0.6347,
+      "recall": 0.7067,
+      "f1_score": 0.6688,
+      "threshold": 0.45
+    },
+    "Winds & Brass": {
+      "evaluated_samples": 559,
+      "true_positives": 83,
+      "false_positives": 68,
+      "true_negatives": 277,
+      "false_negatives": 131,
+      "precision": 0.5497,
+      "recall": 0.3879,
+      "f1_score": 0.4548,
+      "threshold": 0.42
+    },
+    "Electronic": {
+      "evaluated_samples": 108,
+      "true_positives": 67,
+      "false_positives": 17,
+      "true_negatives": 11,
+      "false_negatives": 13,
+      "precision": 0.7976,
+      "recall": 0.8375,
+      "f1_score": 0.8171,
+      "threshold": 0.42
+    }
+  },
+  "training_sample_count": 8971,
+  "test_sample_count": 1495,
+  "dataset_licenses": {
+    "OpenMIC-2018": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+    "VocalSet": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+    "GuitarSet": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+    "SYN-SE1": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+    "Slakh2100": "Creative Commons Attribution 4.0 International (CC BY 4.0)"
+  }
+}

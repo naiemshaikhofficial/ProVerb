@@ -1,0 +1,174 @@
+{
+  "model_type": "REAL_AUDIO_MANIFEST",
+  "status": "CANDIDATE_STAGED_NON_ACTIVE",
+  "certification_notice": "Model trained on licensed audio recordings from manifest. Production certification requires independent multi-studio validation suite.",
+  "class_weighting": "sqrt",
+  "training_class_counts": {
+    "Drums": 1855,
+    "Vocals": 7793,
+    "Guitar": 4778,
+    "Piano / Keys": 1834,
+    "Bass": 1421,
+    "Synth / Pad": 1552,
+    "Other / Uncertain": 3015
+  },
+  "training_class_weights": {
+    "Drums": 1.1406442585119418,
+    "Vocals": 0.5565059827892308,
+    "Guitar": 0.7107209265485008,
+    "Piano / Keys": 1.1471560769280074,
+    "Bass": 1.303242207405664,
+    "Synth / Pad": 1.2470283225252197,
+    "Other / Uncertain": 0.8947022252914351
+  },
+  "held_out_test_accuracy": 78.62163217493166,
+  "macro_f1_test": 0.7349788059480272,
+  "split_counts": {
+    "train": 22248,
+    "val": 4762,
+    "test": 5122
+  },
+  "per_class_metrics": {
+    "Drums": {
+      "precision": 0.8911764705882353,
+      "recall": 0.8487394957983193,
+      "f1_score": 0.8694404591104735,
+      "test_count": 357,
+      "status": "EVALUATED"
+    },
+    "Vocals": {
+      "precision": 0.9238858287431146,
+      "recall": 0.9084194977843427,
+      "f1_score": 0.9160873882820258,
+      "test_count": 2031,
+      "status": "EVALUATED"
+    },
+    "Guitar": {
+      "precision": 0.7217090069284064,
+      "recall": 0.8023106546854942,
+      "f1_score": 0.7598784194528875,
+      "test_count": 779,
+      "status": "EVALUATED"
+    },
+    "Piano / Keys": {
+      "precision": 0.7090909090909091,
+      "recall": 0.6554621848739496,
+      "f1_score": 0.6812227074235808,
+      "test_count": 595,
+      "status": "EVALUATED"
+    },
+    "Bass": {
+      "precision": 0.75,
+      "recall": 0.8863636363636364,
+      "f1_score": 0.8125000000000001,
+      "test_count": 176,
+      "status": "EVALUATED"
+    },
+    "Synth / Pad": {
+      "precision": 0.48366013071895425,
+      "recall": 0.3854166666666667,
+      "f1_score": 0.42898550724637685,
+      "test_count": 384,
+      "status": "EVALUATED"
+    },
+    "Other / Uncertain": {
+      "precision": 0.6549707602339181,
+      "recall": 0.7,
+      "f1_score": 0.676737160120846,
+      "test_count": 800,
+      "status": "EVALUATED"
+    }
+  },
+  "split_details": {
+    "train": {
+      "Drums": {
+        "sources": 70,
+        "chunks": 1855
+      },
+      "Vocals": {
+        "sources": 36,
+        "chunks": 7793
+      },
+      "Guitar": {
+        "sources": 84,
+        "chunks": 4778
+      },
+      "Piano / Keys": {
+        "sources": 57,
+        "chunks": 1834
+      },
+      "Bass": {
+        "sources": 28,
+        "chunks": 1421
+      },
+      "Synth / Pad": {
+        "sources": 67,
+        "chunks": 1552
+      },
+      "Other / Uncertain": {
+        "sources": 95,
+        "chunks": 3015
+      }
+    },
+    "val": {
+      "Drums": {
+        "sources": 15,
+        "chunks": 88
+      },
+      "Vocals": {
+        "sources": 7,
+        "chunks": 1455
+      },
+      "Guitar": {
+        "sources": 18,
+        "chunks": 1813
+      },
+      "Piano / Keys": {
+        "sources": 12,
+        "chunks": 257
+      },
+      "Bass": {
+        "sources": 6,
+        "chunks": 319
+      },
+      "Synth / Pad": {
+        "sources": 14,
+        "chunks": 234
+      },
+      "Other / Uncertain": {
+        "sources": 20,
+        "chunks": 596
+      }
+    },
+    "test": {
+      "Drums": {
+        "sources": 16,
+        "chunks": 357
+      },
+      "Vocals": {
+        "sources": 9,
+        "chunks": 2031
+      },
+      "Guitar": {
+        "sources": 18,
+        "chunks": 779
+      },
+      "Piano / Keys": {
+        "sources": 13,
+        "chunks": 595
+      },
+      "Bass": {
+        "sources": 6,
+        "chunks": 176
+      },
+      "Synth / Pad": {
+        "sources": 16,
+        "chunks": 384
+      },
+      "Other / Uncertain": {
+        "sources": 21,
+        "chunks": 800
+      }
+    }
+  }
+}

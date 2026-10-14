@@ -1,0 +1,174 @@
+{
+  "model_type": "REAL_AUDIO_MANIFEST",
+  "status": "CANDIDATE_STAGED_NON_ACTIVE",
+  "certification_notice": "Model trained on licensed audio recordings from manifest. Production certification requires independent multi-studio validation suite.",
+  "class_weighting": "sqrt",
+  "training_class_counts": {
+    "Drums": 1511,
+    "Vocals": 8085,
+    "Guitar": 3727,
+    "Piano / Keys": 1965,
+    "Bass": 1452,
+    "Synth / Pad": 719,
+    "Other / Uncertain": 3292
+  },
+  "training_class_weights": {
+    "Drums": 1.1488209337810769,
+    "Vocals": 0.4966432768446948,
+    "Guitar": 0.731484076418254,
+    "Piano / Keys": 1.0074031290935697,
+    "Bass": 1.171928901296955,
+    "Synth / Pad": 1.6654060102804535,
+    "Other / Uncertain": 0.7783136722849957
+  },
+  "held_out_test_accuracy": 73.3578763805464,
+  "macro_f1_test": 0.6539266332361693,
+  "split_counts": {
+    "train": 20751,
+    "val": 5220,
+    "test": 5161
+  },
+  "per_class_metrics": {
+    "Drums": {
+      "precision": 0.7913978494623656,
+      "recall": 0.9658792650918635,
+      "f1_score": 0.8699763593380615,
+      "test_count": 381,
+      "status": "EVALUATED"
+    },
+    "Vocals": {
+      "precision": 0.8930075821398483,
+      "recall": 0.8603896103896104,
+      "f1_score": 0.8763952046300123,
+      "test_count": 1232,
+      "status": "EVALUATED"
+    },
+    "Guitar": {
+      "precision": 0.8681790312691601,
+      "recall": 0.6985693142575234,
+      "f1_score": 0.7741935483870968,
+      "test_count": 2027,
+      "status": "EVALUATED"
+    },
+    "Piano / Keys": {
+      "precision": 0.36908517350157727,
+      "recall": 0.5518867924528302,
+      "f1_score": 0.44234404536862,
+      "test_count": 212,
+      "status": "EVALUATED"
+    },
+    "Bass": {
+      "precision": 0.6137787056367432,
+      "recall": 0.814404432132964,
+      "f1_score": 0.7,
+      "test_count": 361,
+      "status": "EVALUATED"
+    },
+    "Synth / Pad": {
+      "precision": 0.41148325358851673,
+      "recall": 0.25443786982248523,
+      "f1_score": 0.31444241316270566,
+      "test_count": 338,
+      "status": "EVALUATED"
+    },
+    "Other / Uncertain": {
+      "precision": 0.5097365406643757,
+      "recall": 0.7295081967213115,
+      "f1_score": 0.6001348617666892,
+      "test_count": 610,
+      "status": "EVALUATED"
+    }
+  },
+  "split_details": {
+    "train": {
+      "Drums": {
+        "sources": 71,
+        "chunks": 1511
+      },
+      "Vocals": {
+        "sources": 34,
+        "chunks": 8085
+      },
+      "Guitar": {
+        "sources": 86,
+        "chunks": 3727
+      },
+      "Piano / Keys": {
+        "sources": 57,
+        "chunks": 1965
+      },
+      "Bass": {
+        "sources": 24,
+        "chunks": 1452
+      },
+      "Synth / Pad": {
+        "sources": 41,
+        "chunks": 719
+      },
+      "Other / Uncertain": {
+        "sources": 107,
+        "chunks": 3292
+      }
+    },
+    "val": {
+      "Drums": {
+        "sources": 15,
+        "chunks": 408
+      },
+      "Vocals": {
+        "sources": 11,
+        "chunks": 1962
+      },
+      "Guitar": {
+        "sources": 14,
+        "chunks": 1616
+      },
+      "Piano / Keys": {
+        "sources": 16,
+        "chunks": 509
+      },
+      "Bass": {
+        "sources": 5,
+        "chunks": 103
+      },
+      "Synth / Pad": {
+        "sources": 8,
+        "chunks": 113
+      },
+      "Other / Uncertain": {
+        "sources": 22,
+        "chunks": 509
+      }
+    },
+    "test": {
+      "Drums": {
+        "sources": 15,
+        "chunks": 381
+      },
+      "Vocals": {
+        "sources": 7,
+        "chunks": 1232
+      },
+      "Guitar": {
+        "sources": 20,
+        "chunks": 2027
+      },
+      "Piano / Keys": {
+        "sources": 9,
+        "chunks": 212
+      },
+      "Bass": {
+        "sources": 11,
+        "chunks": 361
+      },
+      "Synth / Pad": {
+        "sources": 8,
+        "chunks": 338
+      },
+      "Other / Uncertain": {
+        "sources": 7,
+        "chunks": 610
+      }
+    }
+  }
+}

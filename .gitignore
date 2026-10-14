@@ -1,0 +1,55 @@
+# Build artifacts
+build/
+build_mac/
+build_win/
+*.dir/
+*.obj
+*.o
+*.lib
+*.a
+*.pdb
+*.exp
+*.ilk
+*.idb
+
+# Binaries and outputs
+Output/
+*.exe
+*.vst3/
+*.component/
+*.aaxplugin/
+*.pkg
+*.dll
+*.so
+*.dylib
+
+# Audio datasets (25,000+ files - do NOT commit to Git!)
+Data/
+*.wav
+*.flac
+*.ogg
+*.mp3
+*.aif
+*.aiff
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE and OS
+.vs/
+.vscode/
+.DS_Store
+Thumbs.db
+*.user
+*.suo
+
+# Test binaries
+test_hmac.exe
+test_hmac.obj
+test_token.exe
+test_token.obj
+ProVerb.exe
+ProducerToy_ProVerb_Installer.exe
+Run
