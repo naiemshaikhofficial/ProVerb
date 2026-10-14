@@ -31,18 +31,51 @@ cmake -B build_mac \
 cmake --build build_mac --config Release --parallel
 
 # 2. Stage Built Artifacts
-echo "Staging VST3, AU, and AAX plugins..."
-cp -R "build_mac/ProVerb_artefacts/Release/VST3/ProVerb.vst3" \
-      "${STAGING_DIR}/VST3/Library/Audio/Plug-Ins/VST3/"
+echo "Locating built VST3 and AU artifacts..."
 
-cp -R "build_mac/ProVerb_artefacts/Release/AU/ProVerb.component" \
-      "${STAGING_DIR}/AU/Library/Audio/Plug-Ins/Components/"
+VST3_PATH=""
+if [ -d "build_mac/ProVerb_artefacts/Release/VST3/ProVerb.vst3" ]; then
+    VST3_PATH="build_mac/ProVerb_artefacts/Release/VST3/ProVerb.vst3"
+elif [ -d "build_mac/ProVerb_artefacts/VST3/ProVerb.vst3" ]; then
+    VST3_PATH="build_mac/ProVerb_artefacts/VST3/ProVerb.vst3"
+fi
 
+AU_PATH=""
+if [ -d "build_mac/ProVerb_artefacts/Release/AU/ProVerb.component" ]; then
+    AU_PATH="build_mac/ProVerb_artefacts/Release/AU/ProVerb.component"
+elif [ -d "build_mac/ProVerb_artefacts/AU/ProVerb.component" ]; then
+    AU_PATH="build_mac/ProVerb_artefacts/AU/ProVerb.component"
+fi
+
+AAX_PATH=""
 if [ -d "build_mac/ProVerb_artefacts/Release/AAX/ProVerb.aaxplugin" ]; then
-    cp -R "build_mac/ProVerb_artefacts/Release/AAX/ProVerb.aaxplugin" \
-          "${STAGING_DIR}/AAX/Library/Application Support/Avid/Audio/Plug-Ins/"
+    AAX_PATH="build_mac/ProVerb_artefacts/Release/AAX/ProVerb.aaxplugin"
+elif [ -d "build_mac/ProVerb_artefacts/AAX/ProVerb.aaxplugin" ]; then
+    AAX_PATH="build_mac/ProVerb_artefacts/AAX/ProVerb.aaxplugin"
+fi
+
+if [ -n "${VST3_PATH}" ]; then
+    echo "Staging VST3 from: ${VST3_PATH}"
+    cp -R "${VST3_PATH}" "${STAGING_DIR}/VST3/Library/Audio/Plug-Ins/VST3/"
 else
-    echo "[NOTICE] AAX bundle not present; creating stub package for distribution.xml..."
+    echo "ERROR: ProVerb.vst3 not found in build output!"
+    exit 1
+fi
+
+if [ -n "${AU_PATH}" ]; then
+    echo "Staging AU from: ${AU_PATH}"
+    cp -R "${AU_PATH}" "${STAGING_DIR}/AU/Library/Audio/Plug-Ins/Components/"
+else
+    echo "ERROR: ProVerb.component (AU) not found in build output!"
+    exit 1
+fi
+
+if [ -n "${AAX_PATH}" ]; then
+    echo "Staging AAX from: ${AAX_PATH}"
+    cp -R "${AAX_PATH}" "${STAGING_DIR}/AAX/Library/Application Support/Avid/Audio/Plug-Ins/"
+else
+    echo "[NOTICE] AAX bundle not present; creating placeholder for optional component..."
+    touch "${STAGING_DIR}/AAX/Library/Application Support/Avid/Audio/Plug-Ins/.placeholder"
 fi
 
 # 3. Build Component Packages using pkgbuild
