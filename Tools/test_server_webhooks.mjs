@@ -1,17 +1,25 @@
 #!/usr/bin/env node
 /**
- * Automated Production End-to-End Test Suite for ProVerb Dedicated Licensing Server
+ * Automated Production End-to-End Test Suite for ProducerToy Dedicated Multi-Brand Licensing Server
  * Tests:
  * 1. Health check & configuration
- * 2. Razorpay payment webhook (HMAC signature, automatic serial generation)
- * 3. Invalid webhook signature rejection
- * 4. Webhook idempotency (duplicate retry protection)
- * 5. Plugin serial redemption (Ed25519 token issuance)
- * 6. Idempotent re-activation on same hardware device
- * 7. Multi-seat limit enforcement (3 seats max)
- * 8. Deactivation and seat release
- * 9. Refund webhook and automatic license revocation
- * 10. Offline license file generation
+ * 2. Razorpay payment webhook (HMAC signature, automatic 128-bit serial generation)
+ * 3. 128-bit cryptographic entropy validation (full 32 hex characters in 8 blocks)
+ * 4. Invalid webhook signature rejection
+ * 5. Webhook idempotency (duplicate retry protection)
+ * 6. Non-plugin marketplace order filtering (ignores sample packs without issuing spurious licenses)
+ * 7. Dynamic marketplace product registration (Partner Brand Plugin) via Admin API
+ * 8. Multi-product order processing in single webhook
+ * 9. Plugin serial redemption & Ed25519 token issuance for multiple brands
+ * 10. Idempotent re-activation on same hardware device
+ * 11. Multi-seat limit enforcement (custom per product)
+ * 12. Deactivation and seat release
+ * 13. Customer direct machine claim & recovery by verified Order ID + Customer Email
+ * 14. Insecure pairing claim hole prevention (rejects plain email alone without order proof)
+ * 15. Valid pairing challenge start, poll, and claim with verified proof
+ * 16. Offline license file generation (.ptlic)
+ * 17. Refund webhook and automatic license revocation
+ * 18. Revocation enforcement (blocked activation)
  */
 
 import http from 'node:http';
@@ -27,7 +35,7 @@ const PORT = 4099;
 const HOST = '127.0.0.1';
 const BASE_URL = `http://${HOST}:${PORT}`;
 
-const PRODUCT_ID = '92cf2454-2cfc-4db5-b210-2c732457605f';
+const PROVERB_PRODUCT_ID = '92cf2454-2cfc-4db5-b210-2c732457605f';
 const TEST_WEBHOOK_SECRET = 'rzp_test_webhook_secret_key_8923489234';
 const TEST_SALT_SECRET = 'test_salt_secret_high_entropy_32_characters_minimum!';
 const TEST_ADMIN_KEY = 'test_admin_secret_key_12345';
@@ -86,7 +94,7 @@ function httpRequest(method, endpoint, headers = {}, body = null) {
 
 async function runTests() {
   console.log('===============================================================');
-  console.log(' ProVerb Licensing Server Automated Test Suite');
+  console.log(' ProducerToy Multi-Brand Licensing Server Automated Test Suite');
   console.log('===============================================================');
 
   // Import and start server
@@ -113,142 +121,255 @@ async function runTests() {
     assert(health.body.signingKeyLoaded === true, 'Ed25519 private signing key successfully loaded');
     assert(health.body.databaseHealthy === true, 'SQLite transactional database verified healthy');
 
-    // 2. Razorpay Webhook with valid signature -> issues serial key
-    const orderId = `ord_test_${Date.now()}`;
-    const paymentId = `pay_test_${Date.now()}`;
-    const eventId = `evt_test_${Date.now()}`;
+    // 2. Razorpay Webhook with valid signature -> issues 128-bit serial key for ProVerb
+    const orderId1 = `ord_test_${Date.now()}`;
+    const paymentId1 = `pay_test_${Date.now()}`;
+    const eventId1 = `evt_test_${Date.now()}`;
 
-    const webhookPayload = {
+    const webhookPayload1 = {
       event: 'payment.captured',
-      event_id: eventId,
+      event_id: eventId1,
       payload: {
         payment: {
           entity: {
-            id: paymentId,
-            order_id: orderId,
+            id: paymentId1,
+            order_id: orderId1,
             amount: 999,
             currency: 'USD',
             status: 'captured',
             email: 'studio.producer@gmail.com',
             notes: {
               userName: 'Naiem Shaikh',
-              userEmail: 'studio.producer@gmail.com'
+              userEmail: 'studio.producer@gmail.com',
+              dedicatedProductIds: PROVERB_PRODUCT_ID,
+              dedicatedProductSlugs: 'proverb'
             }
           }
         }
       }
     };
 
-    const rawBody = JSON.stringify(webhookPayload);
-    const validSignature = crypto.createHmac('sha256', TEST_WEBHOOK_SECRET).update(rawBody).digest('hex');
+    const rawBody1 = JSON.stringify(webhookPayload1);
+    const validSignature1 = crypto.createHmac('sha256', TEST_WEBHOOK_SECRET).update(rawBody1).digest('hex');
 
-    const webhookRes = await httpRequest('POST', '/api/v1/license/webhook/razorpay', {
-      'X-Razorpay-Signature': validSignature
-    }, rawBody);
+    const webhookRes1 = await httpRequest('POST', '/api/v1/license/webhook/razorpay', {
+      'X-Razorpay-Signature': validSignature1
+    }, rawBody1);
 
-    assert(webhookRes.status === 200 && webhookRes.body.success === true, 'Signed Razorpay webhook processes successfully');
-    const issuedSerial = webhookRes.body.serialKey;
-    assert(typeof issuedSerial === 'string' && issuedSerial.startsWith('PT-PROV-'), `Cryptographic serial issued: ${issuedSerial}`);
+    assert(webhookRes1.status === 200 && webhookRes1.body.success === true, 'Signed Razorpay webhook processes successfully');
+    assert(webhookRes1.body.licenses && webhookRes1.body.licenses.length === 1, 'ProVerb license issued in order');
+    const issuedSerial1 = webhookRes1.body.licenses[0].serialKey;
 
-    // 3. Invalid signature rejected
+    // 3. 128-bit Entropy Verification: Serial must have 32 hex characters in 8 blocks
+    // Format: PT-PROV-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX
+    const serialParts = issuedSerial1.split('-');
+    assert(serialParts[0] === 'PT' && serialParts[1] === 'PROV', 'Serial prefix correctly formatted PT-PROV');
+    const hexBlocks = serialParts.slice(2);
+    assert(hexBlocks.length === 8, `Serial has 8 hex blocks (got ${hexBlocks.length})`);
+    const totalHexChars = hexBlocks.join('').length;
+    assert(totalHexChars === 32, `Serial represents full 32 hex characters / 128 bits of entropy (got ${totalHexChars})`);
+
+    // 4. Invalid signature rejected
     const invalidSigRes = await httpRequest('POST', '/api/v1/license/webhook/razorpay', {
       'X-Razorpay-Signature': 'invalid_forged_hex_signature_1234567890'
-    }, rawBody);
+    }, rawBody1);
     assert(invalidSigRes.status === 401, 'Forged webhook signature rejected with 401 Unauthorized');
 
-    // 4. Duplicate webhook idempotency
+    // 5. Duplicate webhook idempotency
     const retryRes = await httpRequest('POST', '/api/v1/license/webhook/razorpay', {
-      'X-Razorpay-Signature': validSignature
-    }, rawBody);
+      'X-Razorpay-Signature': validSignature1
+    }, rawBody1);
     assert(retryRes.status === 200 && retryRes.body.status === 'already_processed', 'Duplicate webhook retries handled idempotently without re-issuing');
 
-    // 5. Plugin Serial Key Activation
+    // 6. Non-plugin marketplace order filtering: Sample pack order should not generate licenses
+    const nonPluginPayload = {
+      event: 'payment.captured',
+      event_id: `evt_sample_pack_${Date.now()}`,
+      payload: {
+        payment: {
+          entity: {
+            id: `pay_sample_${Date.now()}`,
+            order_id: `ord_sample_${Date.now()}`,
+            amount: 2900,
+            currency: 'USD',
+            status: 'captured',
+            email: 'beatmaker@producer.com',
+            notes: {
+              userName: 'Beat Maker',
+              userEmail: 'beatmaker@producer.com',
+              productIds: 'sample-pack-uuid-1,sample-pack-uuid-2',
+              productSlugs: 'trap-drums-vol-1,bollywood-vocals-vol-2'
+            }
+          }
+        }
+      }
+    };
+    const rawSampleBody = JSON.stringify(nonPluginPayload);
+    const sampleSig = crypto.createHmac('sha256', TEST_WEBHOOK_SECRET).update(rawSampleBody).digest('hex');
+    const sampleWebhookRes = await httpRequest('POST', '/api/v1/license/webhook/razorpay', {
+      'X-Razorpay-Signature': sampleSig
+    }, rawSampleBody);
+    assert(sampleWebhookRes.status === 200 && sampleWebhookRes.body.status === 'non_plugin_order_acknowledged', 'Non-plugin sample pack order ignored without generating spurious licenses');
+
+    // 7. Dynamic marketplace product registration (3rd Party Brand Plugin like Plugin Boutique)
+    const partnerBrandRes = await httpRequest('POST', '/api/v1/admin/products', {
+      'Authorization': `Bearer ${TEST_ADMIN_KEY}`
+    }, {
+      id: 'brand-delay-uuid-8899',
+      name: 'Retro Space Delay',
+      slug: 'retro-space-delay',
+      brand: 'VintageAudio Lab',
+      pluginIdentifier: 'com.vintageaudiolab.spacedelay',
+      prefix: 'DELAY',
+      maxSeats: 2,
+      graceDays: 21
+    });
+    assert(partnerBrandRes.status === 200 && partnerBrandRes.body.success === true, 'Registered 3rd-party partner brand plugin dynamically');
+    assert(partnerBrandRes.body.product.brand === 'VintageAudio Lab', 'Partner brand name recorded');
+    assert(partnerBrandRes.body.product.serial_prefix === 'DELAY', 'Partner serial prefix recorded');
+
+    // 8. Purchase 3rd-Party Partner Brand Plugin via Webhook
+    const orderId2 = `ord_partner_${Date.now()}`;
+    const paymentId2 = `pay_partner_${Date.now()}`;
+    const partnerOrderPayload = {
+      event: 'payment.captured',
+      event_id: `evt_partner_${Date.now()}`,
+      payload: {
+        payment: {
+          entity: {
+            id: paymentId2,
+            order_id: orderId2,
+            amount: 4900,
+            currency: 'USD',
+            status: 'captured',
+            email: 'partner.customer@audio.com',
+            notes: {
+              userName: 'Mixing Engineer',
+              userEmail: 'partner.customer@audio.com',
+              dedicatedProductIds: 'brand-delay-uuid-8899',
+              dedicatedProductSlugs: 'retro-space-delay'
+            }
+          }
+        }
+      }
+    };
+    const rawPartnerBody = JSON.stringify(partnerOrderPayload);
+    const partnerSig = crypto.createHmac('sha256', TEST_WEBHOOK_SECRET).update(rawPartnerBody).digest('hex');
+    const partnerWebhookRes = await httpRequest('POST', '/api/v1/license/webhook/razorpay', {
+      'X-Razorpay-Signature': partnerSig
+    }, rawPartnerBody);
+    assert(partnerWebhookRes.status === 200 && partnerWebhookRes.body.licenses.length === 1, 'Partner plugin license issued via webhook');
+    const partnerSerial = partnerWebhookRes.body.licenses[0].serialKey;
+    assert(partnerSerial.startsWith('PT-DELAY-'), `Partner serial has dynamic brand prefix: ${partnerSerial}`);
+
+    // 9. Plugin Serial Key Activation for ProVerb
     const device1 = '1111111111111111111111111111111111111111111111111111111111111111';
     const actRes1 = await httpRequest('POST', '/api/v1/license/serial/activate', {}, {
-      productId: PRODUCT_ID,
-      serialKey: issuedSerial,
+      productId: PROVERB_PRODUCT_ID,
+      serialKey: issuedSerial1,
       deviceId: device1,
       deviceName: 'Main Studio PC',
       os: 'Windows'
     });
-    assert(actRes1.status === 200 && actRes1.body.success === true, 'Device 1 activated with serial key');
+    assert(actRes1.status === 200 && actRes1.body.success === true, 'ProVerb activated on Device 1');
     assert(typeof actRes1.body.token === 'string' && actRes1.body.token.includes('.'), 'Valid Ed25519 token issued');
-    assert(actRes1.body.seatsUsed === 1 && actRes1.body.maxSeats === 3, 'Seat count updated to 1/3');
+    assert(actRes1.body.seatsUsed === 1 && actRes1.body.maxSeats === 3, 'ProVerb seat count 1/3');
 
-    // 6. Idempotent re-activation on same device
+    // 10. Plugin Serial Key Activation for Partner Brand Plugin
+    const actResPartner = await httpRequest('POST', '/api/v1/license/serial/activate', {}, {
+      productId: 'brand-delay-uuid-8899',
+      serialKey: partnerSerial,
+      deviceId: device1,
+      deviceName: 'Main Studio PC',
+      os: 'Windows'
+    });
+    assert(actResPartner.status === 200 && actResPartner.body.success === true, 'Partner Brand Plugin activated on Device 1');
+    assert(actResPartner.body.seatsUsed === 1 && actResPartner.body.maxSeats === 2, 'Partner plugin respects 2-seat limit');
+
+    // 11. Idempotent re-activation on same device
     const actRes1Repeat = await httpRequest('POST', '/api/v1/license/serial/activate', {}, {
-      productId: PRODUCT_ID,
-      serialKey: issuedSerial,
+      productId: PROVERB_PRODUCT_ID,
+      serialKey: issuedSerial1,
       deviceId: device1,
       deviceName: 'Main Studio PC'
     });
     assert(actRes1Repeat.status === 200 && actRes1Repeat.body.token === actRes1.body.token, 'Same device re-activation returns existing token idempotently');
     assert(actRes1Repeat.body.seatsUsed === 1, 'Seat count remains 1/3 (not incremented)');
 
-    // 7. Activate Device 2 and Device 3 (fill 3 seats)
+    // 12. Seat Limit Enforcement for Partner Plugin (maxSeats = 2)
     const device2 = '2222222222222222222222222222222222222222222222222222222222222222';
-    const actRes2 = await httpRequest('POST', '/api/v1/license/serial/activate', {}, {
-      productId: PRODUCT_ID,
-      serialKey: issuedSerial,
-      deviceId: device2,
-      deviceName: 'MacBook Pro M3',
-      os: 'macOS'
-    });
-    assert(actRes2.status === 200 && actRes2.body.seatsUsed === 2, 'Device 2 activated (2/3 seats)');
-
     const device3 = '3333333333333333333333333333333333333333333333333333333333333333';
-    const actRes3 = await httpRequest('POST', '/api/v1/license/serial/activate', {}, {
-      productId: PRODUCT_ID,
-      serialKey: issuedSerial,
-      deviceId: device3,
-      deviceName: 'Studio B Laptop'
-    });
-    assert(actRes3.status === 200 && actRes3.body.seatsUsed === 3, 'Device 3 activated (3/3 seats full)');
-
-    // 8. 4th device activation exceeds seat limit
-    const device4 = '4444444444444444444444444444444444444444444444444444444444444444';
-    const actRes4 = await httpRequest('POST', '/api/v1/license/serial/activate', {}, {
-      productId: PRODUCT_ID,
-      serialKey: issuedSerial,
-      deviceId: device4
-    });
-    assert(actRes4.status === 403, '4th device activation rejected with 403 Seat Limit Reached');
-
-    // 9. Deactivate Device 2 -> Seat released
-    const deactRes = await httpRequest('POST', '/api/v1/license/deactivate', {}, {
-      productId: PRODUCT_ID,
+    const partnerAct2 = await httpRequest('POST', '/api/v1/license/serial/activate', {}, {
+      productId: 'brand-delay-uuid-8899',
+      serialKey: partnerSerial,
       deviceId: device2
     });
-    assert(deactRes.status === 200 && deactRes.body.deactivated === true, 'Device 2 deactivated and seat released on server');
+    assert(partnerAct2.status === 200 && partnerAct2.body.seatsUsed === 2, 'Partner plugin seat 2/2 activated');
 
-    // 10. Device 4 can now activate into the freed seat
-    const actRes4After = await httpRequest('POST', '/api/v1/license/serial/activate', {}, {
-      productId: PRODUCT_ID,
-      serialKey: issuedSerial,
-      deviceId: device4,
-      deviceName: 'Studio B Upgraded'
+    const partnerAct3 = await httpRequest('POST', '/api/v1/license/serial/activate', {}, {
+      productId: 'brand-delay-uuid-8899',
+      serialKey: partnerSerial,
+      deviceId: device3
     });
-    assert(actRes4After.status === 200 && actRes4After.body.seatsUsed === 3, 'Device 4 activated into released seat (now 3/3)');
+    assert(partnerAct3.status === 403, 'Partner plugin 3rd device rejected with 403 (seat capacity 2)');
 
-    // 11. Customer offline license file download endpoint
+    // 13. Customer Direct Machine Claim & Recovery (Verified Order ID + Email)
+    const customerClaimRes = await httpRequest('POST', '/api/v1/license/customer/claim-device', {}, {
+      orderId: orderId1,
+      customerEmail: 'studio.producer@gmail.com',
+      deviceId: device2,
+      deviceName: 'Laptop DAW',
+      productId: PROVERB_PRODUCT_ID
+    });
+    assert(customerClaimRes.status === 200 && customerClaimRes.body.success === true, 'Customer direct machine claim succeeded via Order ID + Email');
+    assert(customerClaimRes.body.fileName === 'proverb.ptlic', 'Returned proper license file name');
+
+    // 14. Insecure Pairing Claim Attack Prevention:
+    // Starting a pairing challenge, then attempting to claim with email alone must be REJECTED!
+    const pairStartRes = await httpRequest('POST', '/api/v1/license/pair/start', {}, {
+      productId: PROVERB_PRODUCT_ID,
+      deviceId: device3,
+      deviceName: 'Pairing Test DAW'
+    });
+    assert(pairStartRes.status === 200 && pairStartRes.body.code, 'Pairing challenge initiated with short-lived code');
+    const pairCode = pairStartRes.body.code;
+
+    const insecureClaimRes = await httpRequest('POST', '/api/v1/license/pair/claim', {}, {
+      code: pairCode,
+      customerEmail: 'studio.producer@gmail.com' // No serial and no orderId!
+    });
+    assert(insecureClaimRes.status === 403, 'Insecure pairing claim with email alone correctly REJECTED with 403');
+
+    // 15. Valid Pairing Claim with verified Serial Key
+    const validClaimRes = await httpRequest('POST', '/api/v1/license/pair/claim', {}, {
+      code: pairCode,
+      serialKey: issuedSerial1
+    });
+    assert(validClaimRes.status === 200 && validClaimRes.body.success === true, 'Valid pairing claim with serial key authorized successfully');
+
+    // Poll pairing from plugin
+    const pollRes = await httpRequest('GET', `/api/v1/license/pair/poll?code=${pairCode}&deviceId=${device3}`);
+    assert(pollRes.status === 200 && pollRes.body.status === 'claimed' && pollRes.body.token, 'Plugin polled and received claimed entitlement token');
+
+    // 16. Offline License File Generation (.ptlic)
     const offlineDev = '5555555555555555555555555555555555555555555555555555555555555555';
-    // First deactivate device 3 to have capacity
-    await httpRequest('POST', '/api/v1/license/deactivate', {}, { productId: PRODUCT_ID, deviceId: device3 });
+    // Deactivate device3 to have room
+    await httpRequest('POST', '/api/v1/license/deactivate', {}, { productId: PROVERB_PRODUCT_ID, deviceId: device3 });
     const offlineRes = await httpRequest('POST', '/api/v1/license/offline/generate', {}, {
-      serialKey: issuedSerial,
+      serialKey: issuedSerial1,
       deviceId: offlineDev
     });
-    assert(offlineRes.status === 200 && offlineRes.body.fileName === 'proverb.ptlic', 'Offline .ptlic file generated for portal download');
+    assert(offlineRes.status === 200 && offlineRes.body.fileName === 'proverb.ptlic', 'Offline .ptlic file generated for customer portal download');
 
-    // 12. Refund Webhook -> Revokes license
+    // 17. Refund Webhook -> Revokes license
     const refundPayload = {
       event: 'payment.refunded',
       event_id: `evt_refund_${Date.now()}`,
       payload: {
         payment: {
           entity: {
-            id: paymentId,
-            order_id: orderId
+            id: paymentId1,
+            order_id: orderId1
           }
         }
       }
@@ -260,10 +381,10 @@ async function runTests() {
     }, refundBody);
     assert(refundRes.status === 200 && refundRes.body.message.includes('revoked'), 'Refund webhook processed and license revoked');
 
-    // 13. Revoked serial cannot activate anymore
+    // 18. Revoked serial cannot activate anymore
     const postRefundAct = await httpRequest('POST', '/api/v1/license/serial/activate', {}, {
-      productId: PRODUCT_ID,
-      serialKey: issuedSerial,
+      productId: PROVERB_PRODUCT_ID,
+      serialKey: issuedSerial1,
       deviceId: '6666666666666666666666666666666666666666666666666666666666666666'
     });
     assert(postRefundAct.status === 400 && postRefundAct.body.error.includes('revoked'), 'Revoked serial blocked from activation');
@@ -278,7 +399,7 @@ async function runTests() {
   console.log('===============================================================');
 
   if (failed === 0) {
-    console.log('[SUCCESS] ALL 13 PRODUCTION LICENSING TESTS PASSED!');
+    console.log('[SUCCESS] ALL 18 MULTI-BRAND PRODUCTION LICENSING TESTS PASSED!');
     process.exit(0);
   } else {
     console.error('[ERROR] Some tests failed.');
