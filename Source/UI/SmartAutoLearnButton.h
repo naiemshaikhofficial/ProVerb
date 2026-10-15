@@ -127,30 +127,30 @@ public:
     void paint (juce::Graphics& g) override
     {
         auto bounds = getLocalBounds().toFloat();
-        const float cornerR = 7.0f;
+        const float cornerR = 5.0f;
 
-        // 1. Studio Chassis Background & Border
-        juce::Colour bgTop (0xff1c1e26);
-        juce::Colour bgBot (0xff121319);
-        juce::Colour borderCol (0xff333742);
+        // 1. Futuristic Studio Chassis Background & Cyber Border
+        juce::Colour bgTop (0xff14161f);
+        juce::Colour bgBot (0xff0c0d12);
+        juce::Colour borderCol (0xff252936);
 
         if (isAnalyzing)
         {
-            bgTop = juce::Colour (0xff121622);
-            bgBot = juce::Colour (0xff0a0d16);
-            borderCol = juce::Colour (0xff38bdf8).withAlpha (isMouseOver ? 0.9f : 0.65f);
+            bgTop = juce::Colour (0xff0e1320);
+            bgBot = juce::Colour (0xff080b14);
+            borderCol = juce::Colour (0xff00f0ff).withAlpha (isMouseOver ? 0.95f : 0.70f);
         }
         else if (hasStickyResult)
         {
-            bgTop = juce::Colour (0xff171922);
-            bgBot = juce::Colour (0xff101117);
-            borderCol = juce::Colour (0xff3e4352);
+            bgTop = juce::Colour (0xff121520);
+            bgBot = juce::Colour (0xff0b0d14);
+            borderCol = juce::Colour (0xff32384a);
         }
         else if (isMouseOver)
         {
-            bgTop = juce::Colour (0xff242732);
-            bgBot = juce::Colour (0xff191a24);
-            borderCol = juce::Colour (0xff4f5567);
+            bgTop = juce::Colour (0xff1c202c);
+            bgBot = juce::Colour (0xff11131a);
+            borderCol = juce::Colour (0xff00f0ff).withAlpha (0.75f);
         }
 
         juce::ColourGradient grad (bgTop, 0.0f, bounds.getY(),
@@ -159,7 +159,7 @@ public:
         g.fillRoundedRectangle (bounds.reduced (0.5f), cornerR);
 
         g.setColour (borderCol);
-        g.drawRoundedRectangle (bounds.reduced (0.5f), cornerR, 1.2f);
+        g.drawRoundedRectangle (bounds.reduced (0.5f), cornerR, 1.0f);
 
         // =====================================================================
         // STATE 1: ANALYZING (DYNAMIC LIVE AUDIO WAVEFORM)
@@ -213,18 +213,18 @@ private:
         float iconX = bounds.getX() + 14.0f;
         float iconY = bounds.getCentreY() - iconSize * 0.5f;
 
-        g.setColour (isMouseOver ? juce::Colour (0xff38bdf8) : juce::Colour (0xff94a3b8));
+        g.setColour (isMouseOver ? juce::Colour (0xff00f0ff) : juce::Colour (0xff38bdf8));
         
         // 3 mini vertical EQ spectrum bars as acoustic emblem
-        float barW = 2.5f;
+        float barW = 2.0f;
         float barGap = 2.5f;
         g.fillRoundedRectangle (iconX, iconY + 4.0f, barW, 6.0f, 1.0f);
         g.fillRoundedRectangle (iconX + barW + barGap, iconY + 1.0f, barW, 12.0f, 1.0f);
         g.fillRoundedRectangle (iconX + (barW + barGap) * 2.0f, iconY + 3.0f, barW, 8.0f, 1.0f);
 
-        // Center / Main Typography - like Ozone's "Master Assistant"
-        g.setFont (juce::FontOptions (11.0f, juce::Font::bold));
-        g.setColour (isMouseOver ? juce::Colour (0xffffffff) : juce::Colour (0xfff1f5f9));
+        // Center / Main Typography
+        g.setFont (juce::FontOptions (10.5f, juce::Font::bold));
+        g.setColour (isMouseOver ? juce::Colour (0xffffffff) : juce::Colour (0xffe2e8f0));
         g.drawText ("SMART REVERB AI", bounds.withTrimmedLeft (34.0f).withTrimmedRight (14.0f),
                     juce::Justification::centred, false);
     }

@@ -65,12 +65,12 @@ public:
     {
         auto bounds = getLocalBounds().toFloat();
 
-        // 1. Chassis Background matching ProducerToy theme (#121212 / #18181b)
-        g.setColour (juce::Colour (0xff121214));
+        // 1. Chassis Background (Deep Obsidian Black #08090c)
+        g.setColour (juce::Colour (0xff08090c));
         g.fillRoundedRectangle (bounds, 6.0f);
 
-        // Subtle Card Border (#2a2a2a) with top bevel highlight
-        g.setColour (juce::Colour (0xff26262b));
+        // Subtle Cyber Border (#1c1f2b)
+        g.setColour (juce::Colour (0xff1c1f2b));
         g.drawRoundedRectangle (bounds, 6.0f, 1.0f);
 
         auto plotArea = getPlotArea();
@@ -82,10 +82,10 @@ public:
         if (plotW <= 20.0f || plotH <= 20.0f)
             return;
 
-        // Dark Display Inset Well (#16161a)
-        g.setColour (juce::Colour (0xff15161a));
+        // Dark Display Inset Well (Deep OLED #0a0b0f)
+        g.setColour (juce::Colour (0xff0a0b0f));
         g.fillRoundedRectangle (plotArea, 4.0f);
-        g.setColour (juce::Colour (0xff1f2026));
+        g.setColour (juce::Colour (0xff181a24));
         g.drawRoundedRectangle (plotArea, 4.0f, 1.0f);
 
         // 2. Frequency Grid Lines & Bottom Labels
@@ -596,20 +596,18 @@ private:
 
     void drawTopHeader (juce::Graphics& g, juce::Rectangle<float> bounds)
     {
-        // Reverb Filter Badge
-        auto badgeRect = juce::Rectangle<float> (bounds.getX() + 10.0f, bounds.getY() + 4.0f, 96.0f, 15.0f);
-        g.setColour (juce::Colour (0xff202228));
-        g.fillRoundedRectangle (badgeRect, 3.0f);
-        g.setColour (juce::Colour (0xff32353f));
-        g.drawRoundedRectangle (badgeRect, 3.0f, 1.0f);
+        // Glowing cyan micro-pip & modern header
+        float pipX = bounds.getX() + 12.0f;
+        float pipY = bounds.getY() + 11.5f;
 
-        // Glowing cyan dot
+        g.setColour (juce::Colour (0x4400f0ff));
+        g.fillEllipse (pipX - 2.5f, pipY - 2.5f, 7.0f, 7.0f);
         g.setColour (juce::Colour (0xff00f0ff));
-        g.fillEllipse (badgeRect.getX() + 6.0f, badgeRect.getCentreY() - 2.5f, 5.0f, 5.0f);
+        g.fillEllipse (pipX - 1.0f, pipY - 1.0f, 4.0f, 4.0f);
 
-        g.setFont (juce::FontOptions (8.5f, juce::Font::bold));
-        g.setColour (juce::Colour (0xffffffff));
-        g.drawText ("REVERB FILTER", (int) badgeRect.getX() + 16, (int) badgeRect.getY(), (int) badgeRect.getWidth() - 18, (int) badgeRect.getHeight(), juce::Justification::centredLeft);
+        g.setFont (juce::FontOptions (9.0f, juce::Font::bold));
+        g.setColour (juce::Colour (0xffcbd5e1));
+        g.drawText ("REVERB FILTER // ACOUSTIC SPECTRUM", (int) bounds.getX() + 22, (int) bounds.getY() + 4, 240, 15, juce::Justification::centredLeft);
 
         // Active Node Detailed Readout
         float activeFreq = (selectedNode == NodeSelection::Input) ? currentLowCut
@@ -625,8 +623,8 @@ private:
                                + "   |   Q: " + juce::String (activeQ, 2)
                                + "   |   GAIN: " + (activeGain >= 0.0f ? "+" : "") + juce::String (activeGain, 1) + " dB";
 
-        g.setFont (juce::FontOptions (9.0f, juce::Font::bold));
-        g.setColour (juce::Colour (0xffa1a1aa));
+        g.setFont (juce::FontOptions (8.5f, juce::Font::bold));
+        g.setColour (juce::Colour (0xff8a90a2));
         g.drawText (paramText, (int) bounds.getRight() - 360, (int) bounds.getY() + 4, 350, 15, juce::Justification::right);
     }
 

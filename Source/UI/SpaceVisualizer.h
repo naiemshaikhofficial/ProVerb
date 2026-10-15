@@ -50,11 +50,16 @@ public:
     {
         auto bounds = getLocalBounds().toFloat();
 
-        // 1. Dark Studio Chassis Well
-        g.setColour (juce::Colour (0xff0d0e11));
+        // 1. Futuristic Deep Obsidian Well
+        g.setColour (juce::Colour (0xff06070a));
         g.fillRoundedRectangle (bounds, 8.0f);
-        g.setColour (juce::Colour (0xff1f2127));
+        g.setColour (juce::Colour (0xff181a24));
         g.drawRoundedRectangle (bounds, 8.0f, 1.0f);
+
+        // Minimalist Cyber HUD Badge (Top Left)
+        g.setFont (juce::FontOptions (8.5f, juce::Font::bold));
+        g.setColour (juce::Colour (0x5538bdf8));
+        g.drawText ("[ 3D ACOUSTIC MATRIX ]", (int) bounds.getX() + 10, (int) bounds.getY() + 6, 140, 12, juce::Justification::left);
 
         auto centre = bounds.getCentre();
 
@@ -62,8 +67,7 @@ public:
         // PARAMETER-DRIVEN GEOMETRY (Real-time visual feedback)
         // =========================================================================
         
-        // 1. SIZE -> Radius / Circumference (Mota / Patla)
-        // Maps 10% to 100% smoothly to width percentage
+        // 1. SIZE -> Radius / Circumference
         float minRadiusX = bounds.getWidth() * 0.18f;
         float maxRadiusX = bounds.getWidth() * 0.44f;
         float radiusX = juce::jmap (spaceSize, 10.0f, 100.0f, minRadiusX, maxRadiusX);
@@ -73,8 +77,7 @@ public:
         radiusX += rmsOut * 18.0f;
         radiusY += rmsOut * 6.0f;
 
-        // 2. DECAY -> Cylinder Height (Lamba / Chhota)
-        // Maps 0.1s to 30s decay time to vertical span
+        // 2. DECAY -> Cylinder Height
         float minHeight = bounds.getHeight() * 0.25f;
         float maxHeight = bounds.getHeight() * 0.65f;
         float normalizedDecay = juce::jlimit (0.0f, 1.0f, std::log10 (decayTime * 3.33f + 1.0f) * 0.5f);
@@ -85,17 +88,14 @@ public:
         float topCenterY = (centre.y - cylinderHeight * 0.5f) - predelayLift;
         float bottomCenterY = (centre.y + cylinderHeight * 0.5f) - predelayLift;
 
-        // 3. DIFFUSION -> Number of Vertical Wireframe Ribs (Sparser vs Denser)
-        // 0% diffusion = 8 ribs, 100% diffusion = 28 ribs
+        // 3. DIFFUSION -> Number of Vertical Wireframe Ribs
         int numRibs = (int) juce::jmap (diffusion, 0.0f, 100.0f, 10.0f, 28.0f);
         if (numRibs % 2 != 0) numRibs++; // Keep even for symmetry
 
         // 4. DAMPING -> Color Temperature & Bloom
-        // Low damping (0%) = Crisp Electric Cyan-Blue & White (Bright air)
-        // High damping (100%) = Deep Muted Navy-Indigo (Warm air absorption)
         float dampFactor = damping / 100.0f;
-        juce::Colour wireframeFrontCol = juce::Colour (0xffffffff).interpolatedWith (juce::Colour (0xffe2e8f0), dampFactor);
-        juce::Colour wireframeBackCol  = juce::Colour (0x33ffffff).interpolatedWith (juce::Colour (0x1594a3b8), dampFactor);
+        juce::Colour wireframeFrontCol = juce::Colour (0xff00f0ff).interpolatedWith (juce::Colour (0xffe2e8f0), 1.0f - dampFactor * 0.5f);
+        juce::Colour wireframeBackCol  = juce::Colour (0x2800f0ff).interpolatedWith (juce::Colour (0x1294a3b8), dampFactor);
 
         // =========================================================================
         // NEOVERB-STYLE COLORFUL ACOUSTIC AURA & MULTI-GRADIENT NEBULA
@@ -103,7 +103,7 @@ public:
 
         // 1. Top Lobe Glow: Pure Glowing White (Reflections / Early Space)
         float whiteIntensity = juce::jlimit (0.15f, 0.85f, 0.25f + (spaceSize / 100.0f) * 0.4f + rmsOut * 0.6f);
-        juce::ColourGradient whiteAura (juce::Colour (0xffffffff).withAlpha (whiteIntensity * 0.32f), centre.x, topCenterY,
+        juce::ColourGradient whiteAura (juce::Colour (0xffffffff).withAlpha (whiteIntensity * 0.28f), centre.x, topCenterY,
                                         juce::Colour (0x00000000), centre.x, centre.y + cylinderHeight * 0.4f, true);
         g.setGradientFill (whiteAura);
         g.fillEllipse (centre.x - radiusX * 1.05f, topCenterY - radiusY * 1.5f, radiusX * 2.1f, cylinderHeight * 0.9f);
@@ -112,7 +112,7 @@ public:
         float violetIntensity = juce::jlimit (0.15f, 0.80f, 0.20f + (diffusion / 100.0f) * 0.35f + rmsOut * 0.5f);
         float blX = centre.x - radiusX * 0.6f;
         float blY = bottomCenterY + radiusY * 0.3f;
-        juce::ColourGradient violetAura (juce::Colour (0xff8b5cf6).withAlpha (violetIntensity * 0.40f), blX, blY,
+        juce::ColourGradient violetAura (juce::Colour (0xff8b5cf6).withAlpha (violetIntensity * 0.35f), blX, blY,
                                          juce::Colour (0x00000000), centre.x, centre.y - cylinderHeight * 0.3f, true);
         g.setGradientFill (violetAura);
         g.fillEllipse (blX - radiusX * 0.8f, blY - cylinderHeight * 0.5f, radiusX * 1.6f, cylinderHeight * 0.9f);
@@ -121,7 +121,7 @@ public:
         float coralIntensity = juce::jlimit (0.15f, 0.85f, 0.20f + normalizedDecay * 0.4f + rmsOut * 0.5f);
         float brX = centre.x + radiusX * 0.6f;
         float brY = bottomCenterY + radiusY * 0.3f;
-        juce::ColourGradient coralAura (juce::Colour (0xffff5e7e).withAlpha (coralIntensity * 0.40f), brX, brY,
+        juce::ColourGradient coralAura (juce::Colour (0xffff5e7e).withAlpha (coralIntensity * 0.35f), brX, brY,
                                         juce::Colour (0x00000000), centre.x, centre.y - cylinderHeight * 0.3f, true);
         g.setGradientFill (coralAura);
         g.fillEllipse (brX - radiusX * 0.8f, brY - cylinderHeight * 0.5f, radiusX * 1.6f, cylinderHeight * 0.9f);
@@ -134,13 +134,13 @@ public:
             float waveRadY = waveRadX * 0.38f;
             float waveAlpha = (1.0f - wavePhase) * (0.14f + rmsOut * 0.40f);
             
-            juce::Colour waveCol = (w == 0 ? juce::Colour (0xffffffff) : (w == 1 ? juce::Colour (0xffa855f7) : juce::Colour (0xffff5e7e)));
+            juce::Colour waveCol = (w == 0 ? juce::Colour (0xff00f0ff) : (w == 1 ? juce::Colour (0xffa855f7) : juce::Colour (0xffff5e7e)));
             g.setColour (waveCol.withAlpha (waveAlpha));
-            g.drawEllipse (centre.x - waveRadX, centre.y - waveRadY, waveRadX * 2.0f, waveRadY * 2.0f, 1.4f);
+            g.drawEllipse (centre.x - waveRadX, centre.y - waveRadY, waveRadX * 2.0f, waveRadY * 2.0f, 1.2f);
         }
 
         // =========================================================================
-        // DRAW 3D WIREFRAME CYLINDER
+        // DRAW 3D WIREFRAME CYLINDER WITH HOLOGRAPHIC CROSS-SECTIONS
         // =========================================================================
 
         // Draw Back Ribs (Perspective depth: dark and thin)
@@ -166,6 +166,16 @@ public:
         g.drawEllipse (centre.x - radiusX, topCenterY - radiusY, radiusX * 2.0f, radiusY * 2.0f, 1.0f);
         g.drawEllipse (centre.x - radiusX, bottomCenterY - radiusY, radiusX * 2.0f, radiusY * 2.0f, 1.0f);
 
+        // Holographic Intermediate Horizontal Slices (Back Arcs)
+        float mid1Y = juce::jmap (0.33f, topCenterY, bottomCenterY);
+        float mid2Y = juce::jmap (0.66f, topCenterY, bottomCenterY);
+        juce::Path mid1Back, mid2Back;
+        mid1Back.addCentredArc (centre.x, mid1Y, radiusX, radiusY, 0.0f, juce::MathConstants<float>::pi, juce::MathConstants<float>::twoPi, true);
+        mid2Back.addCentredArc (centre.x, mid2Y, radiusX, radiusY, 0.0f, juce::MathConstants<float>::pi, juce::MathConstants<float>::twoPi, true);
+        g.setColour (wireframeBackCol.withAlpha (0.15f));
+        g.strokePath (mid1Back, juce::PathStrokeType (0.8f));
+        g.strokePath (mid2Back, juce::PathStrokeType (0.8f));
+
         // 5. SHIMMER -> Floating Star Particles inside the space
         if (shimmer > 1.0f)
         {
@@ -177,12 +187,12 @@ public:
                 float pDistY = (std::sin (pAngle * 2.1f) * cylinderHeight * 0.35f);
                 float pAlpha = (std::sin (shimmerPhase * 2.0f + (float) p) * 0.5f + 0.5f) * (shimmer / 100.0f);
 
-                g.setColour (juce::Colour (0xffe0f2fe).withAlpha (pAlpha));
+                g.setColour (juce::Colour (0xff00f0ff).withAlpha (pAlpha));
                 g.fillEllipse (centre.x + pDistX - 1.5f, centre.y + pDistY - 1.5f, 3.0f, 3.0f);
             }
         }
 
-        // Draw Front Ribs (Perspective foreground: bright with neon bloom)
+        // Draw Front Ribs (Perspective foreground: glowing cyan & laser white)
         for (int i = 0; i < numRibs; ++i)
         {
             float theta = ((float) i / (float) numRibs) * juce::MathConstants<float>::twoPi + rotationAngle;
@@ -196,59 +206,72 @@ public:
                 float yBot = bottomCenterY + sinT * radiusY;
 
                 // Outer soft neon bloom
-                g.setColour (wireframeFrontCol.withAlpha (0.28f + rmsOut * 0.35f));
-                g.drawLine (x, yTop, x, yBot, 3.2f);
+                g.setColour (wireframeFrontCol.withAlpha (0.24f + rmsOut * 0.30f));
+                g.drawLine (x, yTop, x, yBot, 3.0f);
 
                 // Bright core line
                 g.setColour (wireframeFrontCol.withAlpha (0.95f));
-                g.drawLine (x, yTop, x, yBot, 1.4f);
+                g.drawLine (x, yTop, x, yBot, 1.2f);
             }
         }
 
-        // Front Rim Rings (Thick glowing border)
+        // Holographic Intermediate Horizontal Slices (Front Arcs)
+        juce::Path mid1Front, mid2Front;
+        mid1Front.addCentredArc (centre.x, mid1Y, radiusX, radiusY, 0.0f, 0.0f, juce::MathConstants<float>::pi, true);
+        mid2Front.addCentredArc (centre.x, mid2Y, radiusX, radiusY, 0.0f, 0.0f, juce::MathConstants<float>::pi, true);
+        g.setColour (wireframeFrontCol.withAlpha (0.35f));
+        g.strokePath (mid1Front, juce::PathStrokeType (1.0f));
+        g.strokePath (mid2Front, juce::PathStrokeType (1.0f));
+
+        // Front Rim Rings (Glowing Cyber Rim)
         juce::Path topPath;
         topPath.addCentredArc (centre.x, topCenterY, radiusX, radiusY, 0.0f, 0.0f, juce::MathConstants<float>::pi, true);
+        g.setColour (wireframeFrontCol.withAlpha (0.35f));
+        g.strokePath (topPath, juce::PathStrokeType (4.0f));
         g.setColour (wireframeFrontCol);
-        g.strokePath (topPath, juce::PathStrokeType (2.2f));
+        g.strokePath (topPath, juce::PathStrokeType (1.8f));
 
         juce::Path bottomPath;
         bottomPath.addCentredArc (centre.x, bottomCenterY, radiusX, radiusY, 0.0f, 0.0f, juce::MathConstants<float>::pi, true);
-        g.strokePath (bottomPath, juce::PathStrokeType (2.2f));
+        g.setColour (wireframeFrontCol.withAlpha (0.35f));
+        g.strokePath (bottomPath, juce::PathStrokeType (4.0f));
+        g.setColour (wireframeFrontCol);
+        g.strokePath (bottomPath, juce::PathStrokeType (1.8f));
 
-        // 6. Central Holographic Control Orb (Neoverb Space Node)
-        float orbRadius = 8.0f + (rmsOut * 16.0f);
+        // 6. Central Holographic Control Orb (Acoustic Singularity Node)
+        float orbRadius = 7.0f + (rmsOut * 14.0f);
         // Outer halo
-        g.setColour (juce::Colour (0x33ffffff));
+        g.setColour (juce::Colour (0x2800f0ff));
         g.fillEllipse (centre.x - orbRadius * 1.8f, centre.y - orbRadius * 1.8f, orbRadius * 3.6f, orbRadius * 3.6f);
         // Translucent dark glass sphere
-        g.setColour (juce::Colour (0xbb0d1117));
+        g.setColour (juce::Colour (0xd007090e));
         g.fillEllipse (centre.x - orbRadius, centre.y - orbRadius, orbRadius * 2.0f, orbRadius * 2.0f);
-        // Glowing neon rim ring (Pure White)
-        g.setColour (juce::Colour (0xffffffff));
-        g.drawEllipse (centre.x - orbRadius, centre.y - orbRadius, orbRadius * 2.0f, orbRadius * 2.0f, 1.8f);
+        // Glowing neon rim ring
+        g.setColour (juce::Colour (0xff00f0ff));
+        g.drawEllipse (centre.x - orbRadius, centre.y - orbRadius, orbRadius * 2.0f, orbRadius * 2.0f, 1.5f);
         // Inner jewel nucleus
-        float jewelR = 3.5f + (rmsIn * 6.0f);
-        g.setColour (juce::Colour (0xffffffff).withAlpha (0.95f));
+        float jewelR = 3.0f + (rmsIn * 5.0f);
+        g.setColour (juce::Colour (0xffffffff));
         g.fillEllipse (centre.x - jewelR, centre.y - jewelR, jewelR * 2.0f, jewelR * 2.0f);
 
-        // 7. Interactive Feedback Badges at Bottom (Cleanly separated non-overlapping zones)
-        g.setFont (juce::FontOptions (10.0f, juce::Font::bold));
-        g.setColour (juce::Colour (0xff94a3b8));
+        // 7. Interactive Feedback Badges at Bottom (Futuristic Cyber Typography)
+        g.setFont (juce::FontOptions (9.5f, juce::Font::bold));
+        g.setColour (juce::Colour (0xff38bdf8));
         g.drawText ("SPACE: " + juce::String ((int) spaceSize) + "%", (int) bounds.getX() + 10, (int) bounds.getBottom() - 18, 75, 14, juce::Justification::left);
 
         // Real-Time Stereo Phase Correlation Meter (Mono Compatibility Indicator)
         const int meterW = 56;
-        const int meterH = 5;
+        const int meterH = 4;
         const int meterX = (int) bounds.getRight() - meterW - 8;
-        const int meterY = (int) bounds.getBottom() - 13;
+        const int meterY = (int) bounds.getBottom() - 12;
 
-        g.setColour (juce::Colour (0xff14161d));
-        g.fillRoundedRectangle ((float) meterX, (float) meterY, (float) meterW, (float) meterH, 2.5f);
-        g.setColour (juce::Colour (0x33ffffff));
-        g.drawRoundedRectangle ((float) meterX, (float) meterY, (float) meterW, (float) meterH, 2.5f, 0.8f);
+        g.setColour (juce::Colour (0xff0c0d12));
+        g.fillRoundedRectangle ((float) meterX, (float) meterY, (float) meterW, (float) meterH, 2.0f);
+        g.setColour (juce::Colour (0xff1e222e));
+        g.drawRoundedRectangle ((float) meterX, (float) meterY, (float) meterW, (float) meterH, 2.0f, 0.8f);
 
         // Center tick
-        g.setColour (juce::Colour (0x55ffffff));
+        g.setColour (juce::Colour (0x66ffffff));
         g.drawVerticalLine (meterX + meterW / 2, (float) meterY, (float) (meterY + meterH));
 
         float pinNorm = juce::jlimit (0.0f, 1.0f, (phaseCorr + 1.0f) * 0.5f);
@@ -258,10 +281,10 @@ public:
                               : juce::Colour (0xffef4444);
 
         g.setColour (phaseCol);
-        g.fillRoundedRectangle (pinX, (float) meterY - 1.0f, 4.0f, (float) (meterH + 2), 2.0f);
+        g.fillRoundedRectangle (pinX, (float) meterY - 1.0f, 3.5f, (float) (meterH + 2), 1.5f);
 
         juce::String phaseText = juce::String ("PHASE: ") + (phaseCorr >= 0.0f ? "+" : "") + juce::String (phaseCorr, 2);
-        g.setFont (juce::FontOptions (9.0f, juce::Font::bold));
+        g.setFont (juce::FontOptions (8.5f, juce::Font::bold));
         g.setColour (phaseCol.withAlpha (0.95f));
         g.drawText (phaseText, meterX - 74, (int) bounds.getBottom() - 18, 70, 14, juce::Justification::right);
 

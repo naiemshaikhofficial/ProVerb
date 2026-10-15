@@ -42,7 +42,7 @@ public:
         return l;
     }
 
-    // 1. Hardware 3D Rotary Knobs (FL Studio-Inspired Tactile Dials with Glowing Cyan Arc)
+    // 1. Futuristic Minimalist Rotary Knobs (Obsidian Core with Glowing Luminous Neon Arc & Radiant Pip)
     void drawRotarySlider (juce::Graphics& g, int x, int y, int width, int height,
                            float sliderPosProportional, float rotaryStartAngle,
                            float rotaryEndAngle, juce::Slider& /*slider*/) override
@@ -57,96 +57,100 @@ public:
         auto squareBounds = juce::Rectangle<float> (centre.x - radius, centre.y - radius, radius * 2.0f, radius * 2.0f);
         auto toAngle = rotaryStartAngle + sliderPosProportional * (rotaryEndAngle - rotaryStartAngle);
 
-        // 1. Recessed Socket Well (Dark Carved Socket with Top-Left Bevel Highlight)
-        g.setColour (juce::Colour (0xff0a0b0e));
+        // 1. Recessed Obsidian Circular Bed (Ultra-Clean Deep Black Well)
+        g.setColour (juce::Colour (0xff08090c));
         g.fillEllipse (squareBounds);
 
-        // Outer socket bevel (light catch on top, shadow on bottom)
-        juce::ColourGradient socketGrad (juce::Colour (0xff2b2e38), centre.x, squareBounds.getY(),
-                                         juce::Colour (0xff0d0e12), centre.x, squareBounds.getBottom(), false);
+        // Hairline cyber rim (subtle bevel light catch on top, shadow below)
+        juce::ColourGradient socketGrad (juce::Colour (0xff1f232f), centre.x, squareBounds.getY(),
+                                         juce::Colour (0xff0c0d12), centre.x, squareBounds.getBottom(), false);
         g.setGradientFill (socketGrad);
-        g.drawEllipse (squareBounds, 1.2f);
+        g.drawEllipse (squareBounds, 1.0f);
 
-        // 2. Track Background Arc (Recessed Dark Channel)
-        float arcRadius = radius - 4.5f;
+        // 2. Track Background Arc (Minimalist Dark Hairline Slot)
+        float arcRadius = radius - 4.2f;
         juce::Path bgArc;
         bgArc.addCentredArc (centre.x, centre.y, arcRadius, arcRadius, 0.0f,
                              rotaryStartAngle, rotaryEndAngle, true);
-        g.setColour (juce::Colour (0xff16171d));
-        g.strokePath (bgArc, juce::PathStrokeType (3.4f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        g.setColour (juce::Colour (0xff151722));
+        g.strokePath (bgArc, juce::PathStrokeType (2.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
-        // 3. Active Glowing Value Arc (Signature Hardware Cyan Neon Glow)
+        // 3. Active Luminous Value Arc (Futuristic Glowing Ice-Cyan)
         if (sliderPosProportional > 0.001f)
         {
             juce::Path activeArc;
             activeArc.addCentredArc (centre.x, centre.y, arcRadius, arcRadius, 0.0f,
                                      rotaryStartAngle, toAngle, true);
             
-            // Soft Ambient Cyan Bloom
-            g.setColour (juce::Colour (0x3300f0ff));
-            g.strokePath (activeArc, juce::PathStrokeType (7.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+            // Soft Ambient Neon Cyan Bloom
+            g.setColour (juce::Colour (0x2800f0ff));
+            g.strokePath (activeArc, juce::PathStrokeType (6.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
-            // Vivid Core Arc (Ice Cyan #00e5ff to #38bdf8 gradient)
-            juce::ColourGradient arcGrad (juce::Colour (0xff00e5ff), squareBounds.getX(), squareBounds.getY(),
+            // Sharp Luminous Laser Core
+            juce::ColourGradient arcGrad (juce::Colour (0xff00f0ff), squareBounds.getX(), squareBounds.getY(),
                                            juce::Colour (0xff38bdf8), squareBounds.getRight(), squareBounds.getBottom(), false);
             g.setGradientFill (arcGrad);
-            g.strokePath (activeArc, juce::PathStrokeType (3.2f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+            g.strokePath (activeArc, juce::PathStrokeType (2.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+
+            // Radiant Active Beacon Indicator Pip at current value
+            float pipX = centre.x + std::sin (toAngle) * arcRadius;
+            float pipY = centre.y - std::cos (toAngle) * arcRadius;
+            
+            // Pip Neon Halo
+            g.setColour (juce::Colour (0x5500f0ff));
+            g.fillEllipse (pipX - 3.5f, pipY - 3.5f, 7.0f, 7.0f);
+            
+            // Pure White Laser Core Dot
+            g.setColour (juce::Colour (0xffffffff));
+            g.fillEllipse (pipX - 1.5f, pipY - 1.5f, 3.0f, 3.0f);
         }
 
-        // 4. Dial Knob Body (Raised 3D Hardware Finish)
-        float dialRadius = radius * 0.72f;
+        // 4. Dial Knob Body (Minimalist Floating Obsidian Rotor)
+        float dialRadius = radius * 0.68f;
         auto dialBounds = juce::Rectangle<float> (centre.x - dialRadius, centre.y - dialRadius, dialRadius * 2.0f, dialRadius * 2.0f);
 
-        // Tactile Drop Shadow Underneath Dial
-        g.setColour (juce::Colour (0x88000000));
-        g.fillEllipse (dialBounds.translated (0.0f, 2.5f));
+        // Subtle Soft Ambient Depth Shadow
+        g.setColour (juce::Colour (0xaa000000));
+        g.fillEllipse (dialBounds.translated (0.0f, 1.8f));
 
-        // Outer Precision Bevel (Light Source from Top-Left: #565a6b down to #191a20)
-        juce::ColourGradient bevelGrad (juce::Colour (0xff545868), centre.x - dialRadius * 0.7f, centre.y - dialRadius * 0.7f,
-                                        juce::Colour (0xff18191f), centre.x + dialRadius * 0.7f, centre.y + dialRadius * 0.7f, false);
-        g.setGradientFill (bevelGrad);
+        // Precision Obsidian Dial Face
+        juce::ColourGradient dialGrad (juce::Colour (0xff1a1c25), centre.x, dialBounds.getY(),
+                                       juce::Colour (0xff0e0f15), centre.x, dialBounds.getBottom(), false);
+        g.setGradientFill (dialGrad);
         g.fillEllipse (dialBounds);
 
-        // Dial Face (ProducerToy Signature Slate #34363d Hardware Finish)
-        float faceRadius = dialRadius - 1.8f;
-        auto faceBounds = juce::Rectangle<float> (centre.x - faceRadius, centre.y - faceRadius, faceRadius * 2.0f, faceRadius * 2.0f);
-        juce::ColourGradient faceGrad (juce::Colour (0xff424652), centre.x, faceBounds.getY(),
-                                       juce::Colour (0xff22232a), centre.x, faceBounds.getBottom(), false);
-        g.setGradientFill (faceGrad);
-        g.fillEllipse (faceBounds);
+        // Razor-sharp Hairline Rim
+        g.setColour (juce::Colour (0xff2b3040));
+        g.drawEllipse (dialBounds, 1.0f);
 
-        // Fine Concentric Milled Groove Ring
-        g.setColour (juce::Colour (0x33000000));
-        g.drawEllipse (faceBounds.reduced (2.5f), 1.0f);
+        // Futuristic Concentric Inner Accent Ring
+        float innerRingRadius = dialRadius * 0.48f;
+        g.setColour (juce::Colour (0x18ffffff));
+        g.drawEllipse (centre.x - innerRingRadius, centre.y - innerRingRadius,
+                       innerRingRadius * 2.0f, innerRingRadius * 2.0f, 0.8f);
 
-        // Inner Brushed Cap (Deep Graphite Inset Core)
-        float capRadius = dialRadius * 0.42f;
-        auto capBounds = juce::Rectangle<float> (centre.x - capRadius, centre.y - capRadius, capRadius * 2.0f, capRadius * 2.0f);
-        juce::ColourGradient capGrad (juce::Colour (0xff2c2e36), centre.x, capBounds.getY(),
-                                      juce::Colour (0xff141519), centre.x, capBounds.getBottom(), false);
-        g.setGradientFill (capGrad);
-        g.fillEllipse (capBounds);
+        // 5. Razor-Sharp Futuristic Indicator Needle
+        float needleStart = dialRadius * 0.28f;
+        float needleEnd   = dialRadius * 0.84f;
 
-        g.setColour (juce::Colour (0xff383b46));
-        g.drawEllipse (capBounds, 1.0f);
+        float sinA = std::sin (toAngle);
+        float cosA = std::cos (toAngle);
 
-        // 5. Crisp Hardware Pointer Indicator with Illuminated Tip
-        juce::Path pointer;
-        float ptrLen = dialRadius * 0.75f;
-        pointer.addRoundedRectangle (-1.5f, -dialRadius + 2.0f, 3.0f, ptrLen * 0.55f, 1.5f);
-        pointer.applyTransform (juce::AffineTransform::rotation (toAngle).translated (centre.x, centre.y));
+        float xStart = centre.x + sinA * needleStart;
+        float yStart = centre.y - cosA * needleStart;
+        float xEnd   = centre.x + sinA * needleEnd;
+        float yEnd   = centre.y - cosA * needleEnd;
 
+        // Needle subtle cyan bloom
+        g.setColour (juce::Colour (0x4400f0ff));
+        g.drawLine (xStart, yStart, xEnd, yEnd, 3.2f);
+
+        // Sharp needle core
         g.setColour (juce::Colour (0xffffffff));
-        g.fillPath (pointer);
-
-        // Cyan Glowing Tip Dot at Dial Outer Edge
-        float tipX = centre.x + std::sin (toAngle) * (dialRadius - 2.5f);
-        float tipY = centre.y - std::cos (toAngle) * (dialRadius - 2.5f);
-        g.setColour (juce::Colour (0xff38bdf8));
-        g.fillEllipse (tipX - 1.5f, tipY - 1.5f, 3.0f, 3.0f);
+        g.drawLine (xStart, yStart, xEnd, yEnd, 1.5f);
     }
 
-    // 2. Hardware Tactile Push-Buttons with Illuminated LEDs (MID/SIDE, FREEZE, BYPASS)
+    // 2. Futuristic Tactile Push-Buttons with High-Tech Micro-LED (MID/SIDE, FREEZE, BYPASS)
     void drawToggleButton (juce::Graphics& g, juce::ToggleButton& button,
                            bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override
     {
@@ -154,138 +158,143 @@ public:
         auto bounds = button.getLocalBounds().toFloat();
         bool isToggled = button.getToggleState();
 
-        auto btnRect = bounds.reduced (2.0f, 2.0f);
+        auto btnRect = bounds.reduced (1.5f, 1.5f);
         const float cornerR = 4.0f;
 
-        // Custom accent color: Studio warning Amber-Red for BYPASS, Ice-Cyan for FREEZE & MID/SIDE
+        // Custom accent color: Studio warning Crimson for BYPASS, Electric Cyan for FREEZE & MID/SIDE
         juce::Colour activeColour = juce::Colour (0xff00f0ff);
         if (button.getButtonText() == "BYPASS")
-            activeColour = juce::Colour (0xffff4444);
+            activeColour = juce::Colour (0xffff3855);
         else if (button.isColourSpecified (juce::ToggleButton::tickColourId)
                  && button.findColour (juce::ToggleButton::tickColourId) != juce::Colour (0xffffffff))
             activeColour = button.findColour (juce::ToggleButton::tickColourId);
 
-        // Button chassis background
-        juce::Colour bgTop = isToggled ? activeColour.withMultipliedBrightness (0.24f).overlaidWith (juce::Colour (0xff16171d))
-                                       : (shouldDrawButtonAsHighlighted ? juce::Colour (0xff24262f) : juce::Colour (0xff191a21));
-        juce::Colour bgBot = isToggled ? activeColour.withMultipliedBrightness (0.12f).overlaidWith (juce::Colour (0xff0e0f13))
-                                       : juce::Colour (0xff121317);
-        juce::Colour borderCol = isToggled ? activeColour.withAlpha (0.85f)
-                                           : (shouldDrawButtonAsHighlighted ? juce::Colour (0xff454a57) : juce::Colour (0xff2b2d36));
+        // Futuristic chassis background
+        juce::Colour bgTop = isToggled ? activeColour.withMultipliedBrightness (0.22f).overlaidWith (juce::Colour (0xff12141c))
+                                       : (shouldDrawButtonAsHighlighted ? juce::Colour (0xff1e212b) : juce::Colour (0xff121319));
+        juce::Colour bgBot = isToggled ? activeColour.withMultipliedBrightness (0.10f).overlaidWith (juce::Colour (0xff0b0c10))
+                                       : juce::Colour (0xff0b0c10);
+        juce::Colour borderCol = isToggled ? activeColour.withAlpha (0.90f)
+                                           : (shouldDrawButtonAsHighlighted ? juce::Colour (0xff3d4455) : juce::Colour (0xff222530));
 
         juce::ColourGradient btnGrad (bgTop, 0.0f, btnRect.getY(), bgBot, 0.0f, btnRect.getBottom(), false);
         g.setGradientFill (btnGrad);
         g.fillRoundedRectangle (btnRect, cornerR);
 
-        // Top bevel highlight
-        g.setColour (isToggled ? activeColour.withAlpha (0.4f) : juce::Colour (0x1affffff));
-        g.drawHorizontalLine ((int) btnRect.getY() + 1, btnRect.getX() + 3.0f, btnRect.getRight() - 3.0f);
+        // Subtle cyber glow underlay if active
+        if (isToggled)
+        {
+            g.setColour (activeColour.withAlpha (0.15f));
+            g.fillRoundedRectangle (btnRect, cornerR);
+        }
 
-        // Outer border
+        // Razor-thin border
         g.setColour (borderCol);
         g.drawRoundedRectangle (btnRect, cornerR, 1.0f);
 
-        // Hardware LED Indicator Dot (Left side)
-        float ledSize = 6.0f;
+        // High-Tech Micro-LED Indicator (Left side)
+        float ledSize = 5.0f;
         float ledX = btnRect.getX() + 8.0f;
         float ledY = btnRect.getCentreY() - ledSize * 0.5f;
 
         if (isToggled)
         {
-            // Glowing LED with bloom
-            g.setColour (activeColour.withAlpha (0.35f));
-            g.fillEllipse (ledX - 2.5f, ledY - 2.5f, ledSize + 5.0f, ledSize + 5.0f);
+            // Radiant Micro-LED Bloom
+            g.setColour (activeColour.withAlpha (0.45f));
+            g.fillEllipse (ledX - 3.0f, ledY - 3.0f, ledSize + 6.0f, ledSize + 6.0f);
 
             g.setColour (activeColour);
             g.fillEllipse (ledX, ledY, ledSize, ledSize);
 
+            // Laser White Core
             g.setColour (juce::Colour (0xffffffff));
-            g.fillEllipse (ledX + 1.5f, ledY + 1.0f, 2.2f, 2.2f);
+            g.fillEllipse (ledX + 1.2f, ledY + 1.0f, 2.0f, 2.0f);
         }
         else
         {
-            // Dark recessed unlit LED socket
-            g.setColour (juce::Colour (0xff0c0d10));
+            // Dark recessed unlit socket
+            g.setColour (juce::Colour (0xff08090c));
             g.fillEllipse (ledX, ledY, ledSize, ledSize);
 
-            // Subtle dormant tint if BYPASS lamp
             if (button.getButtonText() == "BYPASS")
             {
                 g.setColour (juce::Colour (0x33441515));
                 g.fillEllipse (ledX + 1.0f, ledY + 1.0f, ledSize - 2.0f, ledSize - 2.0f);
             }
 
-            g.setColour (juce::Colour (0xff282b34));
-            g.drawEllipse (ledX, ledY, ledSize, ledSize, 1.0f);
+            g.setColour (juce::Colour (0xff252834));
+            g.drawEllipse (ledX, ledY, ledSize, ledSize, 0.8f);
         }
 
-        // Button Text — Centered in the available text bay with full width clearance
+        // Clean Modern Button Typography
         g.setFont (juce::FontOptions (9.5f, juce::Font::bold));
-        g.setColour (isToggled ? juce::Colour (0xffffffff) : (shouldDrawButtonAsHighlighted ? juce::Colour (0xffcbd5e1) : juce::Colour (0xff8f929e)));
+        g.setColour (isToggled ? juce::Colour (0xffffffff) : (shouldDrawButtonAsHighlighted ? juce::Colour (0xffcbd5e1) : juce::Colour (0xff8f94a6)));
         float ledRight = ledX + ledSize;
         auto textRect = btnRect.withTrimmedLeft (ledRight + 4.0f - btnRect.getX()).withTrimmedRight (4.0f);
         g.drawText (button.getButtonText(), textRect, juce::Justification::centred, true);
     }
 
-    // 3. Hardware Studio Vertical Console Fader (DRY, INPUT, WET)
+    // 3. Futuristic Cyber Console Fader (DRY, INPUT, WET, OUTPUT)
     void drawLinearSlider (juce::Graphics& g, int x, int y, int width, int height,
                            float sliderPos, float minSliderPos, float maxSliderPos,
                            juce::Slider::SliderStyle style, juce::Slider& slider) override
     {
         if (style == juce::Slider::LinearVertical)
         {
-            auto trackArea = juce::Rectangle<float> ((float) x + (float) width * 0.5f - 2.5f,
-                                                     (float) y + 6.0f, 5.0f, (float) height - 12.0f);
+            auto trackArea = juce::Rectangle<float> ((float) x + (float) width * 0.5f - 1.8f,
+                                                     (float) y + 6.0f, 3.6f, (float) height - 12.0f);
 
-            // 1. Recessed Fader Milled Slot
-            g.setColour (juce::Colour (0xff090a0d));
-            g.fillRoundedRectangle (trackArea, 2.5f);
-            g.setColour (juce::Colour (0xff1c1e24));
-            g.drawRoundedRectangle (trackArea, 2.5f, 1.0f);
+            // 1. Recessed Fader Track Slot (Deep OLED Black)
+            g.setColour (juce::Colour (0xff07080a));
+            g.fillRoundedRectangle (trackArea, 1.8f);
+            g.setColour (juce::Colour (0xff181a24));
+            g.drawRoundedRectangle (trackArea, 1.8f, 1.0f);
 
-            // 2. Hardware Precision Scale Ticks on Left & Right
-            for (float ty = trackArea.getY() + 4.0f; ty <= trackArea.getBottom() - 4.0f; ty += 12.0f)
+            // 2. Minimalist Cyber Scale Ticks
+            for (float ty = trackArea.getY() + 4.0f; ty <= trackArea.getBottom() - 4.0f; ty += 14.0f)
             {
-                g.setColour (juce::Colour (0xff262831));
-                g.drawHorizontalLine ((int) ty, trackArea.getX() - 6.0f, trackArea.getX() - 2.0f);
-                g.drawHorizontalLine ((int) ty, trackArea.getRight() + 2.0f, trackArea.getRight() + 6.0f);
+                g.setColour (juce::Colour (0xff20232d));
+                g.drawHorizontalLine ((int) ty, trackArea.getX() - 5.0f, trackArea.getX() - 2.0f);
+                g.drawHorizontalLine ((int) ty, trackArea.getRight() + 2.0f, trackArea.getRight() + 5.0f);
             }
 
-            // 3. Illuminated Active Slot below Fader Thumb
+            // 3. Luminous Active Beam below Fader Thumb
             auto activeSlot = trackArea.withTop (sliderPos);
-            g.setColour (juce::Colour (0x5538bdf8));
-            g.fillRoundedRectangle (activeSlot, 2.0f);
+            
+            // Soft ambient glow
+            g.setColour (juce::Colour (0x4400f0ff));
+            g.fillRoundedRectangle (activeSlot.expanded (1.0f, 0.0f), 2.0f);
+            
+            // Laser beam core
             g.setColour (juce::Colour (0xff00d4e8));
-            g.drawHorizontalLine ((int) sliderPos, trackArea.getX(), trackArea.getRight());
+            g.fillRoundedRectangle (activeSlot, 1.5f);
 
-            // 4. Hardware Studio Console Fader Cap
-            float thumbW = 28.0f;
-            float thumbH = 18.0f;
+            // 4. Futuristic Minimalist Cyber Fader Cap
+            float thumbW = 26.0f;
+            float thumbH = 15.0f;
             auto thumbRect = juce::Rectangle<float> ((float) x + (float) width * 0.5f - thumbW * 0.5f,
                                                      sliderPos - thumbH * 0.5f, thumbW, thumbH);
 
-            // Drop shadow
-            g.setColour (juce::Colour (0x88000000));
-            g.fillRoundedRectangle (thumbRect.translated (0, 2.5f), 3.0f);
+            // Subtle drop shadow
+            g.setColour (juce::Colour (0xaa000000));
+            g.fillRoundedRectangle (thumbRect.translated (0, 2.0f), 2.5f);
 
-            // Tactile Fader Cap Gradient (#34363d Hardware Theme)
-            juce::ColourGradient thumbGrad (juce::Colour (0xff4b4e5b), thumbRect.getX(), thumbRect.getY(),
-                                            juce::Colour (0xff23252c), thumbRect.getX(), thumbRect.getBottom(), false);
+            // Aerodynamic Obsidian Body
+            juce::ColourGradient thumbGrad (juce::Colour (0xff252834), thumbRect.getX(), thumbRect.getY(),
+                                            juce::Colour (0xff101117), thumbRect.getX(), thumbRect.getBottom(), false);
             g.setGradientFill (thumbGrad);
-            g.fillRoundedRectangle (thumbRect, 3.0f);
+            g.fillRoundedRectangle (thumbRect, 2.5f);
 
-            // Bevel rim
-            g.setColour (juce::Colour (0xff595d6c));
-            g.drawRoundedRectangle (thumbRect, 3.0f, 1.0f);
+            // Hairline Cyber Rim
+            g.setColour (juce::Colour (0xff3b4154));
+            g.drawRoundedRectangle (thumbRect, 2.5f, 1.0f);
 
-            // Horizontal tactile grip grooves on cap
-            g.setColour (juce::Colour (0xff1a1b21));
-            g.drawHorizontalLine ((int) thumbRect.getCentreY() - 4, thumbRect.getX() + 4.0f, thumbRect.getRight() - 4.0f);
-            g.drawHorizontalLine ((int) thumbRect.getCentreY() + 4, thumbRect.getX() + 4.0f, thumbRect.getRight() - 4.0f);
-
-            // Center Clean White Indicator Line
+            // Glowing Center Neon Laser Slit
+            g.setColour (juce::Colour (0x6600f0ff));
+            g.drawHorizontalLine ((int) thumbRect.getCentreY(), thumbRect.getX() + 3.0f, thumbRect.getRight() - 3.0f);
+            
             g.setColour (juce::Colour (0xffffffff));
-            g.fillRect (thumbRect.getX() + 3.0f, thumbRect.getCentreY() - 1.0f, thumbW - 6.0f, 2.0f);
+            g.fillRect (thumbRect.getX() + 5.0f, thumbRect.getCentreY() - 0.75f, thumbW - 10.0f, 1.5f);
         }
         else
         {
@@ -293,7 +302,7 @@ public:
         }
     }
 
-    // 4. Hardware Preset ComboBox Dropdown Display
+    // 4. Modern Preset ComboBox Dropdown Display
     void drawComboBox (juce::Graphics& g, int width, int height, bool isButtonDown,
                        int /*buttonX*/, int /*buttonY*/, int /*buttonW*/, int /*buttonH*/,
                        juce::ComboBox& box) override
@@ -301,10 +310,10 @@ public:
         auto bounds = juce::Rectangle<float> (0.0f, 0.0f, (float) width, (float) height).reduced (1.0f);
         const float cornerR = 5.0f;
 
-        // Recessed Hardware Display Box
-        juce::Colour bgTop = isButtonDown ? juce::Colour (0xff16171d) : (box.isMouseOver() ? juce::Colour (0xff21232c) : juce::Colour (0xff181920));
-        juce::Colour bgBot = juce::Colour (0xff111216);
-        juce::Colour borderCol = box.isMouseOver() ? juce::Colour (0xff38bdf8).withAlpha (0.7f) : juce::Colour (0xff2d303a);
+        // Recessed Dark Glass Container
+        juce::Colour bgTop = isButtonDown ? juce::Colour (0xff121319) : (box.isMouseOver() ? juce::Colour (0xff1c1e27) : juce::Colour (0xff13141b));
+        juce::Colour bgBot = juce::Colour (0xff0a0b0f);
+        juce::Colour borderCol = box.isMouseOver() ? juce::Colour (0xff00f0ff).withAlpha (0.7f) : juce::Colour (0xff252936);
 
         juce::ColourGradient grad (bgTop, 0.0f, bounds.getY(), bgBot, 0.0f, bounds.getBottom(), false);
         g.setGradientFill (grad);
@@ -313,21 +322,20 @@ public:
         g.setColour (borderCol);
         g.drawRoundedRectangle (bounds, cornerR, 1.0f);
 
-        // Hardware Dropdown Arrow (Crisp Silver Glyph)
+        // Futuristic Minimalist Chevron Arrow
         auto arrowZone = bounds.removeFromRight (22.0f);
         juce::Path arrow;
         float ax = arrowZone.getCentreX();
         float ay = arrowZone.getCentreY();
-        arrow.startNewSubPath (ax - 4.0f, ay - 2.0f);
-        arrow.lineTo (ax + 4.0f, ay - 2.0f);
-        arrow.lineTo (ax, ay + 3.0f);
-        arrow.closeSubPath();
+        arrow.startNewSubPath (ax - 3.5f, ay - 1.5f);
+        arrow.lineTo (ax, ay + 2.0f);
+        arrow.lineTo (ax + 3.5f, ay - 1.5f);
 
         g.setColour (box.isMouseOver() ? juce::Colour (0xffffffff) : juce::Colour (0xff94a3b8));
-        g.fillPath (arrow);
+        g.strokePath (arrow, juce::PathStrokeType (1.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     }
 
-    // 5. Hardware Push Buttons (A/B, Scale, Copy)
+    // 5. Modern Futuristic Push Buttons (A/B, Scale, Copy)
     juce::Font getTextButtonFont (juce::TextButton&, int buttonHeight) override
     {
         return juce::Font (juce::FontOptions (juce::jlimit (9.5f, 11.5f, (float) buttonHeight * 0.38f), juce::Font::bold));
@@ -343,17 +351,17 @@ public:
 
         juce::Colour bg = backgroundColour;
         if (shouldDrawButtonAsDown)
-            bg = bg.darker (0.25f);
+            bg = bg.darker (0.3f);
         else if (shouldDrawButtonAsHighlighted)
-            bg = bg.brighter (0.15f);
+            bg = bg.brighter (0.18f);
 
-        juce::ColourGradient grad (bg.brighter (0.08f), bounds.getX(), bounds.getY(),
-                                   bg.darker (0.12f), bounds.getX(), bounds.getBottom(), false);
+        juce::ColourGradient grad (bg.brighter (0.06f), bounds.getX(), bounds.getY(),
+                                   bg.darker (0.15f), bounds.getX(), bounds.getBottom(), false);
         g.setGradientFill (grad);
         g.fillRoundedRectangle (bounds, cornerR);
 
-        juce::Colour borderCol = shouldDrawButtonAsHighlighted ? juce::Colour (0xff38bdf8).withAlpha (0.8f)
-                                                                : juce::Colour (0xff2d303a);
+        juce::Colour borderCol = shouldDrawButtonAsHighlighted ? juce::Colour (0xff00f0ff).withAlpha (0.75f)
+                                                                : juce::Colour (0xff272b38);
         g.setColour (borderCol);
         g.drawRoundedRectangle (bounds, cornerR, 1.0f);
     }

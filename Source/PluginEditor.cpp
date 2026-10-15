@@ -297,36 +297,36 @@ void ProVerbAudioProcessorEditor::setupKnob (juce::Slider& slider, juce::Label& 
                                              const juce::String& text, const juce::String& suffix, double defaultVal)
 {
     slider.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
-    slider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 56, 16);
+    slider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 68, 16);
     slider.setTextValueSuffix (suffix);
     slider.setColour (juce::Slider::textBoxOutlineColourId, juce::Colour (0x00000000));
-    slider.setColour (juce::Slider::textBoxTextColourId, juce::Colour (0xffb5b7c0));
+    slider.setColour (juce::Slider::textBoxTextColourId, juce::Colour (0xffe2e8f0));
     slider.setDoubleClickReturnValue (true, defaultVal);
     slider.addMouseListener (&contextMenuHelper, false);
     addAndMakeVisible (slider);
 
     label.setText (text, juce::dontSendNotification);
     label.setJustificationType (juce::Justification::centred);
-    label.setFont (juce::FontOptions (10.0f, juce::Font::bold));
-    label.setColour (juce::Label::textColourId, juce::Colour (0xff7b7e88));
+    label.setFont (juce::FontOptions (9.5f, juce::Font::bold));
+    label.setColour (juce::Label::textColourId, juce::Colour (0xff8a90a2));
     addAndMakeVisible (label);
 }
 
 void ProVerbAudioProcessorEditor::setupFader (juce::Slider& slider, juce::Label& label, const juce::String& text, double defaultVal)
 {
     slider.setSliderStyle (juce::Slider::LinearVertical);
-    slider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 50, 16);
-    slider.setColour (juce::Slider::textBoxOutlineColourId, juce::Colour (0x22ffffff));
-    slider.setColour (juce::Slider::textBoxBackgroundColourId, juce::Colour (0xff141519));
-    slider.setColour (juce::Slider::textBoxTextColourId, juce::Colour (0xffcbd5e1));
+    slider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 52, 16);
+    slider.setColour (juce::Slider::textBoxOutlineColourId, juce::Colour (0x18ffffff));
+    slider.setColour (juce::Slider::textBoxBackgroundColourId, juce::Colour (0xff0e0f14));
+    slider.setColour (juce::Slider::textBoxTextColourId, juce::Colour (0xffe2e8f0));
     slider.setDoubleClickReturnValue (true, defaultVal);
     slider.addMouseListener (&contextMenuHelper, false);
     addAndMakeVisible (slider);
 
     label.setText (text, juce::dontSendNotification);
     label.setJustificationType (juce::Justification::centred);
-    label.setFont (juce::FontOptions (10.0f, juce::Font::bold));
-    label.setColour (juce::Label::textColourId, juce::Colour (0xff828590));
+    label.setFont (juce::FontOptions (9.5f, juce::Font::bold));
+    label.setColour (juce::Label::textColourId, juce::Colour (0xff8a90a2));
     addAndMakeVisible (label);
 }
 
@@ -419,19 +419,25 @@ void ProVerbAudioProcessorEditor::timerCallback()
 
 void ProVerbAudioProcessorEditor::paint (juce::Graphics& g)
 {
-    // 1. Overall Dark Studio Background (--epic-bg: #121212)
-    g.fillAll (juce::Colour (0xff121214));
+    // 1. Futuristic Deep OLED Black Canvas
+    g.fillAll (juce::Colour (0xff08090c));
 
-    // Outer Crisp Beveled Border (--epic-border: #2a2a2a)
-    g.setColour (juce::Colour (0xff26262b));
+    // Outer Precision Cyber Rim
+    g.setColour (juce::Colour (0xff1c1f2b));
     g.drawRect (getLocalBounds(), 1);
 
-    // 2. Top Header Bar (--epic-card: #19191d)
+    // 2. Futuristic Top Header Bar
     auto headerBounds = getLocalBounds().removeFromTop (52);
-    g.setColour (juce::Colour (0xff18181c));
+    g.setColour (juce::Colour (0xff0a0b0f));
     g.fillRect (headerBounds);
-    g.setColour (juce::Colour (0xff28282e));
+
+    // Sleek hairline cyber divider with subtle cyan glow on left
+    g.setColour (juce::Colour (0xff1c1f2b));
     g.drawHorizontalLine (52, 0.0f, (float) getWidth());
+    juce::ColourGradient headerLineGrad (juce::Colour (0x5500f0ff), 0.0f, 52.0f,
+                                         juce::Colour (0x0000f0ff), (float) getWidth() * 0.4f, 52.0f, false);
+    g.setGradientFill (headerLineGrad);
+    g.drawHorizontalLine (52, 0.0f, (float) getWidth() * 0.4f);
 
     // Enable Studio High-Quality Resampling for razor-sharp, vector-grade logo rendering
     g.setImageResamplingQuality (juce::Graphics::highResamplingQuality);
@@ -455,9 +461,9 @@ void ProVerbAudioProcessorEditor::paint (juce::Graphics& g)
         g.drawText ("PROVERB", 14, 0, 130, 52, juce::Justification::centredLeft);
     }
 
-    // Elegant Divider (--brand-charcoal: #34363d)
-    g.setColour (juce::Colour (0xff34363d));
-    g.drawVerticalLine (headerDividerX, 15.0f, 37.0f);
+    // Elegant Divider (Subtle Cyber Line)
+    g.setColour (juce::Colour (0xff252936));
+    g.drawVerticalLine (headerDividerX, 16.0f, 36.0f);
 
     // Secondary Brand: ProducerToy Badge
     if (ptLogoCached.isValid())
@@ -472,7 +478,7 @@ void ProVerbAudioProcessorEditor::paint (juce::Graphics& g)
                            juce::RectanglePlacement (juce::RectanglePlacement::xLeft | juce::RectanglePlacement::yMid | juce::RectanglePlacement::onlyReduceInSize));
     }
 
-    // 4. Middle Workspace Modular Cards (--epic-card: #1c1c20, Equinox-style)
+    // 4. Middle Workspace Modular Cards (Futuristic Minimalist Obsidian Panels)
     int eqH = juce::jlimit (135, 210, (int) (getHeight() * 0.28f));
     const int cardTopY = 56;
     const int cardBottomY = getHeight() - eqH - 6;
@@ -488,51 +494,51 @@ void ProVerbAudioProcessorEditor::paint (juce::Graphics& g)
     float x3 = x2 + col3W;
     float x4 = x3 + col4W;
 
-    // Helper to draw modular hardware cards (FL Studio-inspired recessed hardware bays)
+    // Helper to draw modular futuristic cards
     auto drawModuleCard = [&](float cx, float cw, const char* title)
     {
         auto cardRect = juce::Rectangle<float> (cx + 3.0f, (float) cardTopY, cw - 6.0f, (float) cardH);
 
-        // 1. Subtle Outer Drop Shadow (tactile hardware depth)
-        g.setColour (juce::Colour (0x55000000));
-        g.fillRoundedRectangle (cardRect.translated (0.0f, 2.0f), 6.0f);
-
-        // 2. Hardware Chassis Recessed Bay Fill (ProducerToy Dark Slate)
-        juce::ColourGradient cardGrad (juce::Colour (0xff18191f), cx, (float) cardTopY,
-                                       juce::Colour (0xff111215), cx, (float) (cardTopY + cardH), false);
+        // 1. Obsidian Glass Panel Background
+        juce::ColourGradient cardGrad (juce::Colour (0xff0e1016), cx, (float) cardTopY,
+                                       juce::Colour (0xff090a0e), cx, (float) (cardTopY + cardH), false);
         g.setGradientFill (cardGrad);
-        g.fillRoundedRectangle (cardRect, 6.0f);
+        g.fillRoundedRectangle (cardRect, 7.0f);
 
-        // 3. Top Bevel Highlight (Hardware light catch)
-        g.setColour (juce::Colour (0x1affffff));
-        g.drawHorizontalLine ((int) cardRect.getY() + 1, cardRect.getX() + 4.0f, cardRect.getRight() - 4.0f);
+        // 2. Razor-Thin Cyber Border
+        g.setColour (juce::Colour (0xff1c202c));
+        g.drawRoundedRectangle (cardRect, 7.0f, 1.0f);
 
-        // 4. Inset Hardware Outer Border
-        g.setColour (juce::Colour (0xff272931));
-        g.drawRoundedRectangle (cardRect, 6.0f, 1.0f);
+        // 3. Subtle Top Edge Highlight
+        g.setColour (juce::Colour (0x18ffffff));
+        g.drawHorizontalLine ((int) cardRect.getY() + 1, cardRect.getX() + 6.0f, cardRect.getRight() - 6.0f);
 
-        // 5. Engraved Header Tab Plate
-        auto tabRect = juce::Rectangle<float> (cardRect.getX() + 6.0f, cardRect.getY() + 3.0f, cardRect.getWidth() - 12.0f, 18.0f);
-        g.setColour (juce::Colour (0xff1b1c23));
-        g.fillRoundedRectangle (tabRect, 3.0f);
-        g.setColour (juce::Colour (0xff252730));
-        g.drawRoundedRectangle (tabRect, 3.0f, 1.0f);
+        // 4. Futuristic Minimalist Title Header
+        float titleY = cardRect.getY() + 5.0f;
+        float titleH = 16.0f;
 
-        // Subtle Cyan Status Pip (tiny 3px hardware dot on left of title)
-        g.setColour (juce::Colour (0xff38bdf8).withAlpha (0.8f));
-        g.fillEllipse (tabRect.getX() + 6.0f, tabRect.getCentreY() - 1.5f, 3.0f, 3.0f);
+        // Glowing Neon Cyan Micro-Pip
+        g.setColour (juce::Colour (0x4400f0ff));
+        g.fillEllipse (cardRect.getX() + 10.0f, titleY + 4.5f, 6.0f, 6.0f);
+        g.setColour (juce::Colour (0xff00f0ff));
+        g.fillEllipse (cardRect.getX() + 11.5f, titleY + 6.0f, 3.0f, 3.0f);
 
-        // Title Text — responsive font size if column width is narrower
-        float titleFontSize = (cw < 150.0f) ? 8.0f : 8.5f;
+        // Title Text — Crisp modern typography
+        float titleFontSize = (cw < 150.0f) ? 8.5f : 9.0f;
         g.setFont (juce::FontOptions (titleFontSize, juce::Font::bold));
-        g.setColour (juce::Colour (0xff9da0ad));
-        g.drawText (title, tabRect.withTrimmedLeft (12.0f).toNearestInt(), juce::Justification::centred);
+        g.setColour (juce::Colour (0xff9aa0b2));
+        auto titleBounds = juce::Rectangle<float> (cardRect.getX() + 20.0f, titleY, cardRect.getWidth() - 26.0f, titleH);
+        g.drawText (title, titleBounds.toNearestInt(), juce::Justification::centredLeft, true);
 
-        // 6. Dual-line Engraved Separator Groove
-        g.setColour (juce::Colour (0xff0f1013));
-        g.drawHorizontalLine ((int) (cardRect.getY() + 24.0f), cardRect.getX() + 6.0f, cardRect.getRight() - 6.0f);
-        g.setColour (juce::Colour (0xff242630));
-        g.drawHorizontalLine ((int) (cardRect.getY() + 25.0f), cardRect.getX() + 6.0f, cardRect.getRight() - 6.0f);
+        // 5. Minimalist Hairline Separator with subtle cyan accent fade
+        float lineY = cardRect.getY() + 24.0f;
+        g.setColour (juce::Colour (0xff181a24));
+        g.drawHorizontalLine ((int) lineY, cardRect.getX() + 8.0f, cardRect.getRight() - 8.0f);
+        
+        juce::ColourGradient lineAccent (juce::Colour (0x4400f0ff), cardRect.getX() + 8.0f, lineY,
+                                         juce::Colour (0x0000f0ff), cardRect.getX() + 80.0f, lineY, false);
+        g.setGradientFill (lineAccent);
+        g.drawHorizontalLine ((int) lineY, cardRect.getX() + 8.0f, cardRect.getX() + 80.0f);
     };
 
     drawModuleCard (0.0f, col1W, "ROUTING & FILTERS");
@@ -675,25 +681,26 @@ void ProVerbAudioProcessorEditor::resized()
     int m1SliderH = m1KnobDiam + 14;
 
     // Row 1: H.CUT
+    int m1SliderW = juce::jmin (m1Area.getWidth() - 10, juce::jmax (68, m1KnobDiam + 24));
     int y1_1 = m1KnobsStart;
     int pad1_1 = (m1SlotH - (m1LabelH + m1SliderH)) / 2;
     hCutLabel.setBounds (m1Area.getX(), y1_1 + pad1_1, m1Area.getWidth(), m1LabelH);
     hCutSlider.setBounds (juce::Rectangle<int> (m1Area.getX(), y1_1 + pad1_1 + m1LabelH, m1Area.getWidth(), m1SliderH)
-                             .withSizeKeepingCentre (m1KnobDiam, m1SliderH));
+                             .withSizeKeepingCentre (m1SliderW, m1SliderH));
 
     // Row 2: L.CUT
     int y1_2 = m1KnobsStart + m1SlotH;
     int pad1_2 = (m1SlotH - (m1LabelH + m1SliderH)) / 2;
     lCutLabel.setBounds (m1Area.getX(), y1_2 + pad1_2, m1Area.getWidth(), m1LabelH);
     lCutSlider.setBounds (juce::Rectangle<int> (m1Area.getX(), y1_2 + pad1_2 + m1LabelH, m1Area.getWidth(), m1SliderH)
-                             .withSizeKeepingCentre (m1KnobDiam, m1SliderH));
+                             .withSizeKeepingCentre (m1SliderW, m1SliderH));
 
     // Row 3: DUCK
     int y1_3 = m1KnobsStart + m1SlotH * 2;
     int pad1_3 = (m1SlotH - (m1LabelH + m1SliderH)) / 2;
     duckLabel.setBounds (m1Area.getX(), y1_3 + pad1_3, m1Area.getWidth(), m1LabelH);
     duckSlider.setBounds (juce::Rectangle<int> (m1Area.getX(), y1_3 + pad1_3 + m1LabelH, m1Area.getWidth(), m1SliderH)
-                             .withSizeKeepingCentre (m1KnobDiam, m1SliderH));
+                             .withSizeKeepingCentre (m1SliderW, m1SliderH));
 
     // Module 2 (Left 2): Space & Time (DELAY, SIZE, DIFF, SHIMMER)
     int m2KnobsHeight = contentBottomY - contentTopY;
@@ -701,6 +708,7 @@ void ProVerbAudioProcessorEditor::resized()
     int m2LabelH = 12;
     int m2KnobDiam = juce::jlimit (24, 44, juce::jmin (m2Area.getWidth() - 16, m2SlotH - m2LabelH - 14));
     int m2SliderH = m2KnobDiam + 14;
+    int m2SliderW = juce::jmin (m2Area.getWidth() - 10, juce::jmax (68, m2KnobDiam + 24));
 
     auto layoutM2Knob = [&](int index, juce::Label& lbl, juce::Slider& sld)
     {
@@ -708,7 +716,7 @@ void ProVerbAudioProcessorEditor::resized()
         int pad = (m2SlotH - (m2LabelH + m2SliderH)) / 2;
         lbl.setBounds (m2Area.getX(), slotY + pad, m2Area.getWidth(), m2LabelH);
         sld.setBounds (juce::Rectangle<int> (m2Area.getX(), slotY + pad + m2LabelH, m2Area.getWidth(), m2SliderH)
-                           .withSizeKeepingCentre (m2KnobDiam, m2SliderH));
+                           .withSizeKeepingCentre (m2SliderW, m2SliderH));
     };
 
     layoutM2Knob (0, delayLabel, delaySlider);
@@ -726,20 +734,21 @@ void ProVerbAudioProcessorEditor::resized()
     int m4LabelH = 13;
     int m4KnobDiam = juce::jlimit (28, 54, juce::jmin (m4Area.getWidth() - 20, m4SlotH - m4LabelH - 15));
     int m4SliderH = m4KnobDiam + 15;
+    int m4SliderW = juce::jmin (m4Area.getWidth() - 10, juce::jmax (68, m4KnobDiam + 24));
 
     // Item 1: DEC (Hero Decay Dial)
     int y4_1 = contentTopY;
     int pad4_1 = (m4SlotH - (m4LabelH + m4SliderH)) / 2;
     decLabel.setBounds (m4Area.getX(), y4_1 + pad4_1, m4Area.getWidth(), m4LabelH);
     decSlider.setBounds (juce::Rectangle<int> (m4Area.getX(), y4_1 + pad4_1 + m4LabelH, m4Area.getWidth(), m4SliderH)
-                            .withSizeKeepingCentre (m4KnobDiam, m4SliderH));
+                            .withSizeKeepingCentre (m4SliderW, m4SliderH));
 
     // Item 2: DAMP (High Damping Dial)
     int y4_2 = contentTopY + m4SlotH;
     int pad4_2 = (m4SlotH - (m4LabelH + m4SliderH)) / 2;
     dampLabel.setBounds (m4Area.getX(), y4_2 + pad4_2, m4Area.getWidth(), m4LabelH);
     dampSlider.setBounds (juce::Rectangle<int> (m4Area.getX(), y4_2 + pad4_2 + m4LabelH, m4Area.getWidth(), m4SliderH)
-                             .withSizeKeepingCentre (m4KnobDiam, m4SliderH));
+                             .withSizeKeepingCentre (m4SliderW, m4SliderH));
 
     // Item 3: FREEZE Button
     freezeButton.setBounds (juce::Rectangle<int> (m4Area.getX(), contentBottomY - freezeH - 2, m4Area.getWidth(), freezeH)
@@ -777,11 +786,12 @@ void ProVerbAudioProcessorEditor::resized()
     int sepLabelH = 12;
     int sepKnobDiam = juce::jlimit (26, 42, juce::jmin (m5Area.getWidth() - 16, sepSectionH - sepLabelH - 14));
     int sepSliderH = sepKnobDiam + 14;
+    int sepSliderW = juce::jmin (m5Area.getWidth() - 10, juce::jmax (68, sepKnobDiam + 24));
     int sepPad = (sepSectionH - (sepLabelH + sepSliderH)) / 2;
 
     sepLabel.setBounds (m5Area.getX(), sepY + sepPad, m5Area.getWidth(), sepLabelH);
     sepSlider.setBounds (juce::Rectangle<int> (m5Area.getX(), sepY + sepPad + sepLabelH, m5Area.getWidth(), sepSliderH)
-                             .withSizeKeepingCentre (sepKnobDiam, sepSliderH));
+                             .withSizeKeepingCentre (sepSliderW, sepSliderH));
 
     if (licensePanel != nullptr)
         licensePanel->setBounds (getLocalBounds());
@@ -1081,7 +1091,9 @@ void ProVerbAudioProcessorEditor::showLicensePanel()
 
 void ProVerbAudioProcessorEditor::hideLicensePanel()
 {
-    // Do not dismiss or hide the panel unless the plugin is genuinely unlocked
+    // This callback also runs after a local license removal so the audio-thread cache is refreshed.
+    audioProcessor.updateLicenseStatus();
+
     if (! ProducerToy::Licensing::LicenseClient::getInstance().isLicenseValid())
         return;
 
@@ -1090,5 +1102,4 @@ void ProVerbAudioProcessorEditor::hideLicensePanel()
         removeChildComponent (licensePanel.get());
         licensePanel.reset();
     }
-    audioProcessor.updateLicenseStatus();
 }

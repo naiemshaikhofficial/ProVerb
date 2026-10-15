@@ -8,37 +8,34 @@ namespace ProducerToy::UI
     class MinimalistButtonLookAndFeel : public juce::LookAndFeel_V4
     {
     public:
-        void drawButtonBackground (juce::Graphics& g, juce::Button& button,
-                                   const juce::Colour& backgroundColour,
-                                   bool shouldDrawButtonAsHighlighted,
-                                   bool shouldDrawButtonAsDown) override
+        void drawButtonBackground(juce::Graphics& g, juce::Button& button,
+                                  const juce::Colour& backgroundColour,
+                                  bool shouldDrawButtonAsHighlighted,
+                                  bool shouldDrawButtonAsDown) override
         {
-            auto bounds = button.getLocalBounds().toFloat().reduced (0.5f);
-            const float cornerR = 7.0f;
-
+            auto bounds = button.getLocalBounds().toFloat().reduced(0.5f);
             juce::Colour bg = backgroundColour;
             if (shouldDrawButtonAsDown)
-                bg = bg.darker (0.15f);
+                bg = bg.darker(0.15f);
             else if (shouldDrawButtonAsHighlighted)
-                bg = bg.brighter (0.08f);
+                bg = bg.brighter(0.08f);
 
-            g.setColour (bg);
-            g.fillRoundedRectangle (bounds, cornerR);
-
+            g.setColour(bg);
+            g.fillRoundedRectangle(bounds, 7.0f);
             if (backgroundColour.getBrightness() < 0.5f)
             {
-                g.setColour (shouldDrawButtonAsHighlighted ? juce::Colour (0xff3f3f46) : juce::Colour (0xff27272a));
-                g.drawRoundedRectangle (bounds, cornerR, 1.0f);
+                g.setColour(shouldDrawButtonAsHighlighted ? juce::Colour(0xff3f3f46)
+                                                          : juce::Colour(0xff27272a));
+                g.drawRoundedRectangle(bounds, 7.0f, 1.0f);
             }
         }
 
-        void drawButtonText (juce::Graphics& g, juce::TextButton& button,
-                             bool /*shouldDrawButtonAsHighlighted*/, bool /*shouldDrawButtonAsDown*/) override
+        void drawButtonText(juce::Graphics& g, juce::TextButton& button,
+                            bool, bool) override
         {
-            auto bounds = button.getLocalBounds();
-            g.setFont (juce::FontOptions ("Segoe UI", 12.0f, juce::Font::bold));
-            g.setColour (button.findColour (juce::TextButton::textColourOffId));
-            g.drawText (button.getButtonText(), bounds, juce::Justification::centred, false);
+            g.setFont(juce::FontOptions("Segoe UI", 12.0f, juce::Font::bold));
+            g.setColour(button.findColour(juce::TextButton::textColourOffId));
+            g.drawText(button.getButtonText(), button.getLocalBounds(), juce::Justification::centred, false);
         }
     };
 
@@ -53,7 +50,6 @@ namespace ProducerToy::UI
         void resized() override;
         void mouseDown(const juce::MouseEvent& e) override;
         void refreshState();
-
         juce::Rectangle<int> getCardBounds() const;
 
     private:
@@ -63,21 +59,18 @@ namespace ProducerToy::UI
         Licensing::LicenseState state;
         juce::Image proverbLogoImage;
         MinimalistButtonLookAndFeel buttonLnF;
-
-        bool isPairingActive { false };
-        juce::String pairingCode;
+        std::unique_ptr<juce::FileChooser> licenseChooser;
         juce::String statusMessage;
         bool isError { false };
-        int spinnerTick { 0 };
+        int timerTicks { 0 };
 
         juce::TextButton closeButton;
         juce::TextButton continueButton { "Continue to Plugin" };
-        juce::TextButton activateButton { "Activate via Producer Toy" };
+        juce::TextButton activateButton { "Import License File" };
+        juce::TextButton copyDeviceIdButton { "Copy Device ID" };
         juce::TextButton buyButton { "Buy ProVerb ($9.99)" };
-        juce::TextButton manageSeatsButton { "Manage Account Seats" };
-        juce::TextButton deactivateButton { "Deactivate This Machine" };
+        juce::TextButton deactivateButton { "Remove Local License" };
         juce::TextButton supportButton { "Licensing Support" };
-        juce::TextButton cancelPairingButton { "Cancel" };
 
         void startActivation();
         void handleDeactivate();
