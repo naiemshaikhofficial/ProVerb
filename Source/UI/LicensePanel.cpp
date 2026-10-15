@@ -137,32 +137,37 @@ namespace ProducerToy::UI
 
     void LicensePanel::timerCallback()
     {
+        spinnerTick++;
         if (isPairingActive)
         {
-            spinnerTick++;
             repaint();
         }
 
-        // When locked, periodically check if activation succeeded (e.g. browser pairing completed or license token appeared)
-        if (! state.isActivated && (spinnerTick % 10 == 0))
+        // Periodically check if local license file appeared or activation succeeded
+        if (! state.isActivated && (spinnerTick % 4 == 0))
         {
-            auto newState = Licensing::LicenseClient::getInstance().getCurrentState();
-            if (newState.isActivated)
+            auto licFile = Licensing::LicenseClient::getLicenseFile();
+            if (licFile.existsAsFile())
             {
-                state = newState;
-                isPairingActive = false;
-                statusMessage = "Successfully activated! Unlocking DSP engine...";
-                isError = false;
-                resized();
-                repaint();
-                juce::Component::SafePointer<LicensePanel> safeThis (this);
-                juce::Timer::callAfterDelay(1000, [safeThis]() {
-                    if (auto* p = safeThis.getComponent())
-                    {
-                        if (p->state.isActivated && p->onClose)
-                            p->onClose();
-                    }
-                });
+                Licensing::LicenseClient::getInstance().initialize();
+                auto newState = Licensing::LicenseClient::getInstance().getCurrentState();
+                if (newState.isActivated)
+                {
+                    state = newState;
+                    isPairingActive = false;
+                    statusMessage = "Successfully activated! Full DSP unlocked.";
+                    isError = false;
+                    resized();
+                    repaint();
+                    juce::Component::SafePointer<LicensePanel> safeThis (this);
+                    juce::Timer::callAfterDelay (800, [safeThis]() {
+                        if (auto* p = safeThis.getComponent())
+                        {
+                            if (p->state.isActivated && p->onClose)
+                                p->onClose();
+                        }
+                    });
+                }
             }
         }
     }
@@ -175,6 +180,26 @@ namespace ProducerToy::UI
 
     void LicensePanel::startActivation()
     {
+        // Zero-server-cost check: First test if valid license already exists locally
+        Licensing::LicenseClient::getInstance().initialize();
+        if (Licensing::LicenseClient::getInstance().isLicenseValid())
+        {
+            state = Licensing::LicenseClient::getInstance().getCurrentState();
+            statusMessage = "Plugin already activated on this machine! Unlocking DSP...";
+            isError = false;
+            resized();
+            repaint();
+            juce::Component::SafePointer<LicensePanel> safeThis (this);
+            juce::Timer::callAfterDelay (600, [safeThis]() {
+                if (auto* p = safeThis.getComponent())
+                {
+                    if (p->state.isActivated && p->onClose)
+                        p->onClose();
+                }
+            });
+            return;
+        }
+
         isPairingActive = true;
         isError = false;
         pairingCode = "...";
