@@ -143,11 +143,7 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
         }
     };
 
-    // License Badge Button & Management Panel
-    addAndMakeVisible (licenseBadgeButton);
-    licenseBadgeButton.setTooltip ("Producer Toy Licensing & Device Management");
-    licenseBadgeButton.onClick = [this]() { showLicensePanel(); };
-    updateLicenseBadge();
+    audioProcessor.updateLicenseStatus();
 
     // Vector GUI Scale Button (100% / 125% / 150%)
     addAndMakeVisible (scaleButton);
@@ -594,11 +590,6 @@ void ProVerbAudioProcessorEditor::resized()
 
     int curX = headerArea.getRight() - rightMargin;
 
-    // License Badge Button (UNLOCK / UNLOCKED)
-    const int licW = 96;
-    curX -= licW;
-    licenseBadgeButton.setBounds (curX, headerY, licW, ctrlH);
-    curX -= headerGap;
 
     // 1. GUI Scale Button (100% / 125% / 150%)
     const int scaleW = 56;
@@ -1099,23 +1090,5 @@ void ProVerbAudioProcessorEditor::hideLicensePanel()
         removeChildComponent (licensePanel.get());
         licensePanel.reset();
     }
-    updateLicenseBadge();
-}
-
-void ProVerbAudioProcessorEditor::updateLicenseBadge()
-{
     audioProcessor.updateLicenseStatus();
-    bool isActivated = audioProcessor.isLicenseValid();
-    if (isActivated)
-    {
-        licenseBadgeButton.setButtonText (juce::CharPointer_UTF8 ("\xe2\x97\x8f UNLOCKED"));
-        licenseBadgeButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0x2210b981));
-        licenseBadgeButton.setColour (juce::TextButton::textColourOffId, juce::Colour (0xff10b981));
-    }
-    else
-    {
-        licenseBadgeButton.setButtonText (juce::CharPointer_UTF8 ("\xe2\x97\x8b UNLOCK"));
-        licenseBadgeButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xff1e2028));
-        licenseBadgeButton.setColour (juce::TextButton::textColourOffId, juce::Colour (0xffffffff));
-    }
 }

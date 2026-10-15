@@ -97,11 +97,9 @@ private:
     juce::TextButton copyABButton { "A->B" };
     juce::TextButton scaleButton { "100%" };
     juce::TextButton undoAutoLearnButton { "UNDO" };
-    juce::TextButton licenseBadgeButton { "● REGISTERED" };
     float currentScaleFactor { 1.0f };
 
     std::unique_ptr<ProducerToy::UI::LicensePanel> licensePanel;
-    void updateLicenseBadge();
     void showLicensePanel();
     void hideLicensePanel();
 
