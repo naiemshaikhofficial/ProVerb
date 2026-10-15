@@ -145,6 +145,10 @@ namespace ProducerToy::Licensing
 #if JUCE_WINDOWS
         hardwareId = juce::WindowsRegistry::getValue(
             "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Cryptography\\MachineGuid", "").trim();
+#elif JUCE_MAC
+        hardwareId = juce::SystemStats::getUniqueDeviceDescription().trim();
+#else
+        hardwareId = juce::SystemStats::getUniqueDeviceDescription().trim();
 #endif
 
         if (hardwareId.isEmpty())
@@ -295,7 +299,7 @@ namespace ProducerToy::Licensing
         const auto destination = getLicenseFile();
         if (!destination.replaceWithText(cleanToken))
         {
-            error = "Windows could not save the license in your user profile. Check folder permissions and try again.";
+            error = "Could not save the license file in your user profile. Check folder permissions and try again.";
             return false;
         }
 

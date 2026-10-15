@@ -37,8 +37,15 @@ juce_add_binary_data(ProVerbResources
         Resources/producertoy_mascot.png
 )
 
-# 1. Plugin formats: default to VST3 and Standalone
-set(PROVERB_FORMATS VST3 Standalone)
+# 1. Plugin formats: Pure DAW formats (VST3, AU, AAX)
+# Standalone is disabled by default per DAW-only production specification
+option(PROVERB_BUILD_STANDALONE "Build Standalone executable target" OFF)
+
+set(PROVERB_FORMATS VST3)
+
+if(PROVERB_BUILD_STANDALONE)
+    list(APPEND PROVERB_FORMATS Standalone)
+endif()
 
 # Optional AAX support (conditional on Avid AAX SDK availability)
 if(DEFINED AAX_SDK_PATH OR DEFINED ENV{AAX_SDK_PATH} OR EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/SDKs/aax_sdk")
@@ -154,6 +161,7 @@ juce_add_plugin(ProVerb
     PRODUCT_NAME "ProVerb"
     DESCRIPTION "Advanced Space Engine & Algorithmic Reverb by Producer Toy"
     AAX_CATEGORY AAX_ePlugInCategory_Reverb
+    AU_MAIN_TYPE kAudioUnitType_Effect
     VST3_CATEGORIES "Fx" "Reverb" "Spatial"
     FORMATS ${PROVERB_FORMATS}
     IS_SYNTH FALSE
@@ -223,6 +231,10 @@ if(TARGET ProVerb_VST3)
         target_link_libraries(ProVerb_VST3 PRIVATE delayimp.lib)
     endif()
     proverb_deploy_onnx_runtime(ProVerb_VST3)
+endif()
+
+if(TARGET ProVerb_AU)
+    proverb_deploy_onnx_runtime(ProVerb_AU)
 endif()
 
 if(TARGET ProVerb_Standalone)
