@@ -298,5 +298,17 @@ target_link_libraries(ProVerb_OctaveAudit PRIVATE
     juce::juce_dsp
 )
 
+add_executable(ProVerb_LicensingTest
+    Tools/test_licensing.cpp
+    Source/Licensing/LicenseClient.cpp
+)
+target_include_directories(ProVerb_LicensingTest PRIVATE Source)
+target_link_libraries(ProVerb_LicensingTest PRIVATE
+    juce::juce_core
+    juce::juce_events
+    juce::juce_recommended_config_flags
+    juce::juce_recommended_warning_flags
+)
+
 
 

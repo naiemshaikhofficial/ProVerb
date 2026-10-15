@@ -2,245 +2,142 @@
 
 #include <cstdint>
 #include <cstring>
-#include <string>
 #include <vector>
 
 namespace ProducerToy::Crypto
 {
-    // ==============================================================================
-    // Standard Compact SHA-512 Implementation (FIPS 180-4)
-    // ==============================================================================
-    class SHA512
-    {
-    public:
-        SHA512() { reset(); }
-
-        void reset()
-        {
-            state[0] = 0x6a09e667f3bcc908ULL;
-            state[1] = 0xbb67ae8584caa73bULL;
-            state[2] = 0x3c6ef372fe94f82bULL;
-            state[3] = 0xa54ff53a5f1d36f1ULL;
-            state[4] = 0x510e527fade682d1ULL;
-            state[5] = 0x9b05688c2b3e6c1fULL;
-            state[6] = 0x1f83d9abfb41bd6bULL;
-            state[7] = 0x5be0cd19137e2179ULL;
-            count[0] = count[1] = 0;
-            bufferLen = 0;
-        }
-
-        void update(const uint8_t* data, size_t len)
-        {
-            for (size_t i = 0; i < len; ++i)
-            {
-                buffer[bufferLen++] = data[i];
-                if (bufferLen == 128)
-                {
-                    processBlock(buffer);
-                    bufferLen = 0;
-                }
-            }
-            uint64_t bitLen = static_cast<uint64_t>(len) * 8ULL;
-            count[0] += bitLen;
-            if (count[0] < bitLen)
-                count[1]++;
-        }
-
-        void finalize(uint8_t hash[64])
-        {
-            buffer[bufferLen++] = 0x80;
-            if (bufferLen > 112)
-            {
-                while (bufferLen < 128)
-                    buffer[bufferLen++] = 0;
-                processBlock(buffer);
-                bufferLen = 0;
-            }
-            while (bufferLen < 112)
-                buffer[bufferLen++] = 0;
-
-            for (int i = 0; i < 8; ++i)
-                buffer[112 + i] = static_cast<uint8_t>(count[1] >> ((7 - i) * 8));
-            for (int i = 0; i < 8; ++i)
-                buffer[120 + i] = static_cast<uint8_t>(count[0] >> ((7 - i) * 8));
-
-            processBlock(buffer);
-
-            for (int i = 0; i < 8; ++i)
-            {
-                for (int j = 0; j < 8; ++j)
-                {
-                    hash[i * 8 + j] = static_cast<uint8_t>(state[i] >> ((7 - j) * 8));
-                }
-            }
-        }
-
-        static void hash(const uint8_t* data, size_t len, uint8_t output[64])
-        {
-            SHA512 ctx;
-            ctx.update(data, len);
-            ctx.finalize(output);
-        }
-
-    private:
-        uint64_t state[8];
-        uint64_t count[2];
-        uint8_t buffer[128];
-        size_t bufferLen;
-
-        static inline uint64_t rotr(uint64_t x, int n) { return (x >> n) | (x << (64 - n)); }
-        static inline uint64_t ch(uint64_t x, uint64_t y, uint64_t z) { return (x & y) ^ (~x & z); }
-        static inline uint64_t maj(uint64_t x, uint64_t y, uint64_t z) { return (x & y) ^ (x & z) ^ (y & z); }
-        static inline uint64_t sigma0(uint64_t x) { return rotr(x, 28) ^ rotr(x, 34) ^ rotr(x, 39); }
-        static inline uint64_t sigma1(uint64_t x) { return rotr(x, 14) ^ rotr(x, 18) ^ rotr(x, 41); }
-        static inline uint64_t gamma0(uint64_t x) { return rotr(x, 1) ^ rotr(x, 8) ^ (x >> 7); }
-        static inline uint64_t gamma1(uint64_t x) { return rotr(x, 19) ^ rotr(x, 61) ^ (x >> 6); }
-
-        void processBlock(const uint8_t block[128])
-        {
-            static const uint64_t K[80] = {
-                0x428a2f98d728ae22ULL, 0x7137449123ef65cdULL, 0xb5c0fbcfec4d3b2fULL, 0xe9b5dba58189dbbcULL,
-                0x3956c25bf348b538ULL, 0x59f111f1b605d019ULL, 0x923f82a4af194f9bULL, 0xab1c5ed5da6d8118ULL,
-                0xd807aa98a3030242ULL, 0x12835b0145706fbeULL, 0x243185be4ee4b28cULL, 0x550c7dc3d5ffb4e2ULL,
-                0x72be5d74f27b896fULL, 0x80deb1fe3b1696b1ULL, 0x9bdc06a725c71235ULL, 0xc19bf174cf692694ULL,
-                0xe49b69c19ef14ad2ULL, 0xefbe4786384f25e3ULL, 0x0fc19dc68b8cd5b5ULL, 0x240ca1cc77ac9c65ULL,
-                0x2de92c6f592b0275ULL, 0x4a7484aa6ea6e483ULL, 0x5cb0a9dcbd41fbd4ULL, 0x76f988da831153b5ULL,
-                0x983e5152ee66dfabULL, 0xa831c66d2db43210ULL, 0xb00327c898fb213fULL, 0xbf597fc7beef0ee4ULL,
-                0xc6e00bf33da88fc2ULL, 0xd5a79147930aa725ULL, 0x06ca6351e003826fULL, 0x142929670a0e6e70ULL,
-                0x27b70a8546d22ffcULL, 0x2e1b21385c26c926ULL, 0x4d2c6dfc5ac42aedULL, 0x53380d139d95b3dfULL,
-                0x650a73548baf63deULL, 0x766a0abb3c77b2a8ULL, 0x81c2c92e47867d1ULL, 0x92722c851482353bULL,
-                0x9c30d532ca4e7b81ULL, 0xa2bfe8a14cf10364ULL, 0xa81a664bbc423001ULL, 0xc24b8b70d0f89791ULL,
-                0xc76c51a30654be30ULL, 0xd192e819d6ef5218ULL, 0xd69906245565a910ULL, 0xf40e35855771202aULL,
-                0x106aa07032bbd1b8ULL, 0x19a4c116b8d2d0c8ULL, 0x1e376c085141ab53ULL, 0x2748774cdf8eeeb9ULL,
-                0x34b0bcb5e19b48a8ULL, 0x391c0cb3c5c95a63ULL, 0x4ed8aa4ae3418acbULL, 0x5b9cca4f7763e373ULL,
-                0x682e6ff3d6b2b8a3ULL, 0x748f82ee5defb2fcULL, 0x78a5636f43172f60ULL, 0x84c87814a1f0ab72ULL,
-                0x8cc702081a6439ecULL, 0x90befffa23631e28ULL, 0xa4506cebde82bde9ULL, 0xbef9a3f7b2c67915ULL,
-                0xc67178f2e372532bULL, 0xca273eceea26619cULL, 0xd186b8c721c0c207ULL, 0xeada7dd6cde0eb1eULL,
-                0xf57d4f7fee6ed178ULL, 0x06f067aa72176fbaULL, 0x0a637dc5a2c898a6ULL, 0x113f9804bef90daeULL,
-                0x1b710b35131c471bULL, 0x28db77f523047d84ULL, 0x32caab7b40c72493ULL, 0x3c9ebe0a15c9bebcULL,
-                0x431d67c49c100d4cULL, 0x4cc5d4becb3e42b6ULL, 0x597f299cfc657e2aULL, 0x5fcb6fab3ad6faecULL
-            };
-
-            uint64_t W[80];
-            for (int i = 0; i < 16; ++i)
-            {
-                W[i] = (static_cast<uint64_t>(block[i * 8 + 0]) << 56) |
-                       (static_cast<uint64_t>(block[i * 8 + 1]) << 48) |
-                       (static_cast<uint64_t>(block[i * 8 + 2]) << 40) |
-                       (static_cast<uint64_t>(block[i * 8 + 3]) << 32) |
-                       (static_cast<uint64_t>(block[i * 8 + 4]) << 24) |
-                       (static_cast<uint64_t>(block[i * 8 + 5]) << 16) |
-                       (static_cast<uint64_t>(block[i * 8 + 6]) << 8) |
-                       (static_cast<uint64_t>(block[i * 8 + 7]));
-            }
-            for (int i = 16; i < 80; ++i)
-            {
-                W[i] = gamma1(W[i - 2]) + W[i - 7] + gamma0(W[i - 15]) + W[i - 16];
-            }
-
-            uint64_t a = state[0], b = state[1], c = state[2], d = state[3];
-            uint64_t e = state[4], f = state[5], g = state[6], h = state[7];
-
-            for (int i = 0; i < 80; ++i)
-            {
-                uint64_t T1 = h + sigma1(e) + ch(e, f, g) + K[i] + W[i];
-                uint64_t T2 = sigma0(a) + maj(a, b, c);
-                h = g; g = f; f = e; e = d + T1;
-                d = c; c = b; b = a; a = T1 + T2;
-            }
-
-            state[0] += a; state[1] += b; state[2] += c; state[3] += d;
-            state[4] += e; state[5] += f; state[6] += g; state[7] += h;
-        }
-    };
-
-    // ==============================================================================
-    // Compact Ed25519 Curve Arithmetic & Verification (RFC 8032)
-    // ==============================================================================
     namespace Ed25519
     {
-        using gf = int64_t[16];
+        using u8 = uint8_t;
+        using u32 = uint32_t;
+        using u64 = uint64_t;
+        using i64 = int64_t;
+        using gf = i64[16];
 
-        static void set25519(gf r, const gf a) { for (int i = 0; i < 16; i++) r[i] = a[i]; }
-        static void car25519(gf o)
+        static const gf
+          gf0 = { 0 },
+          gf1 = { 1 },
+          _121665 = { 0xDB41, 1 },
+          D = { 0x78a3, 0x1359, 0x4dca, 0x75eb, 0xd8ab, 0x4141, 0x0a4d, 0x0070, 0xe898, 0x7779, 0x4079, 0x8cc7, 0xfe73, 0x2b6f, 0x6cee, 0x5203 },
+          D2 = { 0xf159, 0x26b2, 0x9b94, 0xebd6, 0xb156, 0x8283, 0x149a, 0x00e0, 0xd130, 0xeef3, 0x80f2, 0x198e, 0xfce7, 0x56df, 0xd9dc, 0x2406 },
+          X = { 0xd51a, 0x8f25, 0x2d60, 0xc956, 0xa7b2, 0x9525, 0xc760, 0x692c, 0xdc5c, 0xfdd6, 0xe231, 0xc0a4, 0x53fe, 0xcd6e, 0x36d3, 0x2169 },
+          Y = { 0x6658, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666 },
+          I = { 0xa0b0, 0x4a0e, 0x1b27, 0xc4ee, 0xe478, 0xad2f, 0x1806, 0x2f43, 0xd7a7, 0x3dfb, 0x0099, 0x2b4d, 0xdf0b, 0x4fc1, 0x2480, 0x2b83 };
+
+        static inline u64 dl64(const u8* x)
         {
-            for (int i = 0; i < 16; i++)
+            u64 u = 0;
+            for (int i = 0; i < 8; ++i)
+                u = (u << 8) | x[i];
+            return u;
+        }
+
+        static inline void ts64(u8* x, u64 u)
+        {
+            for (int i = 7; i >= 0; --i)
+            {
+                x[i] = static_cast<u8>(u);
+                u >>= 8;
+            }
+        }
+
+        static inline void set25519(gf r, const gf a)
+        {
+            for (int i = 0; i < 16; ++i)
+                r[i] = a[i];
+        }
+
+        static inline void car25519(gf o)
+        {
+            for (int i = 0; i < 16; ++i)
             {
                 o[i] += (1LL << 16);
-                int64_t c = o[i] >> 16;
+                i64 c = o[i] >> 16;
                 o[(i + 1) * (i < 15 ? 1 : 0)] += c - 1 + (i == 15 ? (c - 1) * 37 : 0);
                 o[i] -= c << 16;
             }
         }
 
-        static void sel25519(gf p, gf q, int b)
+        static inline void sel25519(gf p, gf q, int b)
         {
-            int64_t c = ~(b - 1);
-            for (int i = 0; i < 16; i++)
+            i64 c = ~(b - 1);
+            for (int i = 0; i < 16; ++i)
             {
-                int64_t t = c & (p[i] ^ q[i]);
+                i64 t = c & (p[i] ^ q[i]);
                 p[i] ^= t;
                 q[i] ^= t;
             }
         }
 
-        static void pack25519(uint8_t* o, const gf n)
+        static inline void pack25519(u8* o, const gf n)
         {
             gf m, t;
             set25519(t, n);
             car25519(t); car25519(t); car25519(t);
-            for (int j = 0; j < 2; j++)
+            for (int j = 0; j < 2; ++j)
             {
                 m[0] = t[0] - 0xffed;
-                for (int i = 1; i < 15; i++)
+                for (int i = 1; i < 15; ++i)
                 {
                     m[i] = t[i] - 0xffff - ((m[i - 1] >> 16) & 1);
                     m[i - 1] &= 0xffff;
                 }
                 m[15] = t[15] - 0x7fff - ((m[14] >> 16) & 1);
                 m[14] &= 0xffff;
-                int64_t b = (m[15] >> 16) & 1;
+                i64 b = (m[15] >> 16) & 1;
                 m[15] &= 0xffff;
                 sel25519(t, m, 1 - static_cast<int>(b));
             }
-            for (int i = 0; i < 16; i++)
+            for (int i = 0; i < 16; ++i)
             {
-                o[2 * i] = static_cast<uint8_t>(t[i] & 0xff);
-                o[2 * i + 1] = static_cast<uint8_t>(t[i] >> 8);
+                o[2 * i] = static_cast<u8>(t[i] & 0xff);
+                o[2 * i + 1] = static_cast<u8>(t[i] >> 8);
             }
         }
 
-        static void unpack25519(gf o, const uint8_t* n)
+        static inline void unpack25519(gf o, const u8* n)
         {
-            for (int i = 0; i < 16; i++)
-                o[i] = n[2 * i] + (static_cast<int64_t>(n[2 * i + 1]) << 8);
+            for (int i = 0; i < 16; ++i)
+                o[i] = n[2 * i] + (static_cast<i64>(n[2 * i + 1]) << 8);
             o[15] &= 0x7fff;
         }
 
-        static void A(gf o, const gf a, const gf b) { for (int i = 0; i < 16; i++) o[i] = a[i] + b[i]; }
-        static void Z(gf o, const gf a, const gf b) { for (int i = 0; i < 16; i++) o[i] = a[i] - b[i]; }
-
-        static void M(gf o, const gf a, const gf b)
+        static inline void A(gf o, const gf a, const gf b)
         {
-            int64_t t[31] = { 0 };
-            for (int i = 0; i < 16; i++)
-                for (int j = 0; j < 16; j++)
+            for (int i = 0; i < 16; ++i)
+                o[i] = a[i] + b[i];
+        }
+
+        static inline void Z(gf o, const gf a, const gf b)
+        {
+            for (int i = 0; i < 16; ++i)
+                o[i] = a[i] - b[i];
+        }
+
+        static inline void M(gf o, const gf a, const gf b)
+        {
+            i64 t[31] = { 0 };
+            for (int i = 0; i < 16; ++i)
+                for (int j = 0; j < 16; ++j)
                     t[i + j] += a[i] * b[j];
-            for (int i = 0; i < 15; i++)
+            for (int i = 0; i < 15; ++i)
                 t[i] += 38 * t[i + 16];
-            for (int i = 0; i < 16; i++)
+            for (int i = 0; i < 16; ++i)
                 o[i] = t[i];
             car25519(o);
             car25519(o);
         }
 
-        static void S(gf o, const gf a) { M(o, a, a); }
+        static inline void S(gf o, const gf a)
+        {
+            M(o, a, a);
+        }
 
-        static void inv25519(gf o, const gf i)
+        static inline void inv25519(gf o, const gf i)
         {
             gf c;
             set25519(c, i);
-            for (int a = 253; a >= 0; a--)
+            for (int a = 253; a >= 0; --a)
             {
                 S(c, c);
                 if (a != 2 && a != 4)
@@ -249,27 +146,41 @@ namespace ProducerToy::Crypto
             set25519(o, c);
         }
 
-        static const gf d = {
-            static_cast<int64_t>(0xeb35), static_cast<int64_t>(0x5341), static_cast<int64_t>(0x45d4), static_cast<int64_t>(0x69db),
-            static_cast<int64_t>(0x4513), static_cast<int64_t>(0xa0ea), static_cast<int64_t>(0x00e1), static_cast<int64_t>(0x224e),
-            static_cast<int64_t>(0x88e0), static_cast<int64_t>(0x5541), static_cast<int64_t>(0x2247), static_cast<int64_t>(0x1200),
-            static_cast<int64_t>(0x7367), static_cast<int64_t>(0x344d), static_cast<int64_t>(0xef56), static_cast<int64_t>(0x5203)
-        };
+        static inline void pow2523(gf o, const gf i)
+        {
+            gf c;
+            set25519(c, i);
+            for (int a = 250; a >= 0; --a)
+            {
+                S(c, c);
+                if (a != 1)
+                    M(c, c, i);
+            }
+            set25519(o, c);
+        }
 
-        static const gf I = {
-            static_cast<int64_t>(0xa0b0), static_cast<int64_t>(0x4a0e), static_cast<int64_t>(0x1b27), static_cast<int64_t>(0xc4ee),
-            static_cast<int64_t>(0xe478), static_cast<int64_t>(0xad2f), static_cast<int64_t>(0x1806), static_cast<int64_t>(0x2f43),
-            static_cast<int64_t>(0xd7a7), static_cast<int64_t>(0x3dfb), static_cast<int64_t>(0x0099), static_cast<int64_t>(0x2b4d),
-            static_cast<int64_t>(0xdf0b), static_cast<int64_t>(0x4fc1), static_cast<int64_t>(0x2480), static_cast<int64_t>(0x2b83)
-        };
+        static inline u8 par25519(const gf a)
+        {
+            u8 d_bytes[32] = {};
+            pack25519(d_bytes, a);
+            return d_bytes[0] & 1;
+        }
 
-        static int unpackneg(gf r[4], const uint8_t p[32])
+        static inline int neq25519(const gf a, const gf b)
+        {
+            u8 c[32] = {}, d_bytes[32] = {};
+            pack25519(c, a);
+            pack25519(d_bytes, b);
+            return std::memcmp(c, d_bytes, 32);
+        }
+
+        static inline int unpackneg(gf r[4], const u8 p[32])
         {
             gf t, chk, num, den, den2, den4, den6;
-            set25519(r[2], gf{ 1 });
+            set25519(r[2], gf1);
             unpack25519(r[1], p);
             S(num, r[1]);
-            M(den, num, d);
+            M(den, num, D);
             Z(num, num, r[2]);
             A(den, r[2], den);
 
@@ -279,166 +190,305 @@ namespace ProducerToy::Crypto
             M(t, den6, num);
             M(t, t, den);
 
-            gf c;
-            set25519(c, t);
-            for (int a = 251; a >= 0; a--)
-            {
-                S(c, c);
-                if (a != 1)
-                    M(c, c, t);
-            }
-            M(r[0], c, num);
-            M(r[0], r[0], den);
+            pow2523(t, t);
+            M(t, t, num);
+            M(t, t, den);
+            M(t, t, den);
+            M(r[0], t, den);
 
             S(chk, r[0]);
             M(chk, chk, den);
-            if (memcmp(chk, num, sizeof(gf)) != 0)
+            if (neq25519(chk, num) != 0)
                 M(r[0], r[0], I);
 
             S(chk, r[0]);
             M(chk, chk, den);
-            if (memcmp(chk, num, sizeof(gf)) != 0)
+            if (neq25519(chk, num) != 0)
                 return -1;
 
-            if ((r[0][0] & 1) != (p[31] >> 7))
-                Z(r[0], gf{ 0 }, r[0]);
+            if (par25519(r[0]) == (p[31] >> 7))
+                Z(r[0], gf0, r[0]);
 
             M(r[3], r[0], r[1]);
             return 0;
         }
 
-        static void add(gf p[4], const gf q[4])
+        static inline void add(gf p[4], gf q[4])
         {
-            gf a, b, c, d_t, e, f, g, h, t;
+            gf a, b, c, d_val, t, e, f, g, h;
             Z(a, p[1], p[0]);
             Z(t, q[1], q[0]);
             M(a, a, t);
-            A(b, p[1], p[0]);
-            A(t, q[1], q[0]);
+            A(b, p[0], p[1]);
+            A(t, q[0], q[1]);
             M(b, b, t);
             M(c, p[3], q[3]);
-            M(c, c, d);
-            M(c, c, gf{ 2 });
-            M(d_t, p[2], q[2]);
-            M(d_t, d_t, gf{ 2 });
+            M(c, c, D2);
+            M(d_val, p[2], q[2]);
+            A(d_val, d_val, d_val);
             Z(e, b, a);
-            Z(f, d_t, c);
-            A(g, d_t, c);
+            Z(f, d_val, c);
+            A(g, d_val, c);
             A(h, b, a);
+
             M(p[0], e, f);
             M(p[1], h, g);
             M(p[2], g, f);
             M(p[3], e, h);
         }
 
-        static void scalarmult(gf p[4], const gf q[4], const uint8_t s[32])
+        static inline void cswap(gf p[4], gf q[4], u8 b)
         {
-            set25519(p[0], gf{ 0 });
-            set25519(p[1], gf{ 1 });
-            set25519(p[2], gf{ 1 });
-            set25519(p[3], gf{ 0 });
+            for (int i = 0; i < 4; ++i)
+                sel25519(p[i], q[i], b);
+        }
+
+        static inline void pack(u8* r, gf p[4])
+        {
+            gf tx, ty, zi;
+            inv25519(zi, p[2]);
+            M(tx, p[0], zi);
+            M(ty, p[1], zi);
+            pack25519(r, ty);
+            r[31] ^= (par25519(tx) << 7);
+        }
+
+        static inline void scalarmult(gf p[4], gf q[4], const u8* s)
+        {
+            set25519(p[0], gf0);
+            set25519(p[1], gf1);
+            set25519(p[2], gf1);
+            set25519(p[3], gf0);
 
             for (int i = 255; i >= 0; --i)
             {
-                int b = (s[i / 8] >> (i % 8)) & 1;
+                u8 b = (s[i / 8] >> (i & 7)) & 1;
+                cswap(p, q, b);
+                add(q, p);
                 add(p, p);
-                if (b)
-                    add(p, q);
+                cswap(p, q, b);
             }
         }
 
-        static const gf B_point[4] = {
-            { static_cast<int64_t>(0xd51a), static_cast<int64_t>(0x8f25), static_cast<int64_t>(0x2d60), static_cast<int64_t>(0xc956),
-              static_cast<int64_t>(0xa7b2), static_cast<int64_t>(0x9525), static_cast<int64_t>(0xc760), static_cast<int64_t>(0x692c),
-              static_cast<int64_t>(0xdc5c), static_cast<int64_t>(0xfdd6), static_cast<int64_t>(0xe231), static_cast<int64_t>(0xc0a4),
-              static_cast<int64_t>(0x53fe), static_cast<int64_t>(0xcd6e), static_cast<int64_t>(0x36d3), static_cast<int64_t>(0x2169) },
-            { static_cast<int64_t>(0x6658), static_cast<int64_t>(0x6666), static_cast<int64_t>(0x6666), static_cast<int64_t>(0x6666),
-              static_cast<int64_t>(0x6666), static_cast<int64_t>(0x6666), static_cast<int64_t>(0x6666), static_cast<int64_t>(0x6666),
-              static_cast<int64_t>(0x6666), static_cast<int64_t>(0x6666), static_cast<int64_t>(0x6666), static_cast<int64_t>(0x6666),
-              static_cast<int64_t>(0x6666), static_cast<int64_t>(0x6666), static_cast<int64_t>(0x6666), static_cast<int64_t>(0x6666) },
-            { 1 },
-            { static_cast<int64_t>(0xa5b7), static_cast<int64_t>(0x5555), static_cast<int64_t>(0x5555), static_cast<int64_t>(0x5555),
-              static_cast<int64_t>(0x5555), static_cast<int64_t>(0x5555), static_cast<int64_t>(0x5555), static_cast<int64_t>(0x5555),
-              static_cast<int64_t>(0x5555), static_cast<int64_t>(0x5555), static_cast<int64_t>(0x5555), static_cast<int64_t>(0x5555),
-              static_cast<int64_t>(0x5555), static_cast<int64_t>(0x5555), static_cast<int64_t>(0x5555), static_cast<int64_t>(0x5555) }
-        };
-
-        static const int64_t L_order[32] = {
-            0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58,
-            0xd0, 0xce, 0x52, 0x64, 0x75, 0x4f, 0x82, 0x65,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10
-        };
-
-        static void modL(uint8_t r[32], int64_t x[64])
+        static inline void scalarbase(gf p[4], const u8* s)
         {
-            int64_t carry, i, j;
-            for (i = 63; i >= 32; --i)
+            gf q[4];
+            set25519(q[0], X);
+            set25519(q[1], Y);
+            set25519(q[2], gf1);
+            M(q[3], X, Y);
+            scalarmult(p, q, s);
+        }
+
+        static const u64 L_order[32] = {
+            0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58,
+            0xd6, 0x9c, 0xf7, 0xa2, 0xde, 0xf9, 0xde, 0x14,
+            0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0x10
+        };
+
+        static inline void modL(u8* r, i64 x[64])
+        {
+            i64 carry = 0;
+            for (i64 i = 63; i >= 32; --i)
             {
                 carry = 0;
-                for (j = i - 32; j < i - 12; ++j)
+                for (i64 j = i - 32; j < i - 12; ++j)
                 {
                     x[j] += carry - 16 * x[i] * L_order[j - (i - 32)];
                     carry = (x[j] + 128) >> 8;
                     x[j] -= carry << 8;
                 }
-                x[j] += carry;
+                x[i - 12] += carry;
                 x[i] = 0;
             }
             carry = 0;
-            for (j = 0; j < 32; ++j)
+            for (int j = 0; j < 32; ++j)
             {
                 x[j] += carry - (x[31] >> 4) * L_order[j];
                 carry = x[j] >> 8;
                 x[j] &= 255;
             }
-            for (j = 0; j < 32; ++j)
+            for (int j = 0; j < 32; ++j)
             {
                 x[j] -= carry * L_order[j];
                 carry = x[j] >> 8;
                 x[j] &= 255;
             }
-            for (i = 0; i < 32; ++i)
-                r[i] = static_cast<uint8_t>(x[i]);
+            for (int i = 0; i < 32; ++i)
+            {
+                if (i < 31)
+                    x[i + 1] += x[i] >> 8;
+                r[i] = static_cast<u8>(x[i] & 255);
+            }
         }
 
-        // Verifies signature (64 bytes) over message (m, mlen) with public key pk (32 bytes)
+        static inline void reduce(u8* r)
+        {
+            i64 x[64];
+            for (int i = 0; i < 64; ++i)
+                x[i] = static_cast<i64>(r[i]);
+            for (int i = 0; i < 64; ++i)
+                r[i] = 0;
+            modL(r, x);
+        }
+
+        // ==============================================================================
+        // TweetNaCl Compact FIPS 180-4 SHA-512 Implementation
+        // ==============================================================================
+        static inline u64 R_rot(u64 x, int c) { return (x >> c) | (x << (64 - c)); }
+        static inline u64 Ch(u64 x, u64 y, u64 z) { return (x & y) ^ (~x & z); }
+        static inline u64 Maj(u64 x, u64 y, u64 z) { return (x & y) ^ (x & z) ^ (y & z); }
+        static inline u64 Sigma0(u64 x) { return R_rot(x, 28) ^ R_rot(x, 34) ^ R_rot(x, 39); }
+        static inline u64 Sigma1(u64 x) { return R_rot(x, 14) ^ R_rot(x, 18) ^ R_rot(x, 41); }
+        static inline u64 sigma0(u64 x) { return R_rot(x, 1) ^ R_rot(x, 8) ^ (x >> 7); }
+        static inline u64 sigma1(u64 x) { return R_rot(x, 19) ^ R_rot(x, 61) ^ (x >> 6); }
+
+        static const u64 K[80] = {
+            0x428a2f98d728ae22ULL, 0x7137449123ef65cdULL, 0xb5c0fbcfec4d3b2fULL, 0xe9b5dba58189dbbcULL,
+            0x3956c25bf348b538ULL, 0x59f111f1b605d019ULL, 0x923f82a4af194f9bULL, 0xab1c5ed5da6d8118ULL,
+            0xd807aa98a3030242ULL, 0x12835b0145706fbeULL, 0x243185be4ee4b28cULL, 0x550c7dc3d5ffb4e2ULL,
+            0x72be5d74f27b896fULL, 0x80deb1fe3b1696b1ULL, 0x9bdc06a725c71235ULL, 0xc19bf174cf692694ULL,
+            0xe49b69c19ef14ad2ULL, 0xefbe4786384f25e3ULL, 0x0fc19dc68b8cd5b5ULL, 0x240ca1cc77ac9c65ULL,
+            0x2de92c6f592b0275ULL, 0x4a7484aa6ea6e483ULL, 0x5cb0a9dcbd41fbd4ULL, 0x76f988da831153b5ULL,
+            0x983e5152ee66dfabULL, 0xa831c66d2db43210ULL, 0xb00327c898fb213fULL, 0xbf597fc7beef0ee4ULL,
+            0xc6e00bf33da88fc2ULL, 0xd5a79147930aa725ULL, 0x06ca6351e003826fULL, 0x142929670a0e6e70ULL,
+            0x27b70a8546d22ffcULL, 0x2e1b21385c26c926ULL, 0x4d2c6dfc5ac42aedULL, 0x53380d139d95b3dfULL,
+            0x650a73548baf63deULL, 0x766a0abb3c77b2a8ULL, 0x81c2c92e47edaee6ULL, 0x92722c851482353bULL,
+            0xa2bfe8a14cf10364ULL, 0xa81a664bbc423001ULL, 0xc24b8b70d0f89791ULL, 0xc76c51a30654be30ULL,
+            0xd192e819d6ef5218ULL, 0xd69906245565a910ULL, 0xf40e35855771202aULL, 0x106aa07032bbd1b8ULL,
+            0x19a4c116b8d2d0c8ULL, 0x1e376c085141ab53ULL, 0x2748774cdf8eeb99ULL, 0x34b0bcb5e19b48a8ULL,
+            0x391c0cb3c5c95a63ULL, 0x4ed8aa4ae3418acbULL, 0x5b9cca4f7763e373ULL, 0x682e6ff3d6b2b8a3ULL,
+            0x748f82ee5defb2fcULL, 0x78a5636f43172f60ULL, 0x84c87814a1f0ab72ULL, 0x8cc702081a6439ecULL,
+            0x90befffa23631e28ULL, 0xa4506cebde82bde9ULL, 0xbef9a3f7b2c67915ULL, 0xc67178f2e372532bULL,
+            0xca273eceea26619cULL, 0xd186b8c721c0c207ULL, 0xeada7dd6cde0eb1eULL, 0xf57d4f7fee6ed178ULL,
+            0x06f067aa72176fbaULL, 0x0a637dc5a2c898a6ULL, 0x113f9804bef90daeULL, 0x1b710b35131c471bULL,
+            0x28db77f523047d84ULL, 0x32caab7b40c72493ULL, 0x3c9ebe0a15c9bebcULL, 0x431d67c49c100d4cULL,
+            0x4cc5d4becb3e42b6ULL, 0x597f299cfc657e2aULL, 0x5fcb6fab3ad6faecULL, 0x6c44198c4a475817ULL
+        };
+
+        static inline int crypto_hashblocks(u8* x, const u8* m, u64 n)
+        {
+            u64 z[8], b[8], a[8], w[16], t;
+            for (int i = 0; i < 8; ++i)
+                z[i] = a[i] = dl64(x + 8 * i);
+
+            while (n >= 128)
+            {
+                for (int i = 0; i < 16; ++i)
+                    w[i] = dl64(m + 8 * i);
+
+                for (int i = 0; i < 80; ++i)
+                {
+                    for (int j = 0; j < 8; ++j)
+                        b[j] = a[j];
+
+                    t = a[7] + Sigma1(a[4]) + Ch(a[4], a[5], a[6]) + K[i] + w[i % 16];
+                    b[7] = t + Sigma0(a[0]) + Maj(a[0], a[1], a[2]);
+                    b[3] += t;
+
+                    for (int j = 0; j < 8; ++j)
+                        a[(j + 1) % 8] = b[j];
+
+                    if (i % 16 == 15)
+                    {
+                        for (int j = 0; j < 16; ++j)
+                            w[j] += w[(j + 9) % 16] + sigma0(w[(j + 1) % 16]) + sigma1(w[(j + 14) % 16]);
+                    }
+                }
+
+                for (int i = 0; i < 8; ++i)
+                {
+                    a[i] += z[i];
+                    z[i] = a[i];
+                }
+
+                m += 128;
+                n -= 128;
+            }
+
+            for (int i = 0; i < 8; ++i)
+                ts64(x + 8 * i, z[i]);
+
+            return static_cast<int>(n);
+        }
+
+        static const u8 iv[64] = {
+            0x6a, 0x09, 0xe6, 0x67, 0xf3, 0xbc, 0xc9, 0x08,
+            0xbb, 0x67, 0xae, 0x85, 0x84, 0xca, 0xa7, 0x3b,
+            0x3c, 0x6e, 0xf3, 0x72, 0xfe, 0x94, 0xf8, 0x2b,
+            0xa5, 0x4f, 0xf5, 0x3a, 0x5f, 0x1d, 0x36, 0xf1,
+            0x51, 0x0e, 0x52, 0x7f, 0xad, 0xe6, 0x82, 0xd1,
+            0x9b, 0x05, 0x68, 0x8c, 0x2b, 0x3e, 0x6c, 0x1f,
+            0x1f, 0x83, 0xd9, 0xab, 0xfb, 0x41, 0xbd, 0x6b,
+            0x5b, 0xe0, 0xcd, 0x19, 0x13, 0x7e, 0x21, 0x79
+        };
+
+        static inline int crypto_hash(u8* out, const u8* m, u64 n)
+        {
+            u8 h[64] = {};
+            u8 x[256] = {};
+            u64 b = n;
+
+            for (int i = 0; i < 64; ++i)
+                h[i] = iv[i];
+
+            crypto_hashblocks(h, m, n);
+            m += n;
+            n &= 127;
+            m -= n;
+
+            for (u64 i = 0; i < n; ++i)
+                x[i] = m[i];
+            x[n] = 128;
+
+            u64 padLen = 256 - 128 * (n < 112);
+            x[padLen - 9] = static_cast<u8>(b >> 61);
+            ts64(x + padLen - 8, b << 3);
+            crypto_hashblocks(h, x, padLen);
+
+            for (int i = 0; i < 64; ++i)
+                out[i] = h[i];
+
+            return 0;
+        }
+
+        // Verifies detached 64-byte Ed25519 signature over message (m, mlen) with public key (32 bytes)
         inline bool verify(const uint8_t sig[64], const uint8_t* m, size_t mlen, const uint8_t pk[32])
         {
-            uint8_t h[64];
-            uint8_t rcheck[32];
+            u8 t[32] = {};
+            u8 h[64] = {};
             gf p[4], q[4];
 
             if (unpackneg(q, pk) != 0)
                 return false;
 
-            // Compute h = SHA512(R || pk || m)
-            SHA512 sha;
-            sha.update(sig, 32);
-            sha.update(pk, 32);
-            sha.update(m, mlen);
-            sha.finalize(h);
+            // In Ed25519, the hash is SHA-512(R || pk || m)
+            std::vector<u8> buffer(64 + mlen);
+            std::memcpy(buffer.data(), sig, 32);
+            std::memcpy(buffer.data() + 32, pk, 32);
+            if (mlen > 0)
+                std::memcpy(buffer.data() + 64, m, mlen);
 
-            // Reduce h modulo group order l
-            int64_t x[64];
-            for (int i = 0; i < 64; ++i)
-                x[i] = static_cast<int64_t>(h[i]);
-            uint8_t h_mod[32];
-            modL(h_mod, x);
+            crypto_hash(h, buffer.data(), buffer.size());
+            reduce(h);
 
-            // Compute R' = s*B + h*A
-            scalarmult(p, q, h_mod);
-            gf sb[4];
-            scalarmult(sb, B_point, sig + 32);
-            add(p, sb);
+            scalarmult(p, q, h);
+            scalarbase(q, sig + 32);
+            add(p, q);
+            pack(t, p);
 
-            gf t;
-            inv25519(t, p[2]);
-            M(p[0], p[0], t);
-            M(p[1], p[1], t);
-            pack25519(rcheck, p[1]);
-
-            return (memcmp(rcheck, sig, 32) == 0);
+            return (std::memcmp(sig, t, 32) == 0);
         }
     }
+
+    // Retain SHA512 helper for device hash computation
+    class SHA512
+    {
+    public:
+        static void hash(const uint8_t* data, size_t len, uint8_t output[64])
+        {
+            Ed25519::crypto_hash(output, data, len);
+        }
+    };
 }

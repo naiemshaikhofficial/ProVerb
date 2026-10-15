@@ -31,7 +31,7 @@ function maskEmail(email) {
 
 function main() {
   const args = parseArgs(process.argv.slice(2));
-  const deviceId = (args['device-id'] || '').trim().toLowerCase();
+  const rawDeviceId = (args['device-id'] || '').trim().toLowerCase().replace(/[\s\-]/g, '');
   const name = (args.name || '').trim();
   const email = (args.email || '').trim().toLowerCase();
   const defaultKey = process.env.LOCALAPPDATA
@@ -41,10 +41,13 @@ function main() {
   if (!suppliedKey)
     throw new Error('Signing key is missing. Supply --key or set PROVERB_SIGNING_KEY to the protected private-key file path.');
   const keyPath = path.resolve(suppliedKey);
-  const outputPath = path.resolve(args.output || path.join(process.cwd(), 'proverb-license-' + crypto.randomUUID() + '.ptlic'));
+  const defaultOutputDir = process.env.USERPROFILE
+    ? path.join(process.env.USERPROFILE, 'Desktop')
+    : (process.env.HOME || '.');
+  const outputPath = path.resolve(args.output || path.join(defaultOutputDir, 'proverb-license-' + crypto.randomUUID() + '.ptlic'));
 
-  if (!/^[0-9a-f]{2}( [0-9a-f]{2}){31}$/.test(deviceId))
-    throw new Error('Device ID format is invalid. Use the Copy Device ID button in ProVerb and paste its full value.');
+  if (!/^[0-9a-f]{64}$/.test(rawDeviceId))
+    throw new Error('Device ID format is invalid. It must be a 64-character hexadecimal ID.');
   if (!name || name.length > 128)
     throw new Error('Customer name is required and must be 128 characters or fewer.');
   if (!/^[^@\s]{1,254}@[^@\s]{1,253}$/.test(email))
@@ -70,7 +73,7 @@ function main() {
     kid: KEY_ID,
     status: 'active',
     aid: crypto.randomUUID(),
-    dev_hash: deviceId,
+    dev_hash: rawDeviceId,
     user_name: name,
     user_email_masked: maskEmail(email),
     tier: 'perpetual',
@@ -84,7 +87,7 @@ function main() {
   const token = encodedPayload + '.' + signature;
 
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-  fs.writeFileSync(outputPath, token, { encoding: 'utf8', flag: 'wx' });
+  fs.writeFileSync(outputPath, token, { encoding: 'utf8', flag: 'w' });
   process.stdout.write('Created device-bound ProVerb license: ' + outputPath + '\n');
   process.stdout.write('Activation ID: ' + payload.aid + '\n');
   process.stdout.write('Copy the .ptlic file to the customer. The token and private key are not printed.\n');

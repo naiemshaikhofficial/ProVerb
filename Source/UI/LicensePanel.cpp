@@ -18,6 +18,7 @@ namespace ProducerToy::UI
         proverbLogoImage = juce::ImageFileFormat::loadFrom(BinaryData::proverb_logo_png,
                                                             BinaryData::proverb_logo_pngSize);
 
+        // Window controls
         addAndMakeVisible(closeButton);
         closeButton.setLookAndFeel(&buttonLnF);
         closeButton.setButtonText(juce::CharPointer_UTF8("\xc3\x97"));
@@ -31,36 +32,18 @@ namespace ProducerToy::UI
 
         addAndMakeVisible(continueButton);
         continueButton.setLookAndFeel(&buttonLnF);
-        continueButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xffffffff));
-        continueButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xff09090b));
+        continueButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff00f0ff));
+        continueButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xff05070a));
         continueButton.onClick = [this]
         {
             if (state.isActivated && onClose)
                 onClose();
         };
 
-        addAndMakeVisible(activateButton);
-        activateButton.setLookAndFeel(&buttonLnF);
-        activateButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xffffffff));
-        activateButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xff09090b));
-        activateButton.onClick = [this] { startActivation(); };
-
-        addAndMakeVisible(copyDeviceIdButton);
-        copyDeviceIdButton.setLookAndFeel(&buttonLnF);
-        copyDeviceIdButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff18181b));
-        copyDeviceIdButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xffffffff));
-        copyDeviceIdButton.onClick = [this]
-        {
-            juce::SystemClipboard::copyTextToClipboard(Licensing::LicenseClient::getInstance().getHardwareDeviceHash());
-            statusMessage = "Device ID copied. Send it with proof of purchase to request a license file.";
-            isError = false;
-            repaint();
-        };
-
         addAndMakeVisible(buyButton);
         buyButton.setLookAndFeel(&buttonLnF);
         buyButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff18181b));
-        buyButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xffffffff));
+        buyButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xffe4e4e7));
         buyButton.onClick = []
         {
             juce::URL(Licensing::ProductConfig::buyUrl).launchInDefaultBrowser();
@@ -68,8 +51,7 @@ namespace ProducerToy::UI
 
         addAndMakeVisible(deactivateButton);
         deactivateButton.setLookAndFeel(&buttonLnF);
-        deactivateButton.setButtonText("Remove Local License");
-        deactivateButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff181416));
+        deactivateButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff1f1315));
         deactivateButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xffff4053));
         deactivateButton.onClick = [this] { handleDeactivate(); };
 
@@ -80,6 +62,85 @@ namespace ProducerToy::UI
         supportButton.onClick = []
         {
             juce::URL(Licensing::ProductConfig::supportUrl).launchInDefaultBrowser();
+        };
+
+        // Tabs
+        auto setupTabBtn = [this](juce::TextButton& btn, Tab tab)
+        {
+            addAndMakeVisible(btn);
+            btn.setLookAndFeel(&buttonLnF);
+            btn.onClick = [this, tab] { setTab(tab); };
+        };
+        setupTabBtn(tabSerialButton, Tab::SerialKey);
+        setupTabBtn(tabOfflineButton, Tab::OfflineFile);
+        setupTabBtn(tabOnlineButton, Tab::OnlineAccount);
+
+        // Method 1: Serial Controls
+        addAndMakeVisible(serialEditor);
+        serialEditor.setTextToShowWhenEmpty("PT-PROV-XXXX-XXXX-XXXX-XXXX", juce::Colour(0xff52525b));
+        serialEditor.setColour(juce::TextEditor::backgroundColourId, juce::Colour(0xff0b0d13));
+        serialEditor.setColour(juce::TextEditor::textColourId, juce::Colours::white);
+        serialEditor.setColour(juce::TextEditor::outlineColourId, juce::Colour(0xff27272a));
+        serialEditor.setColour(juce::TextEditor::focusedOutlineColourId, juce::Colour(0xff00f0ff));
+        serialEditor.setFont(juce::FontOptions("Consolas", 13.5f, juce::Font::bold));
+        serialEditor.setJustification(juce::Justification::centred);
+
+        addAndMakeVisible(activateSerialButton);
+        activateSerialButton.setLookAndFeel(&buttonLnF);
+        activateSerialButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff00f0ff));
+        activateSerialButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xff05070a));
+        activateSerialButton.onClick = [this] { handleActivateSerial(); };
+
+        // Method 2: Offline File Controls
+        addAndMakeVisible(copyDeviceIdButton);
+        copyDeviceIdButton.setLookAndFeel(&buttonLnF);
+        copyDeviceIdButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff18181b));
+        copyDeviceIdButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xffffffff));
+        copyDeviceIdButton.onClick = [this]
+        {
+            juce::SystemClipboard::copyTextToClipboard(Licensing::LicenseClient::getInstance().getHardwareDeviceHash());
+            statusMessage = "Device ID copied to clipboard.";
+            isError = false;
+            repaint();
+        };
+
+        addAndMakeVisible(importFileButton);
+        importFileButton.setLookAndFeel(&buttonLnF);
+        importFileButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff00f0ff));
+        importFileButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xff05070a));
+        importFileButton.onClick = [this] { handleImportOffline(); };
+
+        // Method 3: Online Pairing Controls
+        addAndMakeVisible(startPairingButton);
+        startPairingButton.setLookAndFeel(&buttonLnF);
+        startPairingButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff00f0ff));
+        startPairingButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xff05070a));
+        startPairingButton.onClick = [this] { handleStartPairing(); };
+
+        addChildComponent(openBrowserButton);
+        openBrowserButton.setLookAndFeel(&buttonLnF);
+        openBrowserButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff22d3ee));
+        openBrowserButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xff05070a));
+        openBrowserButton.onClick = [this]
+        {
+            if (activeClaimUrl.isNotEmpty())
+                juce::URL(activeClaimUrl).launchInDefaultBrowser();
+        };
+
+        addChildComponent(cancelPairingButton);
+        cancelPairingButton.setLookAndFeel(&buttonLnF);
+        cancelPairingButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff18181b));
+        cancelPairingButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xffa1a1aa));
+        cancelPairingButton.onClick = [this]
+        {
+            Licensing::LicenseClient::getInstance().cancelPairingFlow();
+            activePairingCode.clear();
+            activeClaimUrl.clear();
+            isWorking = false;
+            statusMessage = "Pairing cancelled.";
+            isError = false;
+            resized();
+            repaint();
         };
 
         refreshState();
@@ -93,16 +154,25 @@ namespace ProducerToy::UI
 
         closeButton.setLookAndFeel(nullptr);
         continueButton.setLookAndFeel(nullptr);
-        activateButton.setLookAndFeel(nullptr);
-        copyDeviceIdButton.setLookAndFeel(nullptr);
         buyButton.setLookAndFeel(nullptr);
         deactivateButton.setLookAndFeel(nullptr);
         supportButton.setLookAndFeel(nullptr);
+
+        tabSerialButton.setLookAndFeel(nullptr);
+        tabOfflineButton.setLookAndFeel(nullptr);
+        tabOnlineButton.setLookAndFeel(nullptr);
+
+        activateSerialButton.setLookAndFeel(nullptr);
+        copyDeviceIdButton.setLookAndFeel(nullptr);
+        importFileButton.setLookAndFeel(nullptr);
+        startPairingButton.setLookAndFeel(nullptr);
+        openBrowserButton.setLookAndFeel(nullptr);
+        cancelPairingButton.setLookAndFeel(nullptr);
     }
 
     juce::Rectangle<int> LicensePanel::getCardBounds() const
     {
-        return getLocalBounds().withSizeKeepingCentre(580, 370);
+        return getLocalBounds().withSizeKeepingCentre(630, 420);
     }
 
     void LicensePanel::mouseDown(const juce::MouseEvent& event)
@@ -113,6 +183,22 @@ namespace ProducerToy::UI
 
     void LicensePanel::timerCallback()
     {
+        if (isWorking && activePairingCode.isNotEmpty())
+        {
+            if (--pairingCountdown <= 0)
+            {
+                Licensing::LicenseClient::getInstance().cancelPairingFlow();
+                activePairingCode.clear();
+                isWorking = false;
+                statusMessage = "Pairing session timed out. Please try again.";
+                isError = true;
+                resized();
+                repaint();
+                return;
+            }
+            repaint();
+        }
+
         if (++timerTicks % 4 != 0 || state.isActivated)
             return;
 
@@ -126,7 +212,7 @@ namespace ProducerToy::UI
             return;
 
         state = newState;
-        statusMessage = "Offline license loaded. ProVerb is unlocked.";
+        statusMessage = "License verified! ProVerb DSP unlocked.";
         isError = false;
         resized();
         repaint();
@@ -140,6 +226,15 @@ namespace ProducerToy::UI
         });
     }
 
+    void LicensePanel::setTab(Tab tab)
+    {
+        currentTab = tab;
+        statusMessage.clear();
+        isError = false;
+        resized();
+        repaint();
+    }
+
     void LicensePanel::refreshState()
     {
         state = Licensing::LicenseClient::getInstance().getCurrentState();
@@ -147,7 +242,46 @@ namespace ProducerToy::UI
         repaint();
     }
 
-    void LicensePanel::startActivation()
+    void LicensePanel::handleActivateSerial()
+    {
+        const auto serial = serialEditor.getText().trim();
+        if (serial.isEmpty())
+        {
+            statusMessage = "Please enter your serial key.";
+            isError = true;
+            repaint();
+            return;
+        }
+
+        isWorking = true;
+        statusMessage = "Contacting dedicated licensing server...";
+        isError = false;
+        repaint();
+
+        juce::Component::SafePointer<LicensePanel> safeThis(this);
+        Licensing::LicenseClient::getInstance().activateWithSerial(serial, [safeThis](bool success, const juce::String& msg)
+        {
+            if (auto* panel = safeThis.getComponent())
+            {
+                panel->isWorking = false;
+                panel->statusMessage = msg;
+                panel->isError = !success;
+                panel->refreshState();
+
+                if (success)
+                {
+                    juce::Timer::callAfterDelay(600, [safeThis]
+                    {
+                        if (auto* p = safeThis.getComponent())
+                            if (p->state.isActivated && p->onClose)
+                                p->onClose();
+                    });
+                }
+            }
+        });
+    }
+
+    void LicensePanel::handleImportOffline()
     {
         auto& client = Licensing::LicenseClient::getInstance();
         client.initialize();
@@ -162,12 +296,13 @@ namespace ProducerToy::UI
             return;
         }
 
-        statusMessage = "Choose the signed ProVerb .ptlic file you received.";
+        statusMessage = "Choose your device-bound .ptlic file.";
         isError = false;
         repaint();
 
         licenseChooser = std::make_unique<juce::FileChooser>(
             "Choose your ProVerb offline license (.ptlic)", juce::File(), "*.ptlic");
+
         juce::Component::SafePointer<LicensePanel> safeThis(this);
         licenseChooser->launchAsync(
             juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
@@ -190,7 +325,7 @@ namespace ProducerToy::UI
                     }
 
                     panel->refreshState();
-                    panel->statusMessage = "License verified and saved on this machine.";
+                    panel->statusMessage = "License verified! ProVerb DSP unlocked.";
                     panel->isError = false;
                     panel->repaint();
 
@@ -204,124 +339,238 @@ namespace ProducerToy::UI
             });
     }
 
+    void LicensePanel::handleStartPairing()
+    {
+        isWorking = true;
+        activePairingCode.clear();
+        activeClaimUrl.clear();
+        pairingCountdown = 300;
+        statusMessage = "Connecting to dedicated licensing service...";
+        isError = false;
+        resized();
+        repaint();
+
+        juce::Component::SafePointer<LicensePanel> safeThis(this);
+        Licensing::LicenseClient::getInstance().startOnlinePairing(
+            [safeThis](bool ready, const juce::String& code, const juce::String& claimUrl, const juce::String& error)
+            {
+                if (auto* panel = safeThis.getComponent())
+                {
+                    if (ready)
+                    {
+                        panel->activePairingCode = code;
+                        panel->activeClaimUrl = claimUrl;
+                        panel->statusMessage = "Pairing code generated. Claim it in your browser.";
+                        panel->isError = false;
+                        panel->resized();
+                        panel->repaint();
+                    }
+                    else
+                    {
+                        panel->isWorking = false;
+                        panel->statusMessage = error;
+                        panel->isError = true;
+                        panel->resized();
+                        panel->repaint();
+                    }
+                }
+            },
+            [safeThis](bool success, const juce::String& msg)
+            {
+                if (auto* panel = safeThis.getComponent())
+                {
+                    panel->isWorking = false;
+                    panel->statusMessage = msg;
+                    panel->isError = !success;
+                    panel->activePairingCode.clear();
+                    panel->activeClaimUrl.clear();
+                    panel->refreshState();
+
+                    if (success)
+                    {
+                        juce::Timer::callAfterDelay(600, [safeThis]
+                        {
+                            if (auto* p = safeThis.getComponent())
+                                if (p->state.isActivated && p->onClose)
+                                    p->onClose();
+                        });
+                    }
+                }
+            });
+    }
+
     void LicensePanel::handleDeactivate()
     {
         Licensing::LicenseClient::getInstance().deactivate();
         refreshState();
-        statusMessage = "Local license file removed. No server request was made.";
+        statusMessage = "Local license removed. DSP engine is now locked.";
         isError = false;
         repaint();
 
-        // The editor callback refreshes the processor's cached audio-thread license state.
-        // It leaves this panel open because the plugin is now locked.
         if (onClose)
             onClose();
     }
 
     void LicensePanel::paint(juce::Graphics& g)
     {
-        g.fillAll(juce::Colour(0xee08080a));
+        // Darkened backdrop with obsidian glow
+        g.fillAll(juce::Colour(0xf006070a));
         auto card = getCardBounds().toFloat();
 
-        g.setColour(juce::Colour(0xff121214));
+        // Card body
+        g.setColour(juce::Colour(0xff0d0f14));
         g.fillRoundedRectangle(card, 12.0f);
-        g.setColour(juce::Colour(0xff242428));
+        g.setColour(juce::Colour(0xff1f242e));
         g.drawRoundedRectangle(card, 12.0f, 1.0f);
 
+        // Top decorative neon cyber-strip
+        auto strip = card.removeFromTop(3.0f);
+        g.setColour(state.isActivated ? juce::Colour(0xff10b981) : juce::Colour(0xff00f0ff));
+        g.fillRoundedRectangle(strip.reduced(12.0f, 0.0f), 1.5f);
+
+        // Logo
         if (proverbLogoImage.isValid())
         {
-            const float logoWidth = 140.0f;
+            const float logoWidth = 120.0f;
             const float logoHeight = logoWidth * static_cast<float>(proverbLogoImage.getHeight())
-                                                   / static_cast<float>(proverbLogoImage.getWidth());
+                                                    / static_cast<float>(proverbLogoImage.getWidth());
             const float logoX = card.getCentreX() - logoWidth * 0.5f;
-            const float logoY = card.getY() + 24.0f;
+            const float logoY = card.getY() + 18.0f;
             g.drawImage(proverbLogoImage, static_cast<int>(logoX), static_cast<int>(logoY),
                         static_cast<int>(logoWidth), static_cast<int>(logoHeight),
                         0, 0, proverbLogoImage.getWidth(), proverbLogoImage.getHeight());
-            g.setFont(getPanelFont(11.5f, juce::Font::bold));
-            g.setColour(juce::Colours::white);
-            g.drawText("OFFLINE LICENSE", card.getX(), logoY + logoHeight + 6.0f,
-                       card.getWidth(), 16.0f, juce::Justification::centred);
         }
 
-        const float contentX = card.getX() + 38.0f;
-        const float contentW = card.getWidth() - 76.0f;
-        float y = card.getY() + 116.0f;
+        const float contentX = card.getX() + 36.0f;
+        const float contentW = card.getWidth() - 72.0f;
 
         if (state.isActivated)
         {
+            float y = card.getY() + 90.0f;
+
             g.setFont(getPanelFont(14.0f, juce::Font::bold));
             g.setColour(juce::Colour(0xff10b981));
-            g.drawText("LICENSED & ACTIVE", contentX, y, contentW, 20.0f, juce::Justification::centredLeft);
-            y += 26.0f;
+            g.drawText("PROVERB IS ACTIVE & UNLOCKED", juce::roundToInt(contentX), juce::roundToInt(y), juce::roundToInt(contentW), 20, juce::Justification::centred);
+            y += 28.0f;
 
-            g.setFont(getPanelFont(15.0f, juce::Font::bold));
+            g.setColour(juce::Colour(0xff141822));
+            g.fillRoundedRectangle(contentX, y, contentW, 110.0f, 8.0f);
+            g.setColour(juce::Colour(0xff222a38));
+            g.drawRoundedRectangle(contentX, y, contentW, 110.0f, 8.0f, 1.0f);
+
+            float infoY = y + 14.0f;
+            g.setFont(getPanelFont(14.0f, juce::Font::bold));
             g.setColour(juce::Colours::white);
-            g.drawText("Licensed to: " + state.registeredName, contentX, y, contentW, 22.0f,
-                       juce::Justification::centredLeft);
-            y += 22.0f;
+            g.drawText("Licensed to: " + state.registeredName, juce::roundToInt(contentX + 18.0f), juce::roundToInt(infoY), juce::roundToInt(contentW - 36.0f), 20, juce::Justification::centredLeft);
+            infoY += 24.0f;
 
             g.setFont(getPanelFont(12.0f));
-            g.setColour(juce::Colour(0xffa1a1aa));
-            g.drawText("Account: " + state.maskedEmail + "   |   Device-bound offline license",
-                       contentX, y, contentW, 18.0f, juce::Justification::centredLeft);
+            g.setColour(juce::Colour(0xff94a3b8));
+            g.drawText("Account: " + state.maskedEmail, juce::roundToInt(contentX + 18.0f), juce::roundToInt(infoY), juce::roundToInt(contentW - 36.0f), 18, juce::Justification::centredLeft);
+            infoY += 20.0f;
+
+            const auto devShort = state.deviceHash.substring(0, juce::jmin(24, state.deviceHash.length())) + "...";
+            g.drawText("Device: " + devShort + "   |   Tier: " + state.licenseTier, juce::roundToInt(contentX + 18.0f), juce::roundToInt(infoY), juce::roundToInt(contentW - 36.0f), 18, juce::Justification::centredLeft);
         }
         else
         {
-            g.setFont(getPanelFont(16.5f, juce::Font::bold));
-            g.setColour(juce::Colour(0xffff4053));
-            g.drawText("ProVerb Reverb Engine is Locked", contentX, y, contentW, 22.0f,
-                       juce::Justification::centredLeft);
-            y += 26.0f;
+            // Tab underline highlight
+            float tabY = card.getY() + 88.0f;
+            float tabW = (contentW - 16.0f) / 3.0f;
+            float activeX = contentX;
+            if (currentTab == Tab::OfflineFile) activeX += tabW + 8.0f;
+            else if (currentTab == Tab::OnlineAccount) activeX += (tabW + 8.0f) * 2.0f;
 
-            g.setFont(getPanelFont(12.5f));
-            g.setColour(juce::Colour(0xffe4e4e7));
-            g.drawText("Import the signed .ptlic file supplied with your purchase.", contentX, y,
-                       contentW, 18.0f, juce::Justification::centredLeft);
-            y += 20.0f;
+            g.setColour(juce::Colour(0xff00f0ff));
+            g.fillRect(activeX, tabY + 28.0f, tabW, 2.0f);
 
-            g.setFont(getPanelFont(11.5f));
-            g.setColour(juce::Colour(0xffa1a1aa));
-            g.drawText("For a new machine, copy its Device ID and request a device-bound license.",
-                       contentX, y, contentW, 18.0f, juce::Justification::centredLeft);
-            y += 23.0f;
+            float areaY = tabY + 44.0f;
 
-            const auto deviceId = Licensing::LicenseClient::getInstance().getHardwareDeviceHash();
-            const auto abbreviatedId = deviceId.substring(0, juce::jmin(27, deviceId.length())) + "...";
-            g.setFont(getPanelFont(10.5f));
-            g.setColour(juce::Colour(0xff71717a));
-            g.drawText("Device ID: " + abbreviatedId, contentX, y, contentW, 16.0f,
-                       juce::Justification::centredLeft);
+            if (currentTab == Tab::SerialKey)
+            {
+                g.setFont(getPanelFont(12.5f, juce::Font::bold));
+                g.setColour(juce::Colours::white);
+                g.drawText("Enter Your Serial Key", juce::roundToInt(contentX), juce::roundToInt(areaY), juce::roundToInt(contentW), 20, juce::Justification::centredLeft);
 
+                g.setFont(getPanelFont(11.0f));
+                g.setColour(juce::Colour(0xff94a3b8));
+                g.drawText("Serial keys are hashed securely on our dedicated server. Plaintext keys are never stored.",
+                           juce::roundToInt(contentX), juce::roundToInt(areaY + 20.0f), juce::roundToInt(contentW), 16, juce::Justification::centredLeft);
+            }
+            else if (currentTab == Tab::OfflineFile)
+            {
+                g.setFont(getPanelFont(12.5f, juce::Font::bold));
+                g.setColour(juce::Colours::white);
+                g.drawText("Device-Bound Offline Activation (.ptlic)", juce::roundToInt(contentX), juce::roundToInt(areaY), juce::roundToInt(contentW), 20, juce::Justification::centredLeft);
+
+                const auto devId = Licensing::LicenseClient::getInstance().getHardwareDeviceHash();
+                const auto shortDev = devId.substring(0, juce::jmin(28, devId.length())) + "...";
+                g.setFont(getPanelFont(11.0f));
+                g.setColour(juce::Colour(0xff94a3b8));
+                g.drawText("Machine Device ID: " + shortDev, juce::roundToInt(contentX), juce::roundToInt(areaY + 20.0f), juce::roundToInt(contentW), 16, juce::Justification::centredLeft);
+
+                g.setFont(getPanelFont(10.0f));
+                g.setColour(juce::Colour(0xff64748b));
+                g.drawText("Notice: Offline license files are device-bound. Remote revocation & live seat enforcement are not available offline.",
+                           juce::roundToInt(contentX), juce::roundToInt(areaY + 84.0f), juce::roundToInt(contentW), 16, juce::Justification::centredLeft);
+            }
+            else if (currentTab == Tab::OnlineAccount)
+            {
+                g.setFont(getPanelFont(12.5f, juce::Font::bold));
+                g.setColour(juce::Colours::white);
+                g.drawText("Pair With ProducerToy Account", juce::roundToInt(contentX), juce::roundToInt(areaY), juce::roundToInt(contentW), 20, juce::Justification::centredLeft);
+
+                if (activePairingCode.isNotEmpty())
+                {
+                    g.setFont(juce::FontOptions("Consolas", 22.0f, juce::Font::bold));
+                    g.setColour(juce::Colour(0xff00f0ff));
+                    g.drawText(activePairingCode, juce::roundToInt(contentX), juce::roundToInt(areaY + 24.0f), juce::roundToInt(contentW), 32, juce::Justification::centredLeft);
+
+                    g.setFont(getPanelFont(11.0f));
+                    g.setColour(juce::Colour(0xff94a3b8));
+                    g.drawText("Expires in " + juce::String(pairingCountdown) + "s. Open browser to confirm authorization.",
+                               juce::roundToInt(contentX), juce::roundToInt(areaY + 60.0f), juce::roundToInt(contentW), 16, juce::Justification::centredLeft);
+                }
+                else
+                {
+                    g.setFont(getPanelFont(11.0f));
+                    g.setColour(juce::Colour(0xff94a3b8));
+                    g.drawText("Pair this machine with your account. A short-lived, single-use pairing code will be generated.",
+                               juce::roundToInt(contentX), juce::roundToInt(areaY + 20.0f), juce::roundToInt(contentW), 16, juce::Justification::centredLeft);
+                }
+            }
+
+            // Status message
             if (statusMessage.isNotEmpty())
             {
-                g.setFont(getPanelFont(10.5f));
-                g.setColour(isError ? juce::Colour(0xffff6677) : juce::Colour(0xffa1a1aa));
+                g.setFont(getPanelFont(11.0f, isError ? juce::Font::bold : juce::Font::plain));
+                g.setColour(isError ? juce::Colour(0xffff4053) : juce::Colour(0xff34d399));
                 g.drawFittedText(statusMessage, juce::Rectangle<int>(
-                    static_cast<int>(contentX), static_cast<int>(card.getY() + 256.0f),
-                    static_cast<int>(contentW), 20), juce::Justification::centredLeft, 1);
+                    static_cast<int>(contentX), static_cast<int>(card.getY() + 300.0f),
+                    static_cast<int>(contentW), 22), juce::Justification::centredLeft, 1);
             }
         }
 
-        const float dividerY = card.getBottom() - 86.0f;
-        g.setColour(juce::Colour(0xff222226));
-        g.drawHorizontalLine(static_cast<int>(dividerY), contentX, card.getRight() - 38.0f);
+        // Bottom divider
+        const float dividerY = card.getBottom() - 66.0f;
+        g.setColour(juce::Colour(0xff1f242e));
+        g.drawHorizontalLine(static_cast<int>(dividerY), contentX, card.getRight() - 36.0f);
 
-        g.setFont(getPanelFont(10.0f));
-        g.setColour(juce::Colour(0xff71717a));
-        g.drawText("Ed25519 signed license   |   No activation network calls   |   Device-bound",
-                   contentX, dividerY + 6.0f, contentW, 16.0f, juce::Justification::centredLeft);
+        // Footer info
+        g.setFont(getPanelFont(9.5f));
+        g.setColour(juce::Colour(0xff64748b));
+        g.drawText("Ed25519 Cryptographic Signatures   |   Zero Vercel/Supabase Traffic   |   Dedicated VPS Backend",
+                   juce::roundToInt(contentX), juce::roundToInt(dividerY + 6.0f), juce::roundToInt(contentW), 14, juce::Justification::centredLeft);
     }
 
     void LicensePanel::resized()
     {
         const auto card = getCardBounds();
-        const int contentX = card.getX() + 38;
-        const int contentW = card.getWidth() - 76;
-        const int buttonY = card.getBottom() - 52;
-        auto buttonArea = juce::Rectangle<int>(contentX, buttonY, contentW, 36);
+        const int contentX = card.getX() + 36;
+        const int contentW = card.getWidth() - 72;
+        const int bottomBarY = card.getBottom() - 44;
 
-        closeButton.setBounds(card.getRight() - 34, card.getY() + 10, 24, 24);
+        closeButton.setBounds(card.getRight() - 32, card.getY() + 10, 22, 22);
 
         if (state.isActivated)
         {
@@ -330,15 +579,24 @@ namespace ProducerToy::UI
             deactivateButton.setVisible(true);
             supportButton.setVisible(true);
 
-            activateButton.setVisible(false);
+            tabSerialButton.setVisible(false);
+            tabOfflineButton.setVisible(false);
+            tabOnlineButton.setVisible(false);
+            serialEditor.setVisible(false);
+            activateSerialButton.setVisible(false);
             copyDeviceIdButton.setVisible(false);
+            importFileButton.setVisible(false);
+            startPairingButton.setVisible(false);
+            openBrowserButton.setVisible(false);
+            cancelPairingButton.setVisible(false);
             buyButton.setVisible(false);
 
-            continueButton.setBounds(buttonArea.removeFromLeft(145));
-            buttonArea.removeFromLeft(12);
-            deactivateButton.setBounds(buttonArea.removeFromLeft(180));
-            buttonArea.removeFromLeft(12);
-            supportButton.setBounds(buttonArea.removeFromLeft(buttonArea.getWidth()));
+            auto bArea = juce::Rectangle<int>(contentX, bottomBarY, contentW, 30);
+            continueButton.setBounds(bArea.removeFromLeft(150));
+            bArea.removeFromLeft(10);
+            deactivateButton.setBounds(bArea.removeFromLeft(160));
+            bArea.removeFromLeft(10);
+            supportButton.setBounds(bArea.removeFromLeft(140));
         }
         else
         {
@@ -346,18 +604,74 @@ namespace ProducerToy::UI
             continueButton.setVisible(false);
             deactivateButton.setVisible(false);
 
-            activateButton.setVisible(true);
-            copyDeviceIdButton.setVisible(true);
+            tabSerialButton.setVisible(true);
+            tabOfflineButton.setVisible(true);
+            tabOnlineButton.setVisible(true);
             buyButton.setVisible(true);
             supportButton.setVisible(true);
 
-            copyDeviceIdButton.setBounds(contentX, card.getY() + 224, 142, 28);
+            // Tab bar layout
+            const int tabY = card.getY() + 88;
+            const int tabW = (contentW - 16) / 3;
+            tabSerialButton.setBounds(contentX, tabY, tabW, 28);
+            tabOfflineButton.setBounds(contentX + tabW + 8, tabY, tabW, 28);
+            tabOnlineButton.setBounds(contentX + (tabW + 8) * 2, tabY, tabW, 28);
 
-            activateButton.setBounds(buttonArea.removeFromLeft(185));
-            buttonArea.removeFromLeft(10);
-            buyButton.setBounds(buttonArea.removeFromLeft(145));
-            buttonArea.removeFromLeft(10);
-            supportButton.setBounds(buttonArea.removeFromLeft(buttonArea.getWidth()));
+            // Tab button styles
+            auto updateTabStyle = [this](juce::TextButton& btn, bool active)
+            {
+                btn.setColour(juce::TextButton::buttonColourId, active ? juce::Colour(0xff181c24) : juce::Colour(0xff0d0f14));
+                btn.setColour(juce::TextButton::textColourOffId, active ? juce::Colour(0xff00f0ff) : juce::Colour(0xff71717a));
+            };
+            updateTabStyle(tabSerialButton, currentTab == Tab::SerialKey);
+            updateTabStyle(tabOfflineButton, currentTab == Tab::OfflineFile);
+            updateTabStyle(tabOnlineButton, currentTab == Tab::OnlineAccount);
+
+            const int activeAreaY = tabY + 86;
+
+            // Tab 1: Serial
+            const bool isSerial = (currentTab == Tab::SerialKey);
+            serialEditor.setVisible(isSerial);
+            activateSerialButton.setVisible(isSerial);
+            if (isSerial)
+            {
+                serialEditor.setBounds(contentX, activeAreaY, contentW - 160, 32);
+                activateSerialButton.setBounds(contentX + contentW - 150, activeAreaY, 150, 32);
+            }
+
+            // Tab 2: Offline File
+            const bool isOffline = (currentTab == Tab::OfflineFile);
+            copyDeviceIdButton.setVisible(isOffline);
+            importFileButton.setVisible(isOffline);
+            if (isOffline)
+            {
+                copyDeviceIdButton.setBounds(contentX, activeAreaY, 140, 32);
+                importFileButton.setBounds(contentX + 150, activeAreaY, 160, 32);
+            }
+
+            // Tab 3: Online Account
+            const bool isOnline = (currentTab == Tab::OnlineAccount);
+            startPairingButton.setVisible(isOnline && activePairingCode.isEmpty());
+            openBrowserButton.setVisible(isOnline && activePairingCode.isNotEmpty());
+            cancelPairingButton.setVisible(isOnline && activePairingCode.isNotEmpty());
+            if (isOnline)
+            {
+                if (activePairingCode.isEmpty())
+                {
+                    startPairingButton.setBounds(contentX, activeAreaY, 180, 32);
+                }
+                else
+                {
+                    openBrowserButton.setBounds(contentX, activeAreaY + 12, 160, 32);
+                    cancelPairingButton.setBounds(contentX + 170, activeAreaY + 12, 100, 32);
+                }
+            }
+
+            // Footer buttons
+            auto bArea = juce::Rectangle<int>(contentX, bottomBarY, contentW, 30);
+            buyButton.setBounds(bArea.removeFromLeft(150));
+            bArea.removeFromLeft(10);
+            supportButton.setBounds(bArea.removeFromLeft(140));
         }
     }
 }

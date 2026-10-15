@@ -1,5 +1,6 @@
 #include "LicenseClient.h"
 #include "Ed25519Verifier.h"
+#include <juce_events/juce_events.h>
 #include <limits>
 
 namespace ProducerToy::Licensing
@@ -103,6 +104,11 @@ namespace ProducerToy::Licensing
         initialize();
     }
 
+    LicenseClient::~LicenseClient()
+    {
+        cancelPairingFlow();
+    }
+
     juce::File LicenseClient::getLicenseDirectory()
     {
         auto directory = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
@@ -124,6 +130,14 @@ namespace ProducerToy::Licensing
         return name.isEmpty() ? "Studio Audio Machine" : name;
     }
 
+    juce::String LicenseClient::getEffectiveApiUrl() const
+    {
+        const auto envUrl = juce::SystemStats::getEnvironmentVariable("PROVERB_API_URL", "").trim();
+        if (envUrl.isNotEmpty())
+            return envUrl;
+        return ProductConfig::apiBaseUrl;
+    }
+
     juce::String LicenseClient::getHardwareDeviceHash() const
     {
         juce::String hardwareId;
@@ -142,8 +156,11 @@ namespace ProducerToy::Licensing
             reinterpret_cast<const uint8_t*>(raw.toRawUTF8()),
             static_cast<size_t>(raw.getNumBytesAsUTF8()), hash);
 
-        // Keep JUCE's spaced byte-hex format stable; the issuer tool accepts this exact value.
-        return juce::String::toHexString(hash, 32).toLowerCase();
+        // Canonical 64-character lowercase hex format
+        juce::String hex;
+        for (int i = 0; i < 32; ++i)
+            hex << juce::String::toHexString((int) hash[i]).paddedLeft('0', 2).toLowerCase();
+        return hex;
     }
 
     void LicenseClient::initialize()
@@ -233,13 +250,16 @@ namespace ProducerToy::Licensing
             || !requiredInteger(*object, "exp", expiresAt))
             return false;
 
+        const auto cleanTokenDev = deviceHash.removeCharacters(" -").toLowerCase();
+        const auto cleanLocalDev = getHardwareDeviceHash().removeCharacters(" -").toLowerCase();
+
         const auto now = juce::Time::getCurrentTime().toMilliseconds() / 1000;
         constexpr int64_t allowedClockSkew = 300;
         if (issuedAt <= 0 || issuedAt > now + allowedClockSkew
             || notBefore <= 0 || notBefore > now + allowedClockSkew
             || expiresAt < 0
             || (expiresAt != 0 && now > expiresAt)
-            || deviceHash != getHardwareDeviceHash()
+            || cleanTokenDev != cleanLocalDev
             || userName.length() > 128 || maskedEmail.length() > 254
             || activationId.length() > 128)
             return false;
@@ -250,30 +270,30 @@ namespace ProducerToy::Licensing
         outState.licenseTier = tier;
         outState.issuedAt = juce::Time(issuedAt * 1000);
         outState.activationId = activationId;
-        outState.deviceHash = deviceHash;
+        outState.deviceHash = cleanLocalDev;
         outState.rawToken = token;
         return true;
     }
 
-    bool LicenseClient::installLicenseFile(const juce::File& source, juce::String& error)
+    bool LicenseClient::installLicenseToken(const juce::String& token, juce::String& error)
     {
         error.clear();
-        if (!source.existsAsFile() || source.getSize() <= 0 || source.getSize() > 8192)
+        const auto cleanToken = token.trim();
+        if (cleanToken.isEmpty() || cleanToken.length() > 8192)
         {
-            error = "Choose a valid ProVerb .ptlic license file.";
+            error = "Invalid or empty license token.";
             return false;
         }
 
-        const auto token = source.loadFileAsString().trim();
         LicenseState validatedState;
-        if (!verifyToken(token, validatedState))
+        if (!verifyToken(cleanToken, validatedState))
         {
             error = "This license is invalid, for another device, or was issued for a different ProVerb build.";
             return false;
         }
 
         const auto destination = getLicenseFile();
-        if (!destination.replaceWithText(token))
+        if (!destination.replaceWithText(cleanToken))
         {
             error = "Windows could not save the license in your user profile. Check folder permissions and try again.";
             return false;
@@ -290,14 +310,294 @@ namespace ProducerToy::Licensing
         return true;
     }
 
-    void LicenseClient::deactivate()
+    bool LicenseClient::installLicenseFile(const juce::File& source, juce::String& error)
     {
+        error.clear();
+        if (!source.existsAsFile() || source.getSize() <= 0 || source.getSize() > 8192)
+        {
+            error = "Choose a valid ProVerb .ptlic license file.";
+            return false;
+        }
+
+        return installLicenseToken(source.loadFileAsString(), error);
+    }
+
+    class LicenseClient::PairingWorker : public juce::Thread
+    {
+    public:
+        PairingWorker(LicenseClient& clientIn,
+                      std::function<void(bool, const juce::String&, const juce::String&, const juce::String&)> onReadyIn,
+                      std::function<void(bool, const juce::String&)> onCompleteIn)
+            : juce::Thread("ProVerbPairingWorker"),
+              owner(clientIn),
+              onReady(std::move(onReadyIn)),
+              onComplete(std::move(onCompleteIn))
+        {
+        }
+
+        void run() override
+        {
+            const auto apiUrl = owner.getEffectiveApiUrl();
+            const auto devId = owner.getHardwareDeviceHash();
+            const auto devName = owner.getHardwareDeviceName();
+
+            juce::var startReq = new juce::DynamicObject();
+            startReq.getDynamicObject()->setProperty("productId", ProductConfig::productId);
+            startReq.getDynamicObject()->setProperty("deviceId", devId);
+            startReq.getDynamicObject()->setProperty("deviceName", devName);
+
+            juce::URL startUrl(apiUrl + "/pair/start");
+            startUrl = startUrl.withPOSTData(juce::JSON::toString(startReq));
+
+            int statusCode = 0;
+            juce::String responseStr;
+            {
+                auto inStream = startUrl.createInputStream(
+                    juce::URL::InputStreamOptions(juce::URL::ParameterHandling::inPostData)
+                        .withConnectionTimeoutMs(6000)
+                        .withStatusCode(&statusCode)
+                        .withExtraHeaders("Content-Type: application/json\r\nAccept: application/json\r\n"));
+
+                if (inStream != nullptr)
+                    responseStr = inStream->readEntireStreamAsString();
+            }
+
+            if (threadShouldExit())
+                return;
+
+            auto parsed = juce::JSON::parse(responseStr);
+            auto* obj = parsed.getDynamicObject();
+            if (statusCode != 200 || obj == nullptr || !obj->getProperty("success"))
+            {
+                juce::String err = obj ? obj->getProperty("error").toString() : "";
+                if (err.isEmpty())
+                    err = "Dedicated licensing server unreachable. Check connection or use Serial / Offline File.";
+
+                juce::MessageManager::callAsync([cb = onReady, err]()
+                {
+                    if (cb) cb(false, "", "", err);
+                });
+                return;
+            }
+
+            const auto code = obj->getProperty("code").toString();
+            const auto claimUrl = obj->getProperty("claimUrl").toString();
+
+            juce::MessageManager::callAsync([cb = onReady, code, claimUrl]()
+            {
+                if (cb) cb(true, code, claimUrl, "");
+            });
+
+            // Poll for claim completion up to 300 seconds
+            const auto startTime = juce::Time::getMillisecondCounter();
+            while (!threadShouldExit())
+            {
+                if (juce::Time::getMillisecondCounter() - startTime > 300000)
+                {
+                    juce::MessageManager::callAsync([cb = onComplete]()
+                    {
+                        if (cb) cb(false, "Pairing timed out. Please try again.");
+                    });
+                    return;
+                }
+
+                wait(2000);
+                if (threadShouldExit())
+                    return;
+
+                juce::URL pollUrl(apiUrl + "/pair/poll?code=" + juce::URL::addEscapeChars(code, true)
+                                  + "&deviceId=" + juce::URL::addEscapeChars(devId, true));
+
+                int pollStatus = 0;
+                juce::String pollResp;
+                {
+                    auto inStream = pollUrl.createInputStream(
+                        juce::URL::InputStreamOptions(juce::URL::ParameterHandling::inAddress)
+                            .withConnectionTimeoutMs(4000)
+                            .withStatusCode(&pollStatus)
+                            .withExtraHeaders("Accept: application/json\r\n"));
+
+                    if (inStream != nullptr)
+                        pollResp = inStream->readEntireStreamAsString();
+                }
+
+                if (threadShouldExit())
+                    return;
+
+                auto pollParsed = juce::JSON::parse(pollResp);
+                if (auto* pObj = pollParsed.getDynamicObject())
+                {
+                    const auto status = pObj->getProperty("status").toString();
+                    if (status == "claimed")
+                    {
+                        const auto token = pObj->getProperty("token").toString();
+                        juce::String installErr;
+                        if (owner.installLicenseToken(token, installErr))
+                        {
+                            juce::MessageManager::callAsync([cb = onComplete]()
+                            {
+                                if (cb) cb(true, "Device successfully activated online.");
+                            });
+                            return;
+                        }
+                        else
+                        {
+                            juce::MessageManager::callAsync([cb = onComplete, installErr]()
+                            {
+                                if (cb) cb(false, "Token installation failed: " + installErr);
+                            });
+                            return;
+                        }
+                    }
+                    else if (status == "expired" || status == "rejected")
+                    {
+                        juce::MessageManager::callAsync([cb = onComplete, status]()
+                        {
+                            if (cb) cb(false, "Pairing " + status + ". Please start again.");
+                        });
+                        return;
+                    }
+                }
+            }
+        }
+
+    private:
+        LicenseClient& owner;
+        std::function<void(bool, const juce::String&, const juce::String&, const juce::String&)> onReady;
+        std::function<void(bool, const juce::String&)> onComplete;
+    };
+
+    void LicenseClient::activateWithSerial(const juce::String& serialKey,
+                                           std::function<void(bool, const juce::String&)> callback)
+    {
+        const auto cleanSerial = serialKey.trim().toUpperCase();
+        if (cleanSerial.isEmpty())
+        {
+            if (callback) callback(false, "Please enter your ProVerb serial key.");
+            return;
+        }
+
+        juce::Thread::launch([this, cleanSerial, callback]()
+        {
+            const auto apiUrl = getEffectiveApiUrl();
+            const auto devId = getHardwareDeviceHash();
+            const auto devName = getHardwareDeviceName();
+
+            juce::var req = new juce::DynamicObject();
+            req.getDynamicObject()->setProperty("productId", ProductConfig::productId);
+            req.getDynamicObject()->setProperty("deviceId", devId);
+            req.getDynamicObject()->setProperty("deviceName", devName);
+            req.getDynamicObject()->setProperty("serialKey", cleanSerial);
+
+            juce::URL actUrl(apiUrl + "/serial/activate");
+            actUrl = actUrl.withPOSTData(juce::JSON::toString(req));
+
+            int statusCode = 0;
+            juce::String respStr;
+            {
+                auto inStream = actUrl.createInputStream(
+                    juce::URL::InputStreamOptions(juce::URL::ParameterHandling::inPostData)
+                        .withConnectionTimeoutMs(8000)
+                        .withStatusCode(&statusCode)
+                        .withExtraHeaders("Content-Type: application/json\r\nAccept: application/json\r\n"));
+
+                if (inStream != nullptr)
+                    respStr = inStream->readEntireStreamAsString();
+            }
+
+            auto parsed = juce::JSON::parse(respStr);
+            auto* obj = parsed.getDynamicObject();
+            if (statusCode != 200 || obj == nullptr || !obj->getProperty("success"))
+            {
+                juce::String errMsg = obj ? obj->getProperty("error").toString() : "";
+                if (errMsg.isEmpty())
+                    errMsg = "Could not reach the dedicated licensing server. Please check connection or use Offline License File.";
+
+                juce::MessageManager::callAsync([callback, errMsg]()
+                {
+                    if (callback) callback(false, errMsg);
+                });
+                return;
+            }
+
+            const auto token = obj->getProperty("token").toString();
+            juce::String installErr;
+            if (!installLicenseToken(token, installErr))
+            {
+                juce::MessageManager::callAsync([callback, installErr]()
+                {
+                    if (callback) callback(false, "Received invalid license from server: " + installErr);
+                });
+                return;
+            }
+
+            juce::MessageManager::callAsync([callback]()
+            {
+                if (callback) callback(true, "Serial key redeemed! ProVerb is activated.");
+            });
+        });
+    }
+
+    void LicenseClient::startOnlinePairing(
+        std::function<void(bool, const juce::String&, const juce::String&, const juce::String&)> onCodeReady,
+        std::function<void(bool, const juce::String&)> onComplete)
+    {
+        cancelPairingFlow();
+        activePairingWorker = std::make_unique<PairingWorker>(*this, std::move(onCodeReady), std::move(onComplete));
+        activePairingWorker->startThread(juce::Thread::Priority::normal);
+    }
+
+    void LicenseClient::cancelPairingFlow()
+    {
+        if (activePairingWorker != nullptr)
+        {
+            activePairingWorker->signalThreadShouldExit();
+            activePairingWorker->stopThread(2000);
+            activePairingWorker.reset();
+        }
+    }
+
+    void LicenseClient::deactivate(std::function<void(bool, const juce::String&)> callback)
+    {
+        cancelPairingFlow();
+
         const auto licenseFile = getLicenseFile();
         if (licenseFile.existsAsFile())
             licenseFile.deleteFile();
 
-        const juce::ScopedLock lock(stateLock);
-        currentState = LicenseState();
-        isActivatedAtomic.store(false, std::memory_order_relaxed);
+        juce::String actId;
+        juce::String devId = getHardwareDeviceHash();
+        {
+            const juce::ScopedLock lock(stateLock);
+            actId = currentState.activationId;
+            currentState = LicenseState();
+            isActivatedAtomic.store(false, std::memory_order_relaxed);
+        }
+
+        // Notify server asynchronously in background (fire-and-forget, non-blocking)
+        if (actId.isNotEmpty())
+        {
+            const auto apiUrl = getEffectiveApiUrl();
+            juce::Thread::launch([apiUrl, actId, devId]()
+            {
+                juce::var req = new juce::DynamicObject();
+                req.getDynamicObject()->setProperty("productId", ProductConfig::productId);
+                req.getDynamicObject()->setProperty("activationId", actId);
+                req.getDynamicObject()->setProperty("deviceId", devId);
+
+                juce::URL deactUrl(apiUrl + "/deactivate");
+                deactUrl = deactUrl.withPOSTData(juce::JSON::toString(req));
+
+                int code = 0;
+                auto inStream = deactUrl.createInputStream(
+                    juce::URL::InputStreamOptions(juce::URL::ParameterHandling::inPostData)
+                        .withConnectionTimeoutMs(4000)
+                        .withStatusCode(&code)
+                        .withExtraHeaders("Content-Type: application/json\r\nAccept: application/json\r\n"));
+            });
+        }
+
+        if (callback)
+            callback(true, "Local license file removed.");
     }
 }

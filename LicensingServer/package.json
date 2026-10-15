@@ -1,0 +1,19 @@
+{
+  "name": "proverb-licensing-server",
+  "version": "1.0.0",
+  "description": "Dedicated standalone licensing backend for ProVerb audio plugin",
+  "main": "server.mjs",
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "keywords": [
+    "licensing",
+    "ed25519",
+    "proverb",
+    "audio-plugin"
+  ],
+  "author": "ProducerToy",
+  "license": "UNLICENSED",
+  "private": true
+}
