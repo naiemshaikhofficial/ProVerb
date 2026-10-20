@@ -113,15 +113,12 @@ public:
     Geometry getGeometry (juce::Rectangle<float> bounds) const
     {
         Geometry geom;
-        auto fieldArea = bounds.reduced (10.0f, 10.0f);
-        fieldArea.removeFromBottom (18.0f); // Space for bottom slider & phase indicator
+        geom.scaleY = 1.0f; // Neoverb true circular proportions
 
-        geom.centre = fieldArea.getCentre();
-        geom.radius = juce::jmin (fieldArea.getWidth(), fieldArea.getHeight()) * 0.47f;
-        geom.radius *= (0.84f + (spaceSize / 100.0f) * 0.16f);
-        geom.scaleY = 0.96f; // Neoverb true circular proportions
-        const float yCenterOffset = geom.radius * 0.03f;
-        geom.centre.y += yCenterOffset;
+        // Maximize radius to fill the centerpiece module like Neoverb reference
+        float minDim = juce::jmin (bounds.getWidth(), bounds.getHeight());
+        geom.centre = juce::Point<float> (bounds.getCentreX(), bounds.getY() + bounds.getHeight() * 0.47f);
+        geom.radius = (minDim * 0.44f) * (0.92f + (spaceSize / 100.0f) * 0.08f);
 
         geom.vBright   = getVertexPosition (geom.centre, geom.radius, geom.scaleY, 0);
         geom.vWarm     = getVertexPosition (geom.centre, geom.radius, geom.scaleY, 1);
@@ -139,11 +136,9 @@ public:
     {
         auto bounds = getLocalBounds().toFloat();
 
-        // 1. Futuristic Deep Obsidian Background
-        g.setColour (juce::Colour (0xff06070a));
-        g.fillRoundedRectangle (bounds, 8.0f);
-        g.setColour (juce::Colour (0xff181a24));
-        g.drawRoundedRectangle (bounds, 8.0f, 1.0f);
+        // 1. Futuristic Deep Obsidian Background (Seamless full-bleed card canvas)
+        g.setColour (juce::Colour (0xff07080c));
+        g.fillRoundedRectangle (bounds, 6.0f);
 
         auto geom = getGeometry (bounds);
 
@@ -278,27 +273,27 @@ private:
     // Helper: calculate 3 triangle vertices (0 = Top Bright, 1 = Bottom-Left Warm, 2 = Bottom-Right Spacious)
     juce::Point<float> getVertexPosition (juce::Point<float> centre, float radius, float scaleY, int index) const
     {
+        juce::ignoreUnused (scaleY);
         float angle = 0.0f;
-        if (index == 0) // Top
+        if (index == 0) // Top (BRIGHT)
             angle = -juce::MathConstants<float>::halfPi;
-        else if (index == 1) // Bottom-Left (approx 210 deg)
+        else if (index == 1) // Bottom-Left (WARM - 150 deg)
             angle = juce::MathConstants<float>::halfPi + juce::MathConstants<float>::pi / 3.0f;
-        else // Bottom-Right (approx 330 deg)
+        else // Bottom-Right (SPACIOUS - 30 deg)
             angle = juce::MathConstants<float>::halfPi - juce::MathConstants<float>::pi / 3.0f;
 
-        float r = radius * 0.90f;
         return juce::Point<float> (
-            centre.x + std::cos (angle) * r,
-            centre.y + std::sin (angle) * r * scaleY
+            centre.x + std::cos (angle) * radius,
+            centre.y + std::sin (angle) * radius
         );
     }
 
     juce::Rectangle<float> getSpaceSliderBarBounds (juce::Rectangle<float> bounds) const
     {
         float barW = 100.0f;
-        float barH = 5.0f;
+        float barH = 4.0f;
         float barX = bounds.getX() + 78.0f;
-        float barY = bounds.getBottom() - 14.0f;
+        float barY = bounds.getBottom() - 13.0f;
         return juce::Rectangle<float> (barX, barY, barW, barH);
     }
 
@@ -339,49 +334,47 @@ private:
         repaint();
     }
 
-    // 2. Multi-gradient Atmospheric Aura Nebula (Soft Blurred Chromatic Rainbow Prism)
+    // 2. Multi-gradient Atmospheric Aura Nebula (Soft Blurred Chromatic Rainbow Prism matching Neoverb 1:1)
     void drawAtmosphericNebula (juce::Graphics& g, juce::Point<float> centre, float radius,
                                 juce::Point<float> v0, juce::Point<float> v1, juce::Point<float> v2,
                                 juce::Point<float> puckPos)
     {
-        juce::ignoreUnused (centre);
-        const float audioPulse = rmsOut * 0.38f;
+        const float audioPulse = rmsOut * 0.35f;
         const float r = radius * (1.0f + audioPulse * 0.08f);
 
-        auto midBottom = (v1 + v2) * 0.5f;
         auto midLeft   = (v0 + v1) * 0.5f;
         auto midRight  = (v0 + v2) * 0.5f;
 
-        // 1. Soft atmospheric colored clouds in the background behind each vertex
-        juce::ColourGradient bgCyan (juce::Colour (0x5500d4ff), v0.x, v0.y,
-                                     juce::Colour (0x00000000), v0.x, v0.y + r * 0.70f, true);
+        // 1. Exterior Atmospheric Colored Glows behind the triangle
+        // Top Cyan Atmospheric Aura
+        juce::ColourGradient bgCyan (juce::Colour (0x6500f0ff), v0.x, v0.y,
+                                     juce::Colour (0x00000000), v0.x, v0.y + r * 0.90f, true);
         g.setGradientFill (bgCyan);
-        g.fillEllipse (v0.x - r * 0.70f, v0.y - r * 0.50f, r * 1.40f, r * 1.20f);
+        g.fillEllipse (v0.x - r * 0.85f, v0.y - r * 0.65f, r * 1.70f, r * 1.50f);
 
-        juce::ColourGradient bgWarm (juce::Colour (0x50ff2a6d), v1.x, v1.y,
-                                     juce::Colour (0x00000000), v1.x + r * 0.60f, v1.y - r * 0.60f, true);
+        // Bottom-Left Magenta Atmospheric Aura
+        juce::ColourGradient bgWarm (juce::Colour (0x55ff2a6d), v1.x, v1.y,
+                                     juce::Colour (0x00000000), v1.x + r * 0.85f, v1.y - r * 0.35f, true);
         g.setGradientFill (bgWarm);
-        g.fillEllipse (v1.x - r * 0.70f, v1.y - r * 0.60f, r * 1.40f, r * 1.20f);
+        g.fillEllipse (v1.x - r * 0.85f, v1.y - r * 0.75f, r * 1.70f, r * 1.50f);
 
-        juce::ColourGradient bgSpace (juce::Colour (0x5000f59b), v2.x, v2.y,
-                                      juce::Colour (0x00000000), v2.x - r * 0.60f, v2.y - r * 0.60f, true);
+        // Bottom-Right Emerald Atmospheric Aura
+        juce::ColourGradient bgSpace (juce::Colour (0x5500f59b), v2.x, v2.y,
+                                      juce::Colour (0x00000000), v2.x - r * 0.85f, v2.y - r * 0.35f, true);
         g.setGradientFill (bgSpace);
-        g.fillEllipse (v2.x - r * 0.70f, v2.y - r * 0.60f, r * 1.40f, r * 1.20f);
+        g.fillEllipse (v2.x - r * 0.85f, v2.y - r * 0.75f, r * 1.70f, r * 1.50f);
 
-        juce::ColourGradient bgAmber (juce::Colour (0x45fbbf24), midBottom.x, midBottom.y,
-                                      juce::Colour (0x00000000), midBottom.x, midBottom.y - r * 0.60f, true);
+        // Bottom Golden Smoke
+        juce::ColourGradient bgAmber (juce::Colour (0x45fbbf24), centre.x, centre.y + r * 0.65f,
+                                      juce::Colour (0x00000000), centre.x, centre.y + r * 0.10f, true);
         g.setGradientFill (bgAmber);
-        g.fillEllipse (midBottom.x - r * 0.60f, midBottom.y - r * 0.50f, r * 1.20f, r * 1.00f);
+        g.fillEllipse (centre.x - r * 0.85f, centre.y + r * 0.20f, r * 1.70f, r * 0.90f);
 
         // 2. Build Convex Rounded Triangle Path
         juce::Path trianglePath;
         buildRoundedTrianglePath (trianglePath, v0, v1, v2, 22.0f);
 
-        // 3. Fill with deep glass base
-        g.setColour (juce::Colour (0xdd090b10));
-        g.fillPath (trianglePath);
-
-        // 4. Clip rich multi-spectral liquid gradient inside the triangle
+        // 3. Clip rich multi-spectral liquid gradient inside the triangle (No dark base hole!)
         juce::Graphics::ScopedSaveState state (g);
         g.reduceClipRegion (trianglePath);
 
@@ -390,74 +383,90 @@ private:
         const float brightGain = juce::jlimit (0.30f, 1.25f, 0.4f + ((highCut - 1000.0f) / 19000.0f) * 0.85f);
         const float shimmerBoost = (shimmer / 100.0f) * 0.25f;
 
-        // Top Electric Cyan
-        float cyanAlpha = (0.78f + weightBright * 0.22f) * brightGain * duckFactor;
-        juce::ColourGradient gradCyan (juce::Colour (0xff00e5ff).withAlpha (cyanAlpha), v0.x, v0.y,
-                                       juce::Colour (0x000099ff), puckPos.x, puckPos.y + r * 0.35f, true);
+        // Base Spectral Wash (100% full vibrant fluid coverage)
+        juce::ColourGradient baseGrad (juce::Colour (0xff00d4ff).withAlpha (duckFactor), centre.x, v0.y,
+                                       juce::Colour (0xfffbbf24).withAlpha (duckFactor), centre.x, v1.y, false);
+        baseGrad.addColour (0.42, juce::Colour (0xff818cf8).withAlpha (duckFactor));
+        g.setGradientFill (baseGrad);
+        g.fillPath (trianglePath);
+
+        // Layer 1: Top Apex Electric Cyan (Reference match: solid glowing blue top third)
+        float cyanAlpha = (0.90f + weightBright * 0.10f) * brightGain * duckFactor;
+        juce::ColourGradient gradCyan (juce::Colour (0xff00f0ff).withAlpha (cyanAlpha), v0.x, v0.y,
+                                       juce::Colour (0x000284c7), v0.x, centre.y + r * 0.25f, true);
+        gradCyan.addColour (0.45, juce::Colour (0xee00d4ff));
         g.setGradientFill (gradCyan);
-        g.fillEllipse (v0.x - r * 0.80f, v0.y - r * 0.50f, r * 1.60f, r * 1.30f);
+        g.fillEllipse (v0.x - r * 0.95f, v0.y - r * 0.50f, r * 1.90f, r * 1.60f);
 
-        // Bottom-Left Vivid Coral / Magenta
-        float warmAlpha = (0.75f + weightWarm * 0.25f) * warmGain * duckFactor;
-        juce::ColourGradient gradWarm (juce::Colour (0xffff2a6d).withAlpha (warmAlpha), v1.x, v1.y,
-                                       juce::Colour (0x00c026d3), puckPos.x + r * 0.20f, puckPos.y - r * 0.20f, true);
+        // Layer 2: Bottom-Left Vivid Coral / Magenta
+        float warmAlpha = (0.88f + weightWarm * 0.12f) * warmGain * duckFactor;
+        juce::ColourGradient gradWarm (juce::Colour (0xffff1361).withAlpha (warmAlpha), v1.x, v1.y,
+                                       juce::Colour (0x00c026d3), centre.x + r * 0.15f, centre.y - r * 0.15f, true);
+        gradWarm.addColour (0.40, juce::Colour (0xeeff2a6d));
         g.setGradientFill (gradWarm);
-        g.fillEllipse (v1.x - r * 0.80f, v1.y - r * 0.70f, r * 1.60f, r * 1.40f);
+        g.fillEllipse (v1.x - r * 0.95f, v1.y - r * 0.80f, r * 1.90f, r * 1.60f);
 
-        // Bottom-Right Vivid Emerald Mint
-        float spaceAlpha = (0.75f + weightSpace * 0.25f) * duckFactor;
+        // Layer 3: Bottom-Right Vivid Emerald Mint
+        float spaceAlpha = (0.88f + weightSpace * 0.12f) * duckFactor;
         juce::ColourGradient gradSpace (juce::Colour (0xff00f59b).withAlpha (spaceAlpha), v2.x, v2.y,
-                                        juce::Colour (0x00059669), puckPos.x - r * 0.20f, puckPos.y - r * 0.20f, true);
+                                        juce::Colour (0x00059669), centre.x - r * 0.15f, centre.y - r * 0.15f, true);
+        gradSpace.addColour (0.40, juce::Colour (0xee10b981));
         g.setGradientFill (gradSpace);
-        g.fillEllipse (v2.x - r * 0.80f, v2.y - r * 0.70f, r * 1.60f, r * 1.40f);
+        g.fillEllipse (v2.x - r * 0.95f, v2.y - r * 0.80f, r * 1.90f, r * 1.60f);
 
-        // Bottom Convex Edge Radiant Golden-Amber Glow (warm + space blend)
-        float amberAlpha = (0.70f + (weightWarm + weightSpace) * 0.15f) * duckFactor;
-        juce::ColourGradient gradAmber (juce::Colour (0xfffbbf24).withAlpha (amberAlpha), midBottom.x, midBottom.y,
-                                        juce::Colour (0x00d97706), midBottom.x, midBottom.y - r * 0.55f, true);
-        g.setGradientFill (gradAmber);
-        g.fillEllipse (midBottom.x - r * 0.65f, midBottom.y - r * 0.45f, r * 1.30f, r * 1.00f);
-
-        // Left Slope Royal Indigo / Violet
-        float violetAlpha = (0.60f + (weightBright + weightWarm) * 0.20f) * duckFactor;
-        juce::ColourGradient gradViolet (juce::Colour (0xff8b5cf6).withAlpha (violetAlpha), midLeft.x, midLeft.y,
-                                         juce::Colour (0x00000000), puckPos.x, puckPos.y, true);
+        // Layer 4: Left Slope Violet / Purple
+        float violetAlpha = (0.75f + (weightBright + weightWarm) * 0.20f) * duckFactor;
+        juce::ColourGradient gradViolet (juce::Colour (0xff9333ea).withAlpha (violetAlpha), midLeft.x, midLeft.y,
+                                         juce::Colour (0x00000000), centre.x, centre.y, true);
         g.setGradientFill (gradViolet);
-        g.fillEllipse (midLeft.x - r * 0.60f, midLeft.y - r * 0.55f, r * 1.20f, r * 1.10f);
+        g.fillEllipse (midLeft.x - r * 0.65f, midLeft.y - r * 0.65f, r * 1.30f, r * 1.30f);
 
-        // Right Slope Teal / Ocean Blue
-        float tealAlpha = (0.60f + (weightBright + weightSpace) * 0.20f + shimmerBoost) * duckFactor;
-        juce::ColourGradient gradTeal (juce::Colour (0xff0ea5e9).withAlpha (tealAlpha), midRight.x, midRight.y,
-                                       juce::Colour (0x00000000), puckPos.x, puckPos.y, true);
+        // Layer 5: Right Slope Ocean Teal
+        float tealAlpha = (0.75f + (weightBright + weightSpace) * 0.20f + shimmerBoost) * duckFactor;
+        juce::ColourGradient gradTeal (juce::Colour (0xff06b6d4).withAlpha (tealAlpha), midRight.x, midRight.y,
+                                       juce::Colour (0x00000000), centre.x, centre.y, true);
         g.setGradientFill (gradTeal);
-        g.fillEllipse (midRight.x - r * 0.60f, midRight.y - r * 0.55f, r * 1.20f, r * 1.10f);
+        g.fillEllipse (midRight.x - r * 0.65f, midRight.y - r * 0.65f, r * 1.30f, r * 1.30f);
 
-        // Center Diffused Opal Core Bloom around puck
-        float coreAlpha = (0.35f + audioPulse * 0.5f) * duckFactor;
-        juce::ColourGradient gradCore (juce::Colour (0xffffffff).withAlpha (coreAlpha), puckPos.x, puckPos.y,
+        // Layer 6: Continuous Horizontal Golden-Amber Sunrise Horizon (Exact reference match!)
+        float amberAlpha = (0.92f + (weightWarm + weightSpace) * 0.08f) * duckFactor;
+        juce::ColourGradient bottomAmber (juce::Colour (0xfffbbf24).withAlpha (amberAlpha), centre.x, v1.y + 10.0f,
+                                          juce::Colour (0x00f59e0b), centre.x, centre.y - r * 0.12f, false);
+        bottomAmber.addColour (0.35, juce::Colour (0xfff59e0b).withAlpha (0.90f));
+        bottomAmber.addColour (0.75, juce::Colour (0xd0fde047));
+        g.setGradientFill (bottomAmber);
+        g.fillRect (v1.x - 30.0f, centre.y - r * 0.15f, (v2.x - v1.x) + 60.0f, (v1.y - centre.y) + r * 0.40f);
+
+        // Layer 7: Center Luminous Milky Opal Core Bloom around puck
+        float coreAlpha = (0.40f + audioPulse * 0.4f) * duckFactor;
+        juce::ColourGradient gradCore (juce::Colour (0xb0ffffff).withAlpha (coreAlpha), puckPos.x, puckPos.y,
                                        juce::Colour (0x00ffffff), puckPos.x, puckPos.y + r * 0.45f, true);
         g.setGradientFill (gradCore);
-        g.fillEllipse (puckPos.x - r * 0.50f, puckPos.y - r * 0.50f, r * 1.00f, r * 1.00f);
+        g.fillEllipse (puckPos.x - r * 0.45f, puckPos.y - r * 0.45f, r * 0.90f, r * 0.90f);
     }
 
-    // 3. Orbital Rings with Acoustic Satellites (Neoverb-inspired futuristic depth)
+    // 3. Orbital Rings with Acoustic Satellites (1:1 with Reference)
     void drawOrbitalRings (juce::Graphics& g, juce::Point<float> centre, float radius)
     {
-        // 4 Concentric Radar Circles
-        const float r1 = radius * 0.32f;
-        const float r2 = radius * 0.60f;
-        const float r3 = radius * 0.88f; // passes through the 3 vertices
-        const float r4 = radius * 1.05f; // outer orbit
+        // 5 Concentric Radar Circles
+        const float r1 = radius * 0.28f; // Inner core orbit
+        const float r2 = radius * 0.52f; // Mid-inner orbit
+        const float r3 = radius * 0.76f; // Mid-outer orbit
+        const float r4 = radius * 1.00f; // Vertex Orbit — PASSES PRECISELY THROUGH ALL 3 NODES
+        const float r5 = radius * 1.18f; // Outer orbit with satellites
 
-        g.setColour (juce::Colour (0x1a38bdf8));
+        g.setColour (juce::Colour (0x1838bdf8));
         g.drawEllipse (centre.x - r1, centre.y - r1, r1 * 2.0f, r1 * 2.0f, 1.0f);
         g.drawEllipse (centre.x - r2, centre.y - r2, r2 * 2.0f, r2 * 2.0f, 1.0f);
-
-        g.setColour (juce::Colour (0x2400f0ff));
         g.drawEllipse (centre.x - r3, centre.y - r3, r3 * 2.0f, r3 * 2.0f, 1.0f);
 
-        g.setColour (juce::Colour (0x1438bdf8));
-        g.drawEllipse (centre.x - r4, centre.y - r4, r4 * 2.0f, r4 * 2.0f, 1.0f);
+        // Vertex Orbit (connecting the 3 nodes)
+        g.setColour (juce::Colour (0x2838bdf8));
+        g.drawEllipse (centre.x - r4, centre.y - r4, r4 * 2.0f, r4 * 2.0f, 1.1f);
+
+        // Outer Orbit
+        g.setColour (juce::Colour (0x1c38bdf8));
+        g.drawEllipse (centre.x - r5, centre.y - r5, r5 * 2.0f, r5 * 2.0f, 1.0f);
 
         // Delicate Radar Azimuth Ticks at 30-degree intervals on r2 & r3
         for (int a = 0; a < 12; ++a)
@@ -466,41 +475,41 @@ private:
             float cosA = std::cos (ang);
             float sinA = std::sin (ang);
 
-            g.setColour (juce::Colour (0x1f38bdf8));
-            g.drawLine (centre.x + cosA * (r2 - 3.0f), centre.y + sinA * (r2 - 3.0f),
-                        centre.x + cosA * (r2 + 3.0f), centre.y + sinA * (r2 + 3.0f), 1.0f);
+            g.setColour (juce::Colour (0x1838bdf8));
+            g.drawLine (centre.x + cosA * (r2 - 2.5f), centre.y + sinA * (r2 - 2.5f),
+                        centre.x + cosA * (r2 + 2.5f), centre.y + sinA * (r2 + 2.5f), 1.0f);
 
-            g.drawLine (centre.x + cosA * (r3 - 3.0f), centre.y + sinA * (r3 - 3.0f),
-                        centre.x + cosA * (r3 + 3.0f), centre.y + sinA * (r3 + 3.0f), 1.0f);
+            g.drawLine (centre.x + cosA * (r3 - 2.5f), centre.y + sinA * (r3 - 2.5f),
+                        centre.x + cosA * (r3 + 2.5f), centre.y + sinA * (r3 + 2.5f), 1.0f);
         }
 
-        // Orbiting Satellite Nodes on r4
-        // Dot 1: Left orbit (~195 deg)
-        float a1 = rotationAngle + 3.40f;
-        float x1 = centre.x + std::cos (a1) * r4;
-        float y1 = centre.y + std::sin (a1) * r4;
-        g.setColour (juce::Colour (0x44ffffff));
-        g.fillEllipse (x1 - 6.0f, y1 - 6.0f, 12.0f, 12.0f);
+        // Orbiting Satellite Nodes on r5 (matching reference positions)
+        // Satellite 1: Left orbit (~162 deg / 9:30 o'clock) — Pure White Glowing Dot
+        float a1 = rotationAngle + 2.82f;
+        float x1 = centre.x + std::cos (a1) * r5;
+        float y1 = centre.y + std::sin (a1) * r5;
+        g.setColour (juce::Colour (0x35ffffff));
+        g.fillEllipse (x1 - 6.5f, y1 - 6.5f, 13.0f, 13.0f);
         g.setColour (juce::Colour (0xffffffff));
-        g.fillEllipse (x1 - 2.5f, y1 - 2.5f, 5.0f, 5.0f);
+        g.fillEllipse (x1 - 2.8f, y1 - 2.8f, 5.6f, 5.6f);
 
-        // Dot 2: Right orbit (~25 deg)
-        float a2 = rotationAngle + 0.44f;
-        float x2 = centre.x + std::cos (a2) * r4;
-        float y2 = centre.y + std::sin (a2) * r4;
-        g.setColour (juce::Colour (0x4400f0ff));
-        g.fillEllipse (x2 - 6.0f, y2 - 6.0f, 12.0f, 12.0f);
+        // Satellite 2: Right orbit (~24 deg / 2:30 o'clock) — Pure Cyan Glowing Dot
+        float a2 = rotationAngle + 0.42f;
+        float x2 = centre.x + std::cos (a2) * r5;
+        float y2 = centre.y + std::sin (a2) * r5;
+        g.setColour (juce::Colour (0x3500f0ff));
+        g.fillEllipse (x2 - 6.5f, y2 - 6.5f, 13.0f, 13.0f);
         g.setColour (juce::Colour (0xff00f0ff));
-        g.fillEllipse (x2 - 2.5f, y2 - 2.5f, 5.0f, 5.0f);
+        g.fillEllipse (x2 - 2.8f, y2 - 2.8f, 5.6f, 5.6f);
 
-        // Dot 3: Bottom orbit (~290 deg)
-        float a3 = rotationAngle + 5.06f;
-        float x3 = centre.x + std::cos (a3) * r4;
-        float y3 = centre.y + std::sin (a3) * r4;
-        g.setColour (juce::Colour (0x40fbbf24));
-        g.fillEllipse (x3 - 5.0f, y3 - 5.0f, 10.0f, 10.0f);
+        // Satellite 3: Bottom orbit (~280 deg / near 5:30 o'clock) — Faint Amber Speckle
+        float a3 = rotationAngle + 4.90f;
+        float x3 = centre.x + std::cos (a3) * r5;
+        float y3 = centre.y + std::sin (a3) * r5;
+        g.setColour (juce::Colour (0x30fbbf24));
+        g.fillEllipse (x3 - 4.0f, y3 - 4.0f, 8.0f, 8.0f);
         g.setColour (juce::Colour (0xfffbbf24));
-        g.fillEllipse (x3 - 2.0f, y3 - 2.0f, 4.0f, 4.0f);
+        g.fillEllipse (x3 - 1.8f, y3 - 1.8f, 3.6f, 3.6f);
     }
 
     // 4. Concentric Acoustic Topographic Wavefront Ripples
@@ -553,68 +562,84 @@ private:
         }
     }
 
-    // 5. Draw Smooth Rounded-Triangular Acoustic Shell (Multi-pass Atmospheric Blur Aura)
+    // 5. Draw Smooth Rounded-Triangular Acoustic Shell (Silky Luminous Rim Bloom — No harsh white outline!)
     void drawAcousticShell (juce::Graphics& g, juce::Point<float> v0, juce::Point<float> v1, juce::Point<float> v2)
     {
         juce::Path shellPath;
         buildRoundedTrianglePath (shellPath, v0, v1, v2, 22.0f);
 
-        // Pass 1: Wide diffused cyan bloom
-        g.setColour (juce::Colour (0x1a00f0ff));
-        g.strokePath (shellPath, juce::PathStrokeType (12.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        // Pass 1: Wide diffused atmospheric glow
+        g.setColour (juce::Colour (0x1500f0ff));
+        g.strokePath (shellPath, juce::PathStrokeType (10.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
-        // Pass 2: Mid soft blue-violet bloom
-        g.setColour (juce::Colour (0x3338bdf8));
-        g.strokePath (shellPath, juce::PathStrokeType (6.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        // Pass 2: Mid soft rim bloom
+        g.setColour (juce::Colour (0x2838bdf8));
+        g.strokePath (shellPath, juce::PathStrokeType (4.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
-        // Pass 3: Core luminous rim line (crisp silky outline matching reference)
-        g.setColour (juce::Colour (0xd8e2e8f0));
-        g.strokePath (shellPath, juce::PathStrokeType (1.8f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        // Pass 3: Silky translucent rim highlight (matching reference organic fluid edge)
+        g.setColour (juce::Colour (0x45ffffff));
+        g.strokePath (shellPath, juce::PathStrokeType (1.2f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     }
 
-    // Helper: construct a rounded triangle with curved convex edges (1:1 with reference)
+    // Helper: construct a rounded triangle with curved convex edges (1:1 Reuleaux curve with reference)
     void buildRoundedTrianglePath (juce::Path& p, juce::Point<float> v0, juce::Point<float> v1, juce::Point<float> v2, float cornerRadius) const
     {
         p.clear();
+        juce::ignoreUnused (cornerRadius);
         const juce::Point<float> pts[3] = { v0, v1, v2 };
         const auto c = (v0 + v1 + v2) / 3.0f;
+        const float radius = v0.getDistanceFrom (c);
 
-        juce::Point<float> entry[3];
-        juce::Point<float> exit[3];
+        // In equilateral triangle, vertex angles are: Top (-pi/2), Bottom-Left (5pi/6), Bottom-Right (pi/6)
+        const float angles[3] = {
+            -juce::MathConstants<float>::halfPi,
+            juce::MathConstants<float>::halfPi + juce::MathConstants<float>::pi / 3.0f,
+            juce::MathConstants<float>::halfPi - juce::MathConstants<float>::pi / 3.0f
+        };
+
+        const float halfCorner = 0.36f; // Angular half-width of vertex rounded dome
+        const float cornerR = radius * 0.94f;
+
+        juce::Point<float> pIn[3];
+        juce::Point<float> pOut[3];
 
         for (int i = 0; i < 3; ++i)
         {
-            int prev = (i + 2) % 3;
-            int next = (i + 1) % 3;
+            float aIn  = angles[i] - halfCorner;
+            float aOut = angles[i] + halfCorner;
 
-            auto toPrev = (pts[prev] - pts[i]);
-            auto toNext = (pts[next] - pts[i]);
-
-            float lenPrev = toPrev.getDistanceFrom ({ 0.0f, 0.0f });
-            float lenNext = toNext.getDistanceFrom ({ 0.0f, 0.0f });
-
-            float cutPrev = juce::jmin (lenPrev * 0.28f, cornerRadius * 1.55f);
-            float cutNext = juce::jmin (lenNext * 0.28f, cornerRadius * 1.55f);
-
-            entry[i] = pts[i] + toPrev * (cutPrev / (lenPrev > 0.0f ? lenPrev : 1.0f));
-            exit[i]  = pts[i] + toNext * (cutNext / (lenNext > 0.0f ? lenNext : 1.0f));
+            pIn[i]  = juce::Point<float> (c.x + std::cos (aIn) * cornerR,  c.y + std::sin (aIn) * cornerR);
+            pOut[i] = juce::Point<float> (c.x + std::cos (aOut) * cornerR, c.y + std::sin (aOut) * cornerR);
         }
 
-        p.startNewSubPath (entry[0]);
+        p.startNewSubPath (pIn[0]);
 
         for (int i = 0; i < 3; ++i)
         {
+            // 1. Smooth rounded dome over vertex i
+            p.quadraticTo (pts[i].x, pts[i].y, pOut[i].x, pOut[i].y);
+
+            // 2. Wide convex outward-bowed side from pOut[i] to pIn[next]
             int next = (i + 1) % 3;
+            auto pStart = pOut[i];
+            auto pEnd = pIn[next];
 
-            // Round corner at vertex i: from entry[i] around pts[i] to exit[i]
-            p.quadraticTo (pts[i].x, pts[i].y, exit[i].x, exit[i].y);
+            auto midChord = (pStart + pEnd) * 0.5f;
+            auto outward = midChord - c;
+            float outLen = outward.getDistanceFrom ({ 0.0f, 0.0f });
+            if (outLen > 0.001f)
+                outward /= outLen;
 
-            // Side from exit[i] to entry[next]: convex curved arc bowing outward
-            auto midPt = (exit[i] + entry[next]) * 0.5f;
-            auto outward = midPt - c;
-            auto ctrlPt = midPt + outward * 0.16f; // outward convex bulge
+            // Target side apex radius ~ 0.72 * radius (reference Reuleaux proportions)
+            float chordDist = midChord.getDistanceFrom (c);
+            float targetDist = radius * 0.72f;
+            float bulgeAmount = juce::jmax (0.0f, targetDist - chordDist);
 
-            p.quadraticTo (ctrlPt.x, ctrlPt.y, entry[next].x, entry[next].y);
+            // Two cubic control points spread across the edge for a silky full bulge
+            auto cp1 = pStart + (pEnd - pStart) * 0.28f + outward * (bulgeAmount * 1.45f);
+            auto cp2 = pStart + (pEnd - pStart) * 0.72f + outward * (bulgeAmount * 1.45f);
+
+            p.cubicTo (cp1.x, cp1.y, cp2.x, cp2.y, pEnd.x, pEnd.y);
         }
 
         p.closeSubPath();
@@ -642,14 +667,14 @@ private:
     // 7. Draw Vertex Anchor Badges (BRIGHT, WARM, SPACIOUS) — 1:1 with Reference
     void drawVertexNode (juce::Graphics& g, juce::Point<float> pt, const juce::String& label, juce::Colour col, float weight)
     {
-        const float nodeR = 7.5f;
+        const float nodeR = 8.0f;
 
         // Outer soft glow halo
         g.setColour (col.withAlpha (0.35f + weight * 0.35f));
-        g.fillEllipse (pt.x - 14.0f, pt.y - 14.0f, 28.0f, 28.0f);
+        g.fillEllipse (pt.x - 15.0f, pt.y - 15.0f, 30.0f, 30.0f);
 
         // Dark socket ring base
-        g.setColour (juce::Colour (0xff0a0c12));
+        g.setColour (juce::Colour (0xff07080c));
         g.fillEllipse (pt.x - nodeR, pt.y - nodeR, nodeR * 2.0f, nodeR * 2.0f);
 
         // Glowing colored ring
@@ -661,29 +686,29 @@ private:
         g.fillEllipse (pt.x - 2.5f, pt.y - 2.5f, 5.0f, 5.0f);
 
         // Label Text
-        g.setFont (juce::FontOptions ("Segoe UI", 9.0f, juce::Font::bold));
+        g.setFont (juce::FontOptions ("Segoe UI", 9.5f, juce::Font::bold));
         g.setColour (juce::Colour (0xffe2e8f0));
 
         if (label == "BRIGHT")
             g.drawText (label, (int) (pt.x - 40.0f), (int) (pt.y - nodeR - 16.0f), 80, 14, juce::Justification::centred);
         else
-            g.drawText (label, (int) (pt.x - 40.0f), (int) (pt.y + nodeR + 3.0f), 80, 14, juce::Justification::centred);
+            g.drawText (label, (int) (pt.x - 40.0f), (int) (pt.y + nodeR + 4.0f), 80, 14, juce::Justification::centred);
     }
 
     // 8. Draw Central Draggable Control Puck — 1:1 Pure White Glowing Ring with Translucent Frosted Glass
     void drawControlPuck (juce::Graphics& g, juce::Point<float> pos)
     {
-        const float puckR = 12.5f + (rmsOut * 3.5f);
+        const float puckR = 15.0f + (rmsOut * 2.5f);
 
         // Soft outer shadow & ambient halo
-        g.setColour (juce::Colour (0x35000000));
+        g.setColour (juce::Colour (0x45000000));
         g.fillEllipse (pos.x - puckR - 4.0f, pos.y - puckR - 4.0f, (puckR + 4.0f) * 2.0f, (puckR + 4.0f) * 2.0f);
 
-        g.setColour (juce::Colour (0x28ffffff));
-        g.fillEllipse (pos.x - puckR - 3.0f, pos.y - puckR - 3.0f, (puckR + 3.0f) * 2.0f, (puckR + 3.0f) * 2.0f);
+        g.setColour (juce::Colour (0x25ffffff));
+        g.fillEllipse (pos.x - puckR - 2.5f, pos.y - puckR - 2.5f, (puckR + 2.5f) * 2.0f, (puckR + 2.5f) * 2.0f);
 
         // Translucent frosted glass fill
-        g.setColour (juce::Colour (0x38ffffff));
+        g.setColour (juce::Colour (0x30ffffff));
         g.fillEllipse (pos.x - puckR, pos.y - puckR, puckR * 2.0f, puckR * 2.0f);
 
         // Bold pure white radiant ring (matching reference 1:1)
