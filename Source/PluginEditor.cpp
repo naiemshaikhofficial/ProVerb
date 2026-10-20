@@ -320,36 +320,21 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
     bypassButton.setColour (juce::ToggleButton::textColourId, juce::Colour (0xff888890));
     bypassButton.setColour (juce::ToggleButton::tickColourId, juce::Colour (0xffff4444));
 
-    // Smart AI Auto Learn Button with Real-Time Animated Waveform & Sticky Badge
-    addAndMakeVisible (smartAutoLearnButton);
-    auto triggerAnalysis = [this]()
-    {
-        if (smartAutoLearnButton.isCurrentlyAnalyzing())
-        {
-            // If already analyzing, click cancels safely
-            audioProcessor.abortAutoLearn();
-            smartAutoLearnButton.setAnalyzing (false, 0.0f);
-            visualizer.setAnalyzing (false, 0.0f);
-            modernEQ.setAnalyzing (false, 0.0f);
-            wasAnalyzing = false;
-        }
-        else
-        {
-            audioProcessor.triggerAutoLearn();
-            smartAutoLearnButton.setAnalyzing (true, 0.0f, audioProcessor.getRmsInput());
-            visualizer.setAnalyzing (true, 0.0f);
-            modernEQ.setAnalyzing (true, 0.0f);
-            wasAnalyzing = true;
-            analysisWatchdogTicks = 0;
-        }
-    };
-    smartAutoLearnButton.onClick = triggerAnalysis;
-    smartAutoLearnButton.onReanalyzeClick = triggerAnalysis;
+    // Reverb Assistant Button (Sleek Neoverb-style Trigger)
+    addAndMakeVisible (reverbAssistantBtn);
+    reverbAssistantBtn.setButtonText (juce::CharPointer_UTF8 ("\xe2\x9c\xa6  Reverb Assistant"));
+    reverbAssistantBtn.setColour (juce::TextButton::buttonColourId, juce::Colour (0xff12141a));
+    reverbAssistantBtn.setColour (juce::TextButton::textColourOffId, juce::Colour (0xffe2e8f0));
+    reverbAssistantBtn.setTooltip ("Open intelligent Neoverb-style Reverb Assistant");
+    reverbAssistantBtn.onClick = [this]() { showAssistantPanel(); };
+
+    addChildComponent (smartAutoLearnButton);
+    smartAutoLearnButton.setVisible (false);
 
     addChildComponent (undoAutoLearnButton);
-    undoAutoLearnButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xff2b1414));
-    undoAutoLearnButton.setColour (juce::TextButton::textColourOffId, juce::Colour (0xffff7777));
-    undoAutoLearnButton.setTooltip ("Revert / Undo Auto Learn and restore previous mix");
+    undoAutoLearnButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xffef4444));
+    undoAutoLearnButton.setColour (juce::TextButton::textColourOffId, juce::Colours::white);
+    undoAutoLearnButton.setTooltip ("Revert / Undo Reverb Assistant and restore previous mix");
     undoAutoLearnButton.onClick = [this]()
     {
         audioProcessor.undoAutoLearn();
@@ -584,7 +569,10 @@ void ProVerbAudioProcessorEditor::timerCallback()
                                     (float) dampSlider.getValue(),
                                     (float) delaySlider.getValue(),
                                     (float) shimmerSlider.getValue(),
-                                    audioProcessor.getStereoPhaseCorrelation());
+                                    audioProcessor.getStereoPhaseCorrelation(),
+                                    (float) lCutSlider.getValue(),
+                                    (float) hCutSlider.getValue(),
+                                    (float) duckSlider.getValue());
     visualizer.advanceAnimation (0.05f);
 
     modernEQ.updateParameters ((float) lCutSlider.getValue(), (float) hCutSlider.getValue(), audioProcessor.getRmsOutput());
@@ -675,48 +663,36 @@ void ProVerbAudioProcessorEditor::paint (juce::Graphics& g)
     {
         auto cardRect = juce::Rectangle<float> (cx + 3.0f, (float) cardTopY, cw - 6.0f, (float) cardH);
 
-        // 1. Obsidian Glass Panel Background
-        juce::ColourGradient cardGrad (juce::Colour (0xff0e1016), cx, (float) cardTopY,
-                                       juce::Colour (0xff090a0e), cx, (float) (cardTopY + cardH), false);
+        // 1. Pure Obsidian Charcoal Background (NO BLUE TINT)
+        juce::ColourGradient cardGrad (juce::Colour (0xff12141a), cx, (float) cardTopY,
+                                       juce::Colour (0xff0a0b0e), cx, (float) (cardTopY + cardH), false);
         g.setGradientFill (cardGrad);
         g.fillRoundedRectangle (cardRect, 7.0f);
 
-        // 2. Razor-Thin Cyber Border
-        g.setColour (juce::Colour (0xff1c202c));
+        // 2. Razor-Thin Obsidian Border
+        g.setColour (juce::Colour (0xff20232d));
         g.drawRoundedRectangle (cardRect, 7.0f, 1.0f);
 
         // 3. Subtle Top Edge Highlight
-        g.setColour (juce::Colour (0x18ffffff));
+        g.setColour (juce::Colour (0x12ffffff));
         g.drawHorizontalLine ((int) cardRect.getY() + 1, cardRect.getX() + 6.0f, cardRect.getRight() - 6.0f);
 
         if (title != nullptr && title[0] != '\0')
         {
             // 4. Futuristic Minimalist Title Header
-            float titleY = cardRect.getY() + 5.0f;
+            float titleY = cardRect.getY() + 6.0f;
             float titleH = 16.0f;
 
-            // Glowing Neon Cyan Micro-Pip
-            g.setColour (juce::Colour (0x4400f0ff));
-            g.fillEllipse (cardRect.getX() + 10.0f, titleY + 4.5f, 6.0f, 6.0f);
+            // Clean Vertical Cyan Bar '|' (replaces dot, NO horizontal divider line)
             g.setColour (juce::Colour (0xff00f0ff));
-            g.fillEllipse (cardRect.getX() + 11.5f, titleY + 6.0f, 3.0f, 3.0f);
+            g.fillRect (cardRect.getX() + 10.0f, titleY + 3.0f, 2.0f, 10.0f);
 
             // Title Text — Crisp modern typography
             float titleFontSize = (cw < 150.0f) ? 8.5f : 9.0f;
-            g.setFont (juce::FontOptions (titleFontSize, juce::Font::bold));
-            g.setColour (juce::Colour (0xff9aa0b2));
-            auto titleBounds = juce::Rectangle<float> (cardRect.getX() + 20.0f, titleY, cardRect.getWidth() - 26.0f, titleH);
+            g.setFont (juce::FontOptions ("Segoe UI", titleFontSize, juce::Font::bold));
+            g.setColour (juce::Colour (0xffcbd5e1));
+            auto titleBounds = juce::Rectangle<float> (cardRect.getX() + 16.0f, titleY, cardRect.getWidth() - 22.0f, titleH);
             g.drawText (title, titleBounds.toNearestInt(), juce::Justification::centredLeft, true);
-
-            // 5. Minimalist Hairline Separator with subtle cyan accent fade
-            float lineY = cardRect.getY() + 24.0f;
-            g.setColour (juce::Colour (0xff181a24));
-            g.drawHorizontalLine ((int) lineY, cardRect.getX() + 8.0f, cardRect.getRight() - 8.0f);
-            
-            juce::ColourGradient lineAccent (juce::Colour (0x4400f0ff), cardRect.getX() + 8.0f, lineY,
-                                             juce::Colour (0x0000f0ff), cardRect.getX() + 80.0f, lineY, false);
-            g.setGradientFill (lineAccent);
-            g.drawHorizontalLine ((int) lineY, cardRect.getX() + 8.0f, cardRect.getX() + 80.0f);
         }
     };
 
@@ -799,20 +775,20 @@ void ProVerbAudioProcessorEditor::resized()
     abButton.setBounds (curX, headerY, abW, ctrlH);
     curX -= headerGap + 12;
 
-    // Center: [ SMART REVERB AI / RE-SCAN ]  < Preset Capsule ♡ >  [ UNDO ]
+    // Center: [ ✦ Reverb Assistant ]  < Preset Capsule ♡ >  [ UNDO ]
     int leftBrandRight = ptLogoBounds.getRight();
     int centerAvailW = curX - (leftBrandRight + 16);
 
-    const int learnW = 136;
+    const int assistantW = 142;
     const int midGap = 8;
-    const int undoW = undoAutoLearnButton.isVisible() ? 48 : 0;
-    int capsuleW = juce::jlimit (230, 300, centerAvailW - learnW - midGap - (undoW > 0 ? (midGap + undoW) : 0));
-    int groupTotalW = learnW + midGap + capsuleW + (undoW > 0 ? (midGap + undoW) : 0);
+    const int undoW = undoAutoLearnButton.isVisible() ? 52 : 0;
+    int capsuleW = juce::jlimit (210, 280, centerAvailW - assistantW - midGap - (undoW > 0 ? (midGap + undoW) : 0));
+    int groupTotalW = assistantW + midGap + capsuleW + (undoW > 0 ? (midGap + undoW) : 0);
     int groupStartX = (leftBrandRight + 16) + std::max (0, (centerAvailW - groupTotalW) / 2);
 
-    smartAutoLearnButton.setBounds (groupStartX, headerY, learnW, ctrlH);
+    reverbAssistantBtn.setBounds (groupStartX, headerY, assistantW, ctrlH);
 
-    int capsuleX = groupStartX + learnW + midGap;
+    int capsuleX = groupStartX + assistantW + midGap;
     auto capsuleBounds = juce::Rectangle<int> (capsuleX, headerY, capsuleW, ctrlH);
     prevPresetBtn.setBounds (capsuleBounds.removeFromLeft (24));
     nextPresetBtn.setBounds (capsuleBounds.removeFromRight (24));
@@ -822,7 +798,7 @@ void ProVerbAudioProcessorEditor::resized()
     searchBox.setBounds (capsuleBounds);
 
     if (undoAutoLearnButton.isVisible())
-        undoAutoLearnButton.setBounds (capsuleX + capsuleW + midGap, headerY + 2, undoW, ctrlH - 4);
+        undoAutoLearnButton.setBounds (capsuleX + capsuleW + midGap, headerY + 1, undoW, ctrlH - 2);
 
     // Bottom Reverb EQ & Spectrum Module — dynamically scales with window height
     int eqH = juce::jlimit (135, 210, (int) (getHeight() * 0.28f));
@@ -976,6 +952,9 @@ void ProVerbAudioProcessorEditor::resized()
 
     if (licensePanel != nullptr)
         licensePanel->setBounds (getLocalBounds());
+
+    if (reverbAssistantPanel != nullptr)
+        reverbAssistantPanel->setBounds (getLocalBounds());
 }
 
 void ProVerbAudioProcessorEditor::setGuiScale (float scale)
@@ -1282,6 +1261,37 @@ void ProVerbAudioProcessorEditor::hideLicensePanel()
     {
         removeChildComponent (licensePanel.get());
         licensePanel.reset();
+    }
+}
+
+void ProVerbAudioProcessorEditor::showAssistantPanel()
+{
+    if (reverbAssistantPanel == nullptr)
+    {
+        reverbAssistantPanel = std::make_unique<ProducerToy::UI::ReverbAssistantPanel> (
+            audioProcessor,
+            [this]() { hideAssistantPanel(); },
+            [this](const juce::String& inst, const juce::String& prof)
+            {
+                juce::ignoreUnused (inst);
+                presetBox.setText ("AI: " + prof, juce::dontSendNotification);
+                undoAutoLearnButton.setVisible (true);
+                resized();
+            }
+        );
+        addAndMakeVisible (*reverbAssistantPanel);
+    }
+    reverbAssistantPanel->setBounds (getLocalBounds());
+    reverbAssistantPanel->startAssistantFlow();
+    reverbAssistantPanel->toFront (true);
+}
+
+void ProVerbAudioProcessorEditor::hideAssistantPanel()
+{
+    if (reverbAssistantPanel != nullptr)
+    {
+        removeChildComponent (reverbAssistantPanel.get());
+        reverbAssistantPanel.reset();
     }
 }
 

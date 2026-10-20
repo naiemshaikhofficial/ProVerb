@@ -17,12 +17,6 @@
 class SpaceVisualizer : public juce::Component
 {
 public:
-    enum class ViewMode
-    {
-        ThreeD,
-        TwoD
-    };
-
     SpaceVisualizer()
     {
         setMouseCursor (juce::MouseCursor::NormalCursor);
@@ -35,7 +29,9 @@ public:
                               float sizePercent, float decaySec,
                               float diffusionPercent, float dampingPercent,
                               float predelayMs, float shimmerPercent,
-                              float newPhaseCorr = 1.0f)
+                              float newPhaseCorr = 1.0f,
+                              float lowCutHz = 120.0f, float highCutHz = 12000.0f,
+                              float duckPercent = 0.0f)
     {
         rmsIn = newRmsIn;
         rmsOut = newRmsOut;
@@ -46,6 +42,9 @@ public:
         predelay = predelayMs;
         shimmer = shimmerPercent;
         phaseCorr = newPhaseCorr;
+        lowCut = lowCutHz;
+        highCut = highCutHz;
+        ducking = duckPercent;
 
         // Smoothly synchronize puck position with parameter values when user is not manually dragging it
         if (! isDraggingPuck)
@@ -118,11 +117,9 @@ public:
 
         auto centre = fieldArea.getCentre();
         float radius = juce::jmin (fieldArea.getWidth(), fieldArea.getHeight()) * 0.48f;
-        radius *= (0.82f + (spaceSize / 100.0f) * 0.18f); // Parameter Size expansion
-
-        // 3D Perspective scale
-        float scaleY = (currentViewMode == ViewMode::ThreeD) ? 0.78f : 1.0f;
-        float yCenterOffset = (currentViewMode == ViewMode::ThreeD) ? (radius * 0.08f) : 0.0f;
+        radius *= (0.82f + (spaceSize / 100.0f) * 0.18f); // Parameter Size expansion        // 3D Perspective scale
+        constexpr float scaleY = 0.78f;
+        const float yCenterOffset = radius * 0.08f;
         centre.y += yCenterOffset;
 
         // Calculate Triangle Vertices (Top = BRIGHT, Bottom-Left = WARM, Bottom-Right = SPACIOUS)
@@ -162,8 +159,8 @@ public:
         // 8. Draw Central Draggable Control Puck
         drawControlPuck (g, puckPos);
 
-        // 9. Draw View Mode Toggle (3D VIEW | 2D VIEW) in top-right
-        drawViewModeToggle (g, bounds);
+        // 9. Draw Static 3D View Pill Badge in top-right
+        draw3DBadge (g, bounds);
 
         // 10. Draw Bottom Controls (SPACE Slider & Real-Time Phase Correlation Meter)
         drawBottomBar (g, bounds);
@@ -175,63 +172,29 @@ public:
         }
     }
 
-    juce::Rectangle<float> getViewToggleBounds (juce::Rectangle<float> bounds) const
+    void draw3DBadge (juce::Graphics& g, juce::Rectangle<float> bounds)
     {
-        float toggleW = 104.0f;
-        float toggleH = 20.0f;
-        return juce::Rectangle<float> (bounds.getRight() - toggleW - 10.0f, bounds.getY() + 8.0f, toggleW, toggleH);
-    }
-
-    void drawViewModeToggle (juce::Graphics& g, juce::Rectangle<float> bounds)
-    {
-        auto toggleRect = getViewToggleBounds (bounds);
-        float pillR = toggleRect.getHeight() * 0.48f;
+        const float badgeW = 68.0f;
+        const float badgeH = 18.0f;
+        auto badgeRect = juce::Rectangle<float> (bounds.getRight() - badgeW - 10.0f, bounds.getY() + 8.0f, badgeW, badgeH);
+        const float pillR = badgeH * 0.45f;
 
         // Dark recessed capsule well
-        g.setColour (juce::Colour (0xff0a0c12));
-        g.fillRoundedRectangle (toggleRect, pillR);
-        g.setColour (juce::Colour (0xff1e2330));
-        g.drawRoundedRectangle (toggleRect, pillR, 1.0f);
+        g.setColour (juce::Colour (0xff101217));
+        g.fillRoundedRectangle (badgeRect, pillR);
+        g.setColour (juce::Colour (0xff202430));
+        g.drawRoundedRectangle (badgeRect, pillR, 1.0f);
 
-        float halfW = toggleRect.getWidth() * 0.5f;
-        auto leftSeg  = toggleRect.withWidth (halfW);
-        auto rightSeg = toggleRect.withTrimmedLeft (halfW);
-
-        bool is3D = (currentViewMode == ViewMode::ThreeD);
-        auto activeSeg = is3D ? leftSeg.reduced (1.5f, 1.5f) : rightSeg.reduced (1.5f, 1.5f);
-
-        // Soft active capsule pill
-        juce::ColourGradient segGrad (juce::Colour (0xff0c2738), 0.0f, activeSeg.getY(),
-                                      juce::Colour (0xff081a26), 0.0f, activeSeg.getBottom(), false);
-        g.setGradientFill (segGrad);
-        g.fillRoundedRectangle (activeSeg, activeSeg.getHeight() * 0.48f);
-
-        g.setColour (juce::Colour (0xff00f0ff).withAlpha (0.75f));
-        g.drawRoundedRectangle (activeSeg, activeSeg.getHeight() * 0.48f, 1.0f);
-
-        g.setFont (juce::FontOptions (8.0f, juce::Font::bold));
-
-        g.setColour (is3D ? juce::Colour (0xff00f0ff) : juce::Colour (0xff64748b));
-        g.drawText ("3D VIEW", leftSeg, juce::Justification::centred, true);
-
-        g.setColour (! is3D ? juce::Colour (0xff00f0ff) : juce::Colour (0xff64748b));
-        g.drawText ("2D VIEW", rightSeg, juce::Justification::centred, true);
+        g.setFont (juce::FontOptions ("Segoe UI", 8.5f, juce::Font::bold));
+        g.setColour (juce::Colour (0xff38bdf8));
+        g.drawText ("3D VIEW", badgeRect, juce::Justification::centred, true);
     }
 
     void mouseDown (const juce::MouseEvent& e) override
     {
         auto bounds = getLocalBounds().toFloat();
 
-        // 1. Check 3D / 2D View Toggle Click
-        auto viewToggleRect = getViewToggleBounds (bounds);
-        if (viewToggleRect.contains (e.position))
-        {
-            currentViewMode = (currentViewMode == ViewMode::ThreeD) ? ViewMode::TwoD : ViewMode::ThreeD;
-            repaint();
-            return;
-        }
-
-        // 2. Check Bottom Space Slider Bar Click / Drag
+        // 1. Check Bottom Space Slider Bar Click / Drag
         auto sliderBarRect = getSpaceSliderBarBounds (bounds);
         if (sliderBarRect.expanded (4.0f, 6.0f).contains (e.position))
         {
@@ -240,14 +203,14 @@ public:
             return;
         }
 
-        // 3. Check Central Puck Drag
+        // 2. Check Central Puck Drag
         auto fieldArea = bounds.reduced (10.0f, 10.0f);
         fieldArea.removeFromBottom (18.0f);
         auto centre = fieldArea.getCentre();
         float radius = juce::jmin (fieldArea.getWidth(), fieldArea.getHeight()) * 0.48f;
         radius *= (0.82f + (spaceSize / 100.0f) * 0.18f);
-        float scaleY = (currentViewMode == ViewMode::ThreeD) ? 0.78f : 1.0f;
-        float yCenterOffset = (currentViewMode == ViewMode::ThreeD) ? (radius * 0.08f) : 0.0f;
+        constexpr float scaleY = 0.78f;
+        const float yCenterOffset = radius * 0.08f;
         centre.y += yCenterOffset;
 
         auto vBright   = getVertexPosition (centre, radius, scaleY, 0);
@@ -288,8 +251,8 @@ public:
             auto centre = fieldArea.getCentre();
             float radius = juce::jmin (fieldArea.getWidth(), fieldArea.getHeight()) * 0.46f;
             radius *= (0.82f + (spaceSize / 100.0f) * 0.18f);
-            float scaleY = (currentViewMode == ViewMode::ThreeD) ? 0.78f : 1.0f;
-            float yCenterOffset = (currentViewMode == ViewMode::ThreeD) ? (radius * 0.08f) : 0.0f;
+            constexpr float scaleY = 0.78f;
+            const float yCenterOffset = radius * 0.08f;
             centre.y += yCenterOffset;
 
             auto vBright   = getVertexPosition (centre, radius, scaleY, 0);
@@ -320,8 +283,6 @@ public:
     }
 
 private:
-    ViewMode currentViewMode { ViewMode::ThreeD };
-
     float rmsIn = 0.0f;
     float rmsOut = 0.0f;
     float spaceSize = 70.0f;
@@ -331,6 +292,9 @@ private:
     float predelay = 20.0f;
     float shimmer = 0.0f;
     float phaseCorr = 1.0f;
+    float lowCut = 120.0f;
+    float highCut = 12000.0f;
+    float ducking = 0.0f;
 
     // Barycentric Balance Weights (Bright, Warm, Spacious)
     float weightBright { 0.333f };
@@ -432,8 +396,14 @@ private:
         juce::Graphics::ScopedSaveState state (g);
         g.reduceClipRegion (baseShell);
 
-        // 1. Red / Coral (#f43f5e) - Lower-Left anchor & warmth
-        float redAlpha = (0.28f + weightWarm * 0.35f + audioPulse * 0.5f) * 0.70f;
+        // 2. Dynamic Knob Reactivity Factors
+        const float duckFactor = juce::jlimit (0.35f, 1.0f, 1.0f - (ducking / 100.0f) * (rmsIn * 2.5f));
+        const float warmGain = juce::jlimit (0.25f, 1.15f, 1.05f - ((lowCut - 20.0f) / 980.0f) * 0.45f);
+        const float brightGain = juce::jlimit (0.30f, 1.25f, 0.4f + ((highCut - 1000.0f) / 19000.0f) * 0.85f);
+        const float shimmerBoost = (shimmer / 100.0f) * 0.30f;
+
+        // 1. Red / Coral (#f43f5e) - Lower-Left anchor & warmth (responds to Low Cut)
+        float redAlpha = (0.28f + weightWarm * 0.35f + audioPulse * 0.5f) * 0.70f * warmGain * duckFactor;
         juce::ColourGradient gradRed (juce::Colour (0xfff43f5e).withAlpha (redAlpha), v1.x, v1.y,
                                       juce::Colour (0x00000000), puckPos.x, puckPos.y, true);
         g.setGradientFill (gradRed);
@@ -441,28 +411,28 @@ private:
 
         // 2. Orange / Amber (#f97316) - Warm lower-mid body
         auto midBottom = (v1 + v2) * 0.5f;
-        float orangeAlpha = (0.26f + weightWarm * 0.30f + audioPulse * 0.4f) * 0.65f;
+        float orangeAlpha = (0.26f + weightWarm * 0.30f + audioPulse * 0.4f) * 0.65f * duckFactor;
         juce::ColourGradient gradOrange (juce::Colour (0xfff97316).withAlpha (orangeAlpha), midBottom.x - r * 0.15f, midBottom.y,
                                          juce::Colour (0x00000000), midBottom.x, midBottom.y - r * 0.5f, true);
         g.setGradientFill (gradOrange);
         g.fillEllipse (midBottom.x - r * 0.60f, midBottom.y - r * 0.50f, r * 1.20f, r * 1.00f);
 
         // 3. Yellow / Gold (#eab308) - Center-bottom transition into spacious bloom
-        float yellowAlpha = (0.26f + (weightWarm + weightSpace) * 0.18f + audioPulse * 0.4f) * 0.65f;
+        float yellowAlpha = (0.26f + (weightWarm + weightSpace) * 0.18f + audioPulse * 0.4f) * 0.65f * duckFactor;
         juce::ColourGradient gradYellow (juce::Colour (0xffeab308).withAlpha (yellowAlpha), midBottom.x + r * 0.12f, midBottom.y,
                                          juce::Colour (0x00000000), midBottom.x + r * 0.12f, midBottom.y - r * 0.5f, true);
         g.setGradientFill (gradYellow);
         g.fillEllipse (midBottom.x - r * 0.45f, midBottom.y - r * 0.45f, r * 1.05f, r * 0.95f);
 
         // 4. Green / Emerald (#10b981) - Lower-Right diffusion & spaciousness
-        float greenAlpha = (0.28f + weightSpace * 0.35f + audioPulse * 0.5f) * 0.70f;
+        float greenAlpha = (0.28f + weightSpace * 0.35f + audioPulse * 0.5f) * 0.70f * duckFactor;
         juce::ColourGradient gradGreen (juce::Colour (0xff10b981).withAlpha (greenAlpha), v2.x, v2.y,
                                         juce::Colour (0x00000000), puckPos.x, puckPos.y, true);
         g.setGradientFill (gradGreen);
         g.fillEllipse (v2.x - r * 0.75f, v2.y - r * 0.65f, r * 1.50f, r * 1.30f);
 
-        // 5. Cyan / Aqua (#06b6d4) - Top vertex air & presence
-        float cyanAlpha = (0.30f + weightBright * 0.38f + audioPulse * 0.5f) * 0.75f;
+        // 5. Cyan / Aqua (#06b6d4) - Top vertex air & presence (responds to High Cut)
+        float cyanAlpha = (0.30f + weightBright * 0.38f + audioPulse * 0.5f) * 0.75f * brightGain * duckFactor;
         juce::ColourGradient gradCyan (juce::Colour (0xff06b6d4).withAlpha (cyanAlpha), v0.x, v0.y,
                                        juce::Colour (0x00000000), puckPos.x, puckPos.y + r * 0.35f, true);
         g.setGradientFill (gradCyan);
@@ -470,22 +440,22 @@ private:
 
         // 6. Blue / Royal Indigo (#3b82f6) - Left slope atmospheric depth
         auto midLeft = (v0 + v1) * 0.5f;
-        float blueAlpha = (0.24f + (weightBright + weightWarm) * 0.20f + audioPulse * 0.4f) * 0.65f;
+        float blueAlpha = (0.24f + (weightBright + weightWarm) * 0.20f + audioPulse * 0.4f) * 0.65f * duckFactor;
         juce::ColourGradient gradBlue (juce::Colour (0xff3b82f6).withAlpha (blueAlpha), midLeft.x, midLeft.y,
                                        juce::Colour (0x00000000), puckPos.x, puckPos.y, true);
         g.setGradientFill (gradBlue);
         g.fillEllipse (midLeft.x - r * 0.60f, midLeft.y - r * 0.55f, r * 1.20f, r * 1.10f);
 
-        // 7. Violet / Orchid Magenta (#a855f7) - Right slope shimmer & dimension
+        // 7. Violet / Orchid Magenta (#a855f7) - Right slope shimmer & dimension (responds to Shimmer)
         auto midRight = (v0 + v2) * 0.5f;
-        float violetAlpha = (0.24f + (weightBright + weightSpace) * 0.20f + audioPulse * 0.4f) * 0.65f;
+        float violetAlpha = (0.24f + (weightBright + weightSpace) * 0.20f + audioPulse * 0.4f + shimmerBoost) * 0.65f * duckFactor;
         juce::ColourGradient gradViolet (juce::Colour (0xffa855f7).withAlpha (violetAlpha), midRight.x, midRight.y,
                                          juce::Colour (0x00000000), puckPos.x, puckPos.y, true);
         g.setGradientFill (gradViolet);
         g.fillEllipse (midRight.x - r * 0.60f, midRight.y - r * 0.55f, r * 1.20f, r * 1.10f);
 
         // Center Ambient Core Bloom (Soft Luminous Opal Glow around puck)
-        float coreAlpha = (0.28f + (spaceSize / 100.0f) * 0.24f + audioPulse * 0.6f) * 0.55f;
+        float coreAlpha = (0.28f + (spaceSize / 100.0f) * 0.24f + audioPulse * 0.6f) * 0.55f * duckFactor;
         juce::ColourGradient coreBloom (juce::Colour (0xffffffff).withAlpha (coreAlpha), puckPos.x, puckPos.y,
                                         juce::Colour (0x00000000), puckPos.x, puckPos.y + r * 0.50f, true);
         g.setGradientFill (coreBloom);

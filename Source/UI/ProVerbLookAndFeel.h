@@ -62,8 +62,8 @@ public:
         g.fillEllipse (squareBounds);
 
         // Hairline cyber rim (subtle bevel light catch on top, shadow below)
-        juce::ColourGradient socketGrad (juce::Colour (0xff1f232f), centre.x, squareBounds.getY(),
-                                         juce::Colour (0xff0c0d12), centre.x, squareBounds.getBottom(), false);
+        juce::ColourGradient socketGrad (juce::Colour (0xff1f222a), centre.x, squareBounds.getY(),
+                                         juce::Colour (0xff0a0b0e), centre.x, squareBounds.getBottom(), false);
         g.setGradientFill (socketGrad);
         g.drawEllipse (squareBounds, 1.0f);
 
@@ -72,7 +72,7 @@ public:
         juce::Path bgArc;
         bgArc.addCentredArc (centre.x, centre.y, arcRadius, arcRadius, 0.0f,
                              rotaryStartAngle, rotaryEndAngle, true);
-        g.setColour (juce::Colour (0xff151722));
+        g.setColour (juce::Colour (0xff15161c));
         g.strokePath (bgArc, juce::PathStrokeType (2.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
         // 3. Active Luminous Value Arc (Soft Blurred Pastel Glow with Custom Accent)
@@ -136,13 +136,13 @@ public:
         g.fillEllipse (dialBounds.translated (0.0f, 1.6f));
 
         // Precision Obsidian Dial Face
-        juce::ColourGradient dialGrad (juce::Colour (0xff191c26), centre.x, dialBounds.getY(),
-                                       juce::Colour (0xff0d0e14), centre.x, dialBounds.getBottom(), false);
+        juce::ColourGradient dialGrad (juce::Colour (0xff16181f), centre.x, dialBounds.getY(),
+                                       juce::Colour (0xff0e1015), centre.x, dialBounds.getBottom(), false);
         g.setGradientFill (dialGrad);
         g.fillEllipse (dialBounds);
 
         // Razor-thin Hairline Rim
-        g.setColour (juce::Colour (0xff282d3d));
+        g.setColour (juce::Colour (0xff242732));
         g.drawEllipse (dialBounds, 1.0f);
 
         // Futuristic Concentric Inner Accent Ring

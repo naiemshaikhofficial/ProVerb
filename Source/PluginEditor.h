@@ -8,6 +8,7 @@
 #include "UI/ModernReverbEQ.h"
 #include "UI/SmartAutoLearnButton.h"
 #include "UI/LicensePanel.h"
+#include "UI/ReverbAssistantPanel.h"
 #include "Licensing/LicenseClient.h"
 
 class ProVerbAudioProcessorEditor : public juce::AudioProcessorEditor,
@@ -99,6 +100,7 @@ private:
     juce::TextButton heartPresetBtn;
     juce::TextButton settingsButton;
     juce::TextButton menuButton;
+    juce::TextButton reverbAssistantBtn { "Reverb Assistant" };
     SmartAutoLearnButton smartAutoLearnButton;
     int analysisWatchdogTicks { 0 };
     bool wasAnalyzing { false };
@@ -115,6 +117,10 @@ private:
     std::unique_ptr<ProducerToy::UI::LicensePanel> licensePanel;
     void showLicensePanel();
     void hideLicensePanel();
+
+    std::unique_ptr<ProducerToy::UI::ReverbAssistantPanel> reverbAssistantPanel;
+    void showAssistantPanel();
+    void hideAssistantPanel();
 
     struct ParameterSnapshot
     {

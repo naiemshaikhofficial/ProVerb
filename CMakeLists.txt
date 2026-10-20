@@ -203,6 +203,8 @@ target_sources(ProVerb
         Source/Licensing/LicenseClient.cpp
         Source/UI/LicensePanel.h
         Source/UI/LicensePanel.cpp
+        Source/UI/ReverbAssistantPanel.h
+        Source/UI/ReverbAssistantPanel.cpp
 )
 
 target_compile_definitions(ProVerb
