@@ -71,10 +71,12 @@ private:
     // Module 4: Decay & Damping
     juce::Slider decSlider;
     juce::Slider dampSlider;
+    juce::Slider widthSlider;
     juce::ToggleButton freezeButton { "FREEZE" };
 
     juce::Label decLabel;
     juce::Label dampLabel;
+    juce::Label widthLabel;
 
     // Module 5: Console Mixer Faders (Linear Vertical Sliders)
     juce::Slider inGainFader;
@@ -92,6 +94,11 @@ private:
     // Top Bar
     juce::ComboBox presetBox;
     juce::ToggleButton bypassButton { "BYPASS" };
+    juce::TextButton prevPresetBtn { "<" };
+    juce::TextButton nextPresetBtn { ">" };
+    juce::TextButton heartPresetBtn;
+    juce::TextButton settingsButton;
+    juce::TextButton menuButton;
     SmartAutoLearnButton smartAutoLearnButton;
     int analysisWatchdogTicks { 0 };
     bool wasAnalyzing { false };
@@ -99,7 +106,7 @@ private:
 
     // Enhanced Top Bar Controls
     juce::TextEditor searchBox;
-    juce::TextButton abButton { "A" };
+    juce::TextButton abButton { "A / B" };
     juce::TextButton copyABButton { "A->B" };
     juce::TextButton scaleButton { "100%" };
     juce::TextButton undoAutoLearnButton { "UNDO" };
@@ -136,6 +143,7 @@ private:
     std::unique_ptr<SliderAttachment> decAttach;
     std::unique_ptr<SliderAttachment> diffAttach;
     std::unique_ptr<SliderAttachment> dampAttach;
+    std::unique_ptr<SliderAttachment> widthAttach;
     std::unique_ptr<SliderAttachment> hCutAttach;
     std::unique_ptr<SliderAttachment> lCutAttach;
     std::unique_ptr<SliderAttachment> duckAttach;

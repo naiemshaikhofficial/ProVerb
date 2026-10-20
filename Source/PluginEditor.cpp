@@ -88,18 +88,19 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
     setupKnob (diffSlider, diffLabel, "Diffusion", " %", 75.0, juce::Colour (0xff2dd4bf));
     setupKnob (shimmerSlider, shimmerLabel, "Shimmer", " %", 0.0, juce::Colour (0xfff59e0b));
 
-    // Module 4: Decay & Damping (Soft Chromatic Accents: Cyan, Violet Orchid)
-    setupKnob (decSlider, decLabel, "Decay Time", " s", 2.8, juce::Colour (0xff06b6d4));
+    // Module 4: Decay & Damping (Soft Chromatic Accents: Cyan, Magenta, Orange)
+    setupKnob (decSlider, decLabel, "Decay Time", " s", 2.8, juce::Colour (0xff38bdf8));
     setupKnob (dampSlider, dampLabel, "Damping", " %", 45.0, juce::Colour (0xffe879f9));
+    setupKnob (widthSlider, widthLabel, "Stereo Width", " %", 120.0, juce::Colour (0xfffb923c));
 
     addAndMakeVisible (freezeButton);
     freezeButton.setColour (juce::ToggleButton::textColourId, juce::Colour (0xffffffff));
-    freezeButton.setColour (juce::ToggleButton::tickColourId, juce::Colour (0xff06b6d4));
+    freezeButton.setColour (juce::ToggleButton::tickColourId, juce::Colour (0xff38bdf8));
 
     // Module 5: Console Mixer Faders (Glowing Soft Chromatic: Cyan, Soft Violet, Amber Gold, Mint) & SEP Knob (Violet)
     setupFader (inGainFader, inGainLabel, "INPUT", 0.0, juce::Colour (0xff38bdf8));
-    setupFader (dryFader, dryLabel, "DRY", 100.0, juce::Colour (0xffc084fc));
-    setupFader (wetFader, wetLabel, "WET", 35.0, juce::Colour (0xfffbbf24));
+    setupFader (dryFader, dryLabel, "DRY", 100.0, juce::Colour (0xffe879f9));
+    setupFader (wetFader, wetLabel, "WET", 35.0, juce::Colour (0xfffacc15));
     setupFader (outGainFader, outGainLabel, "OUTPUT", 0.0, juce::Colour (0xff34d399));
     setupKnob (sepSlider, sepLabel, "SEP", " %", 100.0, juce::Colour (0xffc084fc));
 
@@ -137,8 +138,99 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
         }
     };
 
+    // Preset Navigation Buttons (< and > and ♡)
+    addAndMakeVisible (prevPresetBtn);
+    prevPresetBtn.setColour (juce::TextButton::buttonColourId, juce::Colour (0x00000000));
+    prevPresetBtn.setColour (juce::TextButton::textColourOffId, juce::Colour (0xff94a3b8));
+    prevPresetBtn.onClick = [this]()
+    {
+        int cur = presetBox.getSelectedId();
+        if (cur > 1)
+            presetBox.setSelectedId (cur - 1);
+        else if (cur == 1)
+            presetBox.setSelectedId (presetBox.getNumItems());
+    };
+
+    addAndMakeVisible (nextPresetBtn);
+    nextPresetBtn.setColour (juce::TextButton::buttonColourId, juce::Colour (0x00000000));
+    nextPresetBtn.setColour (juce::TextButton::textColourOffId, juce::Colour (0xff94a3b8));
+    nextPresetBtn.onClick = [this]()
+    {
+        int cur = presetBox.getSelectedId();
+        if (cur < presetBox.getNumItems())
+            presetBox.setSelectedId (cur + 1);
+        else
+            presetBox.setSelectedId (1);
+    };
+
+    addAndMakeVisible (heartPresetBtn);
+    heartPresetBtn.setButtonText (juce::CharPointer_UTF8 ("\xe2\x99\xa1")); // ♡
+    heartPresetBtn.setColour (juce::TextButton::buttonColourId, juce::Colour (0x00000000));
+    heartPresetBtn.setColour (juce::TextButton::textColourOffId, juce::Colour (0xff94a3b8));
+    heartPresetBtn.onClick = [this]()
+    {
+        static bool isFav = false;
+        isFav = ! isFav;
+        heartPresetBtn.setButtonText (isFav ? juce::CharPointer_UTF8 ("\xe2\x99\xa5") : juce::CharPointer_UTF8 ("\xe2\x99\xa1"));
+        heartPresetBtn.setColour (juce::TextButton::textColourOffId, isFav ? juce::Colour (0xffff4d6d) : juce::Colour (0xff94a3b8));
+    };
+
+    // Header Settings (⚙) and Menu (☰) Buttons
+    addAndMakeVisible (settingsButton);
+    settingsButton.setButtonText (juce::CharPointer_UTF8 ("\xe2\x9a\x99")); // ⚙
+    settingsButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xff14151a));
+    settingsButton.setColour (juce::TextButton::textColourOffId, juce::Colour (0xff94a3b8));
+    settingsButton.onClick = [this]()
+    {
+        juce::PopupMenu menu;
+        menu.addItem (1, "GUI Scale: 100% (Standard)", true, currentScaleFactor == 1.0f);
+        menu.addItem (2, "GUI Scale: 125% (Medium)", true, currentScaleFactor == 1.25f);
+        menu.addItem (3, "GUI Scale: 150% (Large)", true, currentScaleFactor == 1.5f);
+        menu.addSeparator();
+        menu.addItem (4, "License Status & Activation...", true, false);
+        juce::Component::SafePointer<ProVerbAudioProcessorEditor> safeThis (this);
+        menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&settingsButton),
+            [safeThis](int r)
+            {
+                if (safeThis == nullptr) return;
+                if (r == 1) safeThis->setGuiScale (1.0f);
+                else if (r == 2) safeThis->setGuiScale (1.25f);
+                else if (r == 3) safeThis->setGuiScale (1.5f);
+                else if (r == 4) safeThis->showLicensePanel();
+            });
+    };
+
+    addAndMakeVisible (menuButton);
+    menuButton.setButtonText (juce::CharPointer_UTF8 ("\xe2\x98\xb0")); // ☰
+    menuButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xff14151a));
+    menuButton.setColour (juce::TextButton::textColourOffId, juce::Colour (0xff94a3b8));
+    menuButton.onClick = [this]()
+    {
+        juce::PopupMenu menu;
+        menu.addItem (1, "Save Custom Preset (.toy)...");
+        menu.addItem (2, "Load Preset (.toy)...");
+        menu.addItem (3, "Open Preset Directory in Explorer");
+        menu.addSeparator();
+        menu.addItem (4, "Reset to Default Init Preset");
+        menu.addSeparator();
+        menu.addItem (5, "Copy State A to B");
+        menu.addItem (6, "About ProVerb by ProducerToy");
+        juce::Component::SafePointer<ProVerbAudioProcessorEditor> safeThis (this);
+        menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&menuButton),
+            [safeThis](int r)
+            {
+                if (safeThis == nullptr) return;
+                if (r == 1) safeThis->saveUserToyPreset ("User Preset");
+                else if (r == 3) safeThis->getUserPresetDirectory().startAsProcess();
+                else if (r == 4) safeThis->presetBox.setSelectedId (1);
+                else if (r == 5) safeThis->copyABButton.triggerClick();
+                else if (r == 6) safeThis->showLicensePanel();
+            });
+    };
+
     // A/B Comparison Buttons
     addAndMakeVisible (abButton);
+    abButton.setButtonText ("A / B");
     abButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xff1e293b));
     abButton.setColour (juce::TextButton::textColourOffId, juce::Colour (0xff38bdf8));
     abButton.setTooltip ("A/B Comparison: Toggle between Reverb State A and State B");
@@ -152,7 +244,6 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
             captureSnapshot (snapshotB);
             applySnapshot (snapshotA);
             isStateBActive = false;
-            abButton.setButtonText ("A");
             abButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xff1e293b));
             abButton.setColour (juce::TextButton::textColourOffId, juce::Colour (0xff38bdf8));
             copyABButton.setButtonText ("A->B");
@@ -164,7 +255,6 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
                 snapshotB = snapshotA;
             applySnapshot (snapshotB);
             isStateBActive = true;
-            abButton.setButtonText ("B");
             abButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xff2e1065));
             abButton.setColour (juce::TextButton::textColourOffId, juce::Colour (0xffc084fc));
             copyABButton.setButtonText ("B->A");
@@ -306,6 +396,7 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
     decAttach     = std::make_unique<SliderAttachment> (apvts, "decaySeconds", decSlider);
     diffAttach    = std::make_unique<SliderAttachment> (apvts, "diffusion", diffSlider);
     dampAttach    = std::make_unique<SliderAttachment> (apvts, "damping", dampSlider);
+    widthAttach   = std::make_unique<SliderAttachment> (apvts, "width", widthSlider);
     hCutAttach    = std::make_unique<SliderAttachment> (apvts, "highCut", hCutSlider);
     lCutAttach    = std::make_unique<SliderAttachment> (apvts, "lowCut", lCutSlider);
     duckAttach    = std::make_unique<SliderAttachment> (apvts, "ducking", duckSlider);
@@ -631,7 +722,7 @@ void ProVerbAudioProcessorEditor::paint (juce::Graphics& g)
 
     drawModuleCard (0.0f, col1W, "ROUTING & FILTERS");
     drawModuleCard (x1, col2W, "SPACE & TIME");
-    drawModuleCard (x2, col3W, "");
+    drawModuleCard (x2, col3W, "ACOUSTIC SPACE");
     drawModuleCard (x3, col4W, "DECAY & DAMP");
     drawModuleCard (x4, (float) getWidth() - x4, "CONSOLE MIXER");
 }
@@ -676,59 +767,56 @@ void ProVerbAudioProcessorEditor::resized()
             ptLogoCached = logoImage.rescaled (targetW, targetH, juce::Graphics::highResamplingQuality);
     }
 
-    // Right Side: Top Bar Controls (Right-to-Left Layout)
-    const int rightMargin = 12;
-    const int headerGap = 6;
+    // Right Side: Top Bar Controls (Matching Reference Layout: Menu, Settings, Bypass, A/B)
+    const int rightMargin = 14;
+    const int headerGap = 8;
     const int headerY = 11;
     const int ctrlH = 30;
 
     int curX = headerArea.getRight() - rightMargin;
 
-
-    // 1. GUI Scale Button (100% / 125% / 150%)
-    const int scaleW = 56;
-    curX -= scaleW;
-    scaleButton.setBounds (curX, headerY, scaleW, ctrlH);
+    // 1. Menu (☰) Button
+    const int menuW = 30;
+    curX -= menuW;
+    menuButton.setBounds (curX, headerY, menuW, ctrlH);
     curX -= headerGap;
 
-    // 2. A/B Copy Button
-    const int copyW = 50;
-    curX -= copyW;
-    copyABButton.setBounds (curX, headerY, copyW, ctrlH);
-    curX -= 4;
-
-    // 3. A/B State Toggle Button
-    const int abW = 34;
-    curX -= abW;
-    abButton.setBounds (curX, headerY, abW, ctrlH);
+    // 2. Settings (⚙) Button
+    const int setW = 30;
+    curX -= setW;
+    settingsButton.setBounds (curX, headerY, setW, ctrlH);
     curX -= headerGap;
 
-    // 4. Preset Selector Dropdown (Spacious & Prominent with Integrated Search)
-    const int presetW = 210;
-    curX -= presetW;
-    presetBox.setBounds (curX, headerY, presetW, ctrlH);
-    searchBox.setBounds (curX, headerY, presetW, ctrlH);
-    curX -= headerGap + 8;
-
-    // 5. Bypass Button
+    // 3. Bypass Button (Capsule Pill)
     const int bypassW = 76;
     curX -= bypassW;
-    bypassButton.setBounds (curX, headerY + 1, bypassW, ctrlH - 2);
+    bypassButton.setBounds (curX, headerY, bypassW, ctrlH);
+    curX -= headerGap + 2;
 
-    // Center: iZotope-Style Reverb Assistant — Responsively centered between left brands & right controls
+    // 4. A / B Capsule Toggle Button
+    const int abW = 54;
+    curX -= abW;
+    abButton.setBounds (curX, headerY, abW, ctrlH);
+    curX -= headerGap + 12;
+
+    // Center: < Smart Reverb AI ♡ > Preset Capsule
     int leftBrandRight = ptLogoBounds.getRight();
-    const bool showUndo = undoAutoLearnButton.isVisible();
-    const int undoW = showUndo ? 52 : 0;
-    int centerAvailW = (curX - 10) - (leftBrandRight + 12);
-    int assistantW = juce::jlimit (170, 220, centerAvailW - (showUndo ? (undoW + 6) : 0));
-    int assistantH = 32;
-    int totalBlockW = assistantW + (showUndo ? (undoW + 6) : 0);
-    int assistantX = (leftBrandRight + 12) + (centerAvailW - totalBlockW) / 2;
-    int assistantY = (headerArea.getHeight() - assistantH) / 2;
-    smartAutoLearnButton.setBounds (assistantX, assistantY, assistantW, assistantH);
+    int centerAvailW = curX - (leftBrandRight + 16);
+    int capsuleW = juce::jlimit (240, 320, centerAvailW - 60);
+    int capsuleX = (leftBrandRight + 16) + (centerAvailW - capsuleW) / 2;
 
-    if (showUndo)
-        undoAutoLearnButton.setBounds (assistantX + assistantW + 6, assistantY + 2, undoW, assistantH - 4);
+    auto capsuleBounds = juce::Rectangle<int> (capsuleX, headerY, capsuleW, ctrlH);
+    prevPresetBtn.setBounds (capsuleBounds.removeFromLeft (24));
+    nextPresetBtn.setBounds (capsuleBounds.removeFromRight (24));
+    heartPresetBtn.setBounds (capsuleBounds.removeFromRight (26));
+
+    presetBox.setBounds (capsuleBounds);
+    searchBox.setBounds (capsuleBounds);
+
+    // Smart AI Auto Learn Button positioned smoothly adjacent
+    smartAutoLearnButton.setBounds (capsuleX - 64, headerY, 60, ctrlH);
+    if (undoAutoLearnButton.isVisible())
+        undoAutoLearnButton.setBounds (capsuleX + capsuleW + 8, headerY + 2, 48, ctrlH - 4);
 
     // Bottom Reverb EQ & Spectrum Module — dynamically scales with window height
     int eqH = juce::jlimit (135, 210, (int) (getHeight() * 0.28f));
@@ -740,7 +828,7 @@ void ProVerbAudioProcessorEditor::resized()
     int col1W = (int) (totalW * 0.16f); // Filters (H.CUT, L.CUT, DUCK, MID/SIDE)
     int col2W = (int) (totalW * 0.19f); // Space & Time (DELAY, SIZE, DIFF, SHIMMER)
     int col3W = (int) (totalW * 0.28f); // Center Holographic Aura & 3D SpaceVisualizer
-    int col4W = (int) (totalW * 0.17f); // Decay & Damping (DEC, DAMP, FREEZE)
+    int col4W = (int) (totalW * 0.17f); // Decay & Damping (DEC, DAMP, WIDTH)
     int col5W = totalW - (col1W + col2W + col3W + col4W); // Console Mixer
     juce::ignoreUnused (col5W);
 
@@ -757,40 +845,32 @@ void ProVerbAudioProcessorEditor::resized()
     const int contentBottomY = cardBottomY - 6;
     const int availableH = contentBottomY - contentTopY;
 
-    // Module 1 (Left 1): MID/SIDE & Filters (H.CUT, L.CUT, DUCK)
-    int m1BtnH = 22;
-    midSideButton.setBounds (m1Area.getX() + 12, contentTopY, m1Area.getWidth() - 24, m1BtnH);
+    // Module 1 (Left 1): Segmented MID / SIDE Toggle & Horizontal Filters (High Cut, Low Cut, Duck)
+    int m1BtnH = 26;
+    midSideButton.setBounds (m1Area.getX() + 8, contentTopY, m1Area.getWidth() - 16, m1BtnH);
 
-    int m1KnobsStart = contentTopY + m1BtnH + 4;
+    int m1KnobsStart = contentTopY + m1BtnH + 6;
     int m1KnobsHeight = contentBottomY - m1KnobsStart;
     int m1SlotH = m1KnobsHeight / 3;
-    int m1LabelH = 13;
-    int m1KnobDiam = juce::jlimit (26, 48, juce::jmin (m1Area.getWidth() - 20, m1SlotH - m1LabelH - 14));
-    int m1SliderH = m1KnobDiam + 14;
 
-    // Row 1: H.CUT
-    int m1SliderW = juce::jmin (m1Area.getWidth() - 10, juce::jmax (68, m1KnobDiam + 24));
-    int y1_1 = m1KnobsStart;
-    int pad1_1 = (m1SlotH - (m1LabelH + m1SliderH)) / 2;
-    hCutLabel.setBounds (m1Area.getX(), y1_1 + pad1_1, m1Area.getWidth(), m1LabelH);
-    hCutSlider.setBounds (juce::Rectangle<int> (m1Area.getX(), y1_1 + pad1_1 + m1LabelH, m1Area.getWidth(), m1SliderH)
-                             .withSizeKeepingCentre (m1SliderW, m1SliderH));
+    // Horizontal Row Layout: Circular Knob on left, Label & Value on right
+    auto layoutM1Row = [&](int index, juce::Label& lbl, juce::Slider& sld, const juce::String& title)
+    {
+        int slotY = m1KnobsStart + index * m1SlotH;
+        sld.setTextBoxStyle (juce::Slider::TextBoxRight, false, 56, 18);
+        sld.setBounds (m1Area.getX() + 6, slotY + 2, m1Area.getWidth() - 12, m1SlotH - 6);
+        
+        lbl.setText (title, juce::dontSendNotification);
+        lbl.setJustificationType (juce::Justification::centredLeft);
+        lbl.setBounds (m1Area.getX() + m1Area.getWidth() - 66, slotY + 4, 62, 14);
+    };
 
-    // Row 2: L.CUT
-    int y1_2 = m1KnobsStart + m1SlotH;
-    int pad1_2 = (m1SlotH - (m1LabelH + m1SliderH)) / 2;
-    lCutLabel.setBounds (m1Area.getX(), y1_2 + pad1_2, m1Area.getWidth(), m1LabelH);
-    lCutSlider.setBounds (juce::Rectangle<int> (m1Area.getX(), y1_2 + pad1_2 + m1LabelH, m1Area.getWidth(), m1SliderH)
-                             .withSizeKeepingCentre (m1SliderW, m1SliderH));
+    layoutM1Row (0, hCutLabel, hCutSlider, "High Cut");
+    layoutM1Row (1, lCutLabel, lCutSlider, "Low Cut");
+    layoutM1Row (2, duckLabel, duckSlider, "Duck");
 
-    // Row 3: DUCK & Sidechain Selector
     int y1_3 = m1KnobsStart + m1SlotH * 2;
-    int pad1_3 = (m1SlotH - (m1LabelH + m1SliderH + 18)) / 2;
-    duckLabel.setBounds (m1Area.getX(), y1_3 + pad1_3, m1Area.getWidth(), m1LabelH);
-    duckSlider.setBounds (juce::Rectangle<int> (m1Area.getX(), y1_3 + pad1_3 + m1LabelH, m1Area.getWidth(), m1SliderH)
-                             .withSizeKeepingCentre (m1SliderW, m1SliderH));
-    sidechainModeButton.setBounds (juce::Rectangle<int> (m1Area.getX(), y1_3 + pad1_3 + m1LabelH + m1SliderH + 2, m1Area.getWidth(), 16)
-                                      .withSizeKeepingCentre (juce::jmin (m1Area.getWidth() - 10, 68), 15));
+    sidechainModeButton.setBounds (juce::Rectangle<int> (m1Area.getX() + m1Area.getWidth() - 70, y1_3 + m1SlotH - 18, 64, 15));
 
     // Module 2 (Left 2): Space & Time (DELAY, SIZE, DIFF, SHIMMER)
     int m2KnobsHeight = contentBottomY - contentTopY;
@@ -814,35 +894,40 @@ void ProVerbAudioProcessorEditor::resized()
     layoutM2Knob (2, diffLabel, diffSlider);
     layoutM2Knob (3, shimmerLabel, shimmerSlider);
 
-    // Module 3 (Center): Centerpiece 3D Acoustic Aura Prism (Expanded uncluttered)
-    visualizer.setBounds (m3Area.getX() + 5, cardTopY + 4, m3Area.getWidth() - 10, cardBottomY - cardTopY - 8);
+    // Module 3 (Center): Centerpiece 3D Acoustic Aura Prism
+    visualizer.setBounds (m3Area.getX() + 4, contentTopY, m3Area.getWidth() - 8, availableH);
 
-    // Module 4 (Right 1): Decay & Damping (DEC, DAMP, FREEZE)
-    int freezeH = 24;
-    int m4KnobsAreaH = availableH - freezeH - 8;
-    int m4SlotH = m4KnobsAreaH / 2;
+    // Module 4 (Right 1): Decay & Damping (Decay Time, Damping, Stereo Width)
+    int m4SlotH = availableH / 3;
     int m4LabelH = 13;
-    int m4KnobDiam = juce::jlimit (28, 54, juce::jmin (m4Area.getWidth() - 20, m4SlotH - m4LabelH - 15));
+    int m4KnobDiam = juce::jlimit (26, 48, juce::jmin (m4Area.getWidth() - 20, m4SlotH - m4LabelH - 15));
     int m4SliderH = m4KnobDiam + 15;
     int m4SliderW = juce::jmin (m4Area.getWidth() - 10, juce::jmax (68, m4KnobDiam + 24));
 
-    // Item 1: DEC (Hero Decay Dial)
+    // Item 1: DEC (Decay Time)
     int y4_1 = contentTopY;
     int pad4_1 = (m4SlotH - (m4LabelH + m4SliderH)) / 2;
     decLabel.setBounds (m4Area.getX(), y4_1 + pad4_1, m4Area.getWidth(), m4LabelH);
     decSlider.setBounds (juce::Rectangle<int> (m4Area.getX(), y4_1 + pad4_1 + m4LabelH, m4Area.getWidth(), m4SliderH)
                             .withSizeKeepingCentre (m4SliderW, m4SliderH));
 
-    // Item 2: DAMP (High Damping Dial)
+    // Item 2: DAMP (High Damping)
     int y4_2 = contentTopY + m4SlotH;
     int pad4_2 = (m4SlotH - (m4LabelH + m4SliderH)) / 2;
     dampLabel.setBounds (m4Area.getX(), y4_2 + pad4_2, m4Area.getWidth(), m4LabelH);
     dampSlider.setBounds (juce::Rectangle<int> (m4Area.getX(), y4_2 + pad4_2 + m4LabelH, m4Area.getWidth(), m4SliderH)
                              .withSizeKeepingCentre (m4SliderW, m4SliderH));
 
-    // Item 3: FREEZE Button
-    freezeButton.setBounds (juce::Rectangle<int> (m4Area.getX(), contentBottomY - freezeH - 2, m4Area.getWidth(), freezeH)
-                               .withSizeKeepingCentre (juce::jmin (m4Area.getWidth() - 24, 96), freezeH));
+    // Item 3: WIDTH (Stereo Width)
+    int y4_3 = contentTopY + m4SlotH * 2;
+    int pad4_3 = (m4SlotH - (m4LabelH + m4SliderH)) / 2;
+    widthLabel.setBounds (m4Area.getX(), y4_3 + pad4_3, m4Area.getWidth(), m4LabelH);
+    widthSlider.setBounds (juce::Rectangle<int> (m4Area.getX(), y4_3 + pad4_3 + m4LabelH, m4Area.getWidth(), m4SliderH)
+                              .withSizeKeepingCentre (m4SliderW, m4SliderH));
+
+    // Freeze Button placed cleanly at bottom right
+    freezeButton.setBounds (juce::Rectangle<int> (m4Area.getX(), contentBottomY - 18, m4Area.getWidth(), 16)
+                               .withSizeKeepingCentre (juce::jmin (m4Area.getWidth() - 28, 70), 16));
 
     // Module 5 (Right 2): Console Mixer Faders (INPUT, DRY, WET, OUTPUT) & SEP Knob
     int sepSectionH = juce::jlimit (62, 78, (int) (availableH * 0.28f));

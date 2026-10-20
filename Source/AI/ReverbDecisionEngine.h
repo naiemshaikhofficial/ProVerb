@@ -133,129 +133,170 @@ public:
             return rec;
         }
 
-        // Base recipe mapping based on winning category
+        // ---------------------------------------------------------------------
+        // ACOUSTIC REALITY CHECK & SENSOR FUSION DISAMBIGUATION
+        // ---------------------------------------------------------------------
+        const float subRatio   = snapshot.features[ProVerbAI::SubRatio];
+        const float bassRatio  = snapshot.features[ProVerbAI::BassRatio];
+        const float coreRatio  = snapshot.features[ProVerbAI::VocalCoreRatio];
+        const float presRatio  = snapshot.features[ProVerbAI::VocalPresRatio];
+        const float airRatio   = snapshot.features[ProVerbAI::AirRatio];
+        const float crest      = snapshot.features[ProVerbAI::CrestFactor];
+        const float zcr        = snapshot.features[ProVerbAI::Zcr];
+        const float transDens  = snapshot.features[ProVerbAI::TransientDensity];
+        const float envDyn     = snapshot.features[ProVerbAI::EnvDynamics];
+
+        // 1. DRUMS / PERCUSSION DISAMBIGUATION:
+        // Sharp transients (crestFactor >= 4.0) with rhythmic attacks (transDens >= 0.7 hits/s).
+        // Real-world vocals and guitars do not produce explosive drum transient crests >= 4.5.
+        if (crest >= 4.2f && transDens >= 0.7f && (subRatio + airRatio > 0.16f || envDyn > 3.5f || crest >= 4.8f))
+        {
+            if (topClass != ProVerbAI::ClassDrums)
+            {
+                topClass = ProVerbAI::ClassDrums;
+                rec.confidence = std::max (rec.confidence, 0.88f);
+            }
+        }
+        // 2. VOCALS & VOCAL MELODIES DISAMBIGUATION:
+        // Vocal core presence (coreRatio >= 0.18), pitched harmonic structure (zcr <= 0.055),
+        // and syllabic modulation (envDyn >= 1.0).
+        // Fixes model misclassifying vocal chants, hooks, or baritone vocals as Guitar:
+        else if (coreRatio >= 0.18f && envDyn >= 1.0f && zcr <= 0.055f && (subRatio + bassRatio) >= 0.30f)
+        {
+            if (topClass == ProVerbAI::ClassGuitar || topClass == ProVerbAI::ClassSynthPad || topClass == ProVerbAI::ClassBass)
+            {
+                topClass = ProVerbAI::ClassVocals;
+                rec.confidence = std::max (rec.confidence, 0.88f);
+            }
+        }
+        // 3. TRUE BASS & 808 SUB DISAMBIGUATION:
+        // Dominant energy concentrated strictly in <320Hz (>= 0.68) with negligible air/presence.
+        else if ((subRatio + bassRatio) >= 0.68f && presRatio < 0.06f && airRatio < 0.03f)
+        {
+            if (topClass != ProVerbAI::ClassBass)
+            {
+                topClass = ProVerbAI::ClassBass;
+                rec.confidence = std::max (rec.confidence, 0.90f);
+            }
+        }
+
+        // ---------------------------------------------------------------------
+        // DYNAMIC STUDIO PARAMETER SYNTHESIS (Grammy-Level Acoustic Tailoring)
+        // ---------------------------------------------------------------------
         switch (topClass)
         {
             case ProVerbAI::ClassVocals:
             {
-                rec.instrumentCategory = "VOCALS (AI)";
-                const float airRatio   = snapshot.features[ProVerbAI::AirRatio];
-                const float envDyn     = snapshot.features[ProVerbAI::EnvDynamics];
-                const float bassRatio  = snapshot.features[ProVerbAI::BassRatio];
-                const float coreRatio  = snapshot.features[ProVerbAI::VocalCoreRatio];
-                const float transDens  = snapshot.features[ProVerbAI::TransientDensity];
+                // Dynamic Vocal Space Calculation:
+                // Pre-delay: Higher crest / transient attacks need more pre-delay (22ms - 46ms)
+                // so consonants ('p', 't', 'k', 's') punch through dry before reverb blooms!
+                p.predelayMs = juce::jlimit (16.0f, 48.0f, 18.0f + crest * 3.2f + (transDens > 3.0f ? 2.0f : 8.0f));
 
-                if (envDyn > 1.8f || transDens > 2.0f)
+                // Decay Time:
+                // Rhythmic / syllabic vocal melody (transDens > 2.8 hits/s or envDyn > 2.5) -> tight (0.85s - 1.25s)
+                // Sustained singing -> lush hall (1.70s - 2.50s)
+                if (transDens > 2.8f || envDyn > 2.5f)
                 {
-                    // Fast Rap / Trap Vocal: tight space, heavy ducking for clear lyric articulation
                     p.id = AudioAnalyzerEngine::ProfileId::VocalsRap;
-                    rec.profileName = "Vocals (Rap & Trap - Tight Space)";
-                    p.predelayMs   = 14.0f;
-                    p.size         = 44.0f;
-                    p.decaySeconds = 0.95f;
-                    p.diffusion    = 84.0f;
-                    p.damping      = 42.0f;
-                    p.lowCut       = 160.0f;
-                    p.highCut      = 13000.0f;
-                    p.ducking      = 48.0f;
-                    p.shimmer      = 0.0f;
-                    p.width        = 125.0f;
-                    p.wet          = 16.0f;
+                    rec.instrumentCategory = "VOCAL MELODY (AI)";
+                    rec.profileName = "Vocal Melody (Punchy & Articulate - AI)";
+                    p.decaySeconds = juce::jlimit (0.85f, 1.25f, 1.30f - 0.07f * transDens);
+                    p.size = juce::jlimit (42.0f, 60.0f, 46.0f + envDyn * 2.0f);
+                    p.diffusion = 85.0f;
+                    p.damping = 40.0f;
+                    p.ducking = juce::jlimit (35.0f, 60.0f, 25.0f + envDyn * 7.5f);
+                    p.wet = 18.0f;
+                    p.width = 130.0f;
                 }
-                else if (airRatio > 0.16f && bassRatio < 0.20f)
+                else if (airRatio > 0.14f && bassRatio < 0.20f)
                 {
-                    // Female Vocal: fundamental in 180-320Hz, high silky air sheen
                     p.id = AudioAnalyzerEngine::ProfileId::VocalsFemaleAiry;
+                    rec.instrumentCategory = "FEMALE VOCALS (AI)";
                     rec.profileName = "Female Vocal (Silky Air Plate - AI)";
-                    p.predelayMs   = 32.0f;
-                    p.size         = 68.0f;
-                    p.decaySeconds = 2.10f;
-                    p.diffusion    = 90.0f;
-                    p.damping      = 26.0f;
-                    p.lowCut       = 190.0f;   // Cuts female chest boominess
-                    p.highCut      = 15500.0f; // Silky high air
-                    p.ducking      = 38.0f;
-                    p.shimmer      = 5.0f;
-                    p.width        = 140.0f;
-                    p.wet          = 20.0f;
+                    p.decaySeconds = juce::jlimit (1.80f, 2.60f, 1.95f + airRatio * 3.5f);
+                    p.size = 68.0f;
+                    p.diffusion = 92.0f;
+                    p.damping = 26.0f;
+                    p.ducking = juce::jlimit (25.0f, 45.0f, 30.0f + envDyn * 3.0f);
+                    p.shimmer = 6.0f;
+                    p.wet = 20.0f;
+                    p.width = 140.0f;
                 }
                 else
                 {
-                    // Male Vocal: fundamental in 85-180Hz, warm chest resonance
                     p.id = AudioAnalyzerEngine::ProfileId::VocalsMaleWarm;
-                    rec.profileName = "Male Vocal (Abbey Road Warm Room - AI)";
-                    p.predelayMs   = 26.0f;
-                    p.size         = 62.0f;
-                    p.decaySeconds = (coreRatio > 0.35f ? 1.70f : 1.80f);
-                    p.diffusion    = 88.0f;
-                    p.damping      = 34.0f;
-                    p.lowCut       = 130.0f;   // Abbey Road filter trick
-                    p.highCut      = 12000.0f;
-                    p.ducking      = 36.0f;
-                    p.shimmer      = 0.0f;
-                    p.width        = 130.0f;
-                    p.wet          = 18.0f;
+                    rec.instrumentCategory = "VOCALS (AI)";
+                    rec.profileName = "Lead Vocal (Abbey Road Space - AI)";
+                    p.decaySeconds = juce::jlimit (1.40f, 2.20f, 1.80f - (transDens > 1.5f ? 0.3f : 0.0f));
+                    p.size = 62.0f;
+                    p.diffusion = 88.0f;
+                    p.damping = 34.0f;
+                    p.ducking = juce::jlimit (28.0f, 50.0f, 32.0f + envDyn * 4.0f);
+                    p.shimmer = 0.0f;
+                    p.wet = 19.0f;
+                    p.width = 130.0f;
                 }
+
+                // Dynamic Low-Cut & High-Cut:
+                // High-pass filter protects the vocal from chest boom or low rumble:
+                p.lowCut  = juce::jlimit (120.0f, 280.0f, 130.0f + 200.0f * (subRatio * 1.2f + bassRatio * 0.5f));
+                p.highCut = juce::jlimit (9000.0f, 16000.0f, 11000.0f + 18000.0f * airRatio);
                 break;
             }
 
             case ProVerbAI::ClassDrums:
             {
                 rec.instrumentCategory = "DRUMS (AI)";
-                const float subRatio  = snapshot.features[ProVerbAI::SubRatio];
-                const float bassRatio = snapshot.features[ProVerbAI::BassRatio];
-                const float coreRatio = snapshot.features[ProVerbAI::VocalCoreRatio];
-                const float crest     = snapshot.features[ProVerbAI::CrestFactor];
 
-                if (subRatio > 0.35f)
+                // Kick / 808 Sub Drums
+                if (subRatio > 0.35f || (subRatio > 0.22f && crest > 4.5f))
                 {
-                    // Kick Drum / Heavy Sub: tight dry space, protect low-end
                     p.id = AudioAnalyzerEngine::ProfileId::DrumsKickLowClean;
                     rec.profileName = "Kick & Sub (Tight Low-End Clean - AI)";
-                    p.predelayMs   = 6.0f;
-                    p.size         = 25.0f;
-                    p.decaySeconds = 0.50f;
-                    p.diffusion    = 80.0f;
-                    p.damping      = 60.0f;
-                    p.lowCut       = 240.0f;
-                    p.highCut      = 8000.0f;
+                    p.predelayMs   = juce::jlimit (4.0f, 12.0f, 4.0f + crest * 1.1f);
+                    p.size         = 28.0f;
+                    p.decaySeconds = juce::jlimit (0.35f, 0.70f, 0.60f - 0.04f * transDens);
+                    p.diffusion    = 82.0f;
+                    p.damping      = 65.0f;
+                    p.lowCut       = juce::jlimit (200.0f, 340.0f, 220.0f + subRatio * 140.0f);
+                    p.highCut      = 8500.0f;
                     p.ducking      = 0.0f;
                     p.shimmer      = 0.0f;
-                    p.width        = 90.0f;
-                    p.wet          = 10.0f;
+                    p.width        = 95.0f;
+                    p.wet          = 12.0f;
                 }
-                else if (bassRatio > 0.28f && coreRatio > 0.20f && crest < 4.5f)
+                // Tabla / Dholak / Indian Hand Percussion
+                else if (bassRatio > 0.25f && coreRatio > 0.20f && crest < 5.2f)
                 {
-                    // Tabla / Dholak / Hand Percussion
                     p.id = AudioAnalyzerEngine::ProfileId::PercussionTablaHand;
-                    rec.profileName = "Tabla & Hand Percussion (Intimate Studio - AI)";
-                    p.predelayMs   = 12.0f;
-                    p.size         = 44.0f;
-                    p.decaySeconds = 1.05f;
-                    p.diffusion    = 86.0f;
-                    p.damping      = 42.0f;
-                    p.lowCut       = 130.0f;
-                    p.highCut      = 11000.0f;
+                    rec.profileName = "Tabla & Indian Percussion (Studio Chamber - AI)";
+                    p.predelayMs   = juce::jlimit (8.0f, 18.0f, 8.0f + crest * 1.5f);
+                    p.size         = 46.0f;
+                    p.decaySeconds = juce::jlimit (0.80f, 1.30f, 1.20f - 0.06f * transDens);
+                    p.diffusion    = 88.0f;
+                    p.damping      = 44.0f;
+                    p.lowCut       = juce::jlimit (120.0f, 220.0f, 130.0f + subRatio * 150.0f);
+                    p.highCut      = 12000.0f;
                     p.ducking      = 10.0f;
                     p.shimmer      = 0.0f;
-                    p.width        = 115.0f;
+                    p.width        = 120.0f;
                     p.wet          = 18.0f;
                 }
+                // Snare / Trap Drums / Full Kit
                 else
                 {
-                    // Snare & Drum Kit
                     p.id = AudioAnalyzerEngine::ProfileId::DrumsPunchyRoom;
                     rec.profileName = "Drums & Snare (Punchy Studio Room - AI)";
-                    p.predelayMs   = 10.0f;
-                    p.size         = 36.0f;
-                    p.decaySeconds = 0.80f;
-                    p.diffusion    = 90.0f;
-                    p.damping      = 52.0f;
-                    p.lowCut       = 180.0f;
-                    p.highCut      = 9800.0f;
+                    p.predelayMs   = juce::jlimit (6.0f, 16.0f, 6.0f + crest * 1.5f);
+                    p.size         = 38.0f;
+                    p.decaySeconds = juce::jlimit (0.60f, 1.10f, 0.95f - 0.05f * transDens);
+                    p.diffusion    = 92.0f;
+                    p.damping      = 50.0f;
+                    p.lowCut       = juce::jlimit (140.0f, 240.0f, 160.0f + subRatio * 120.0f);
+                    p.highCut      = 10500.0f;
                     p.ducking      = 0.0f;
                     p.shimmer      = 0.0f;
-                    p.width        = 110.0f;
+                    p.width        = 115.0f;
                     p.wet          = 17.0f;
                 }
                 break;
@@ -264,21 +305,17 @@ public:
             case ProVerbAI::ClassGuitar:
             {
                 rec.instrumentCategory = "STRINGS / GUITAR (AI)";
-                const float transDens = snapshot.features[ProVerbAI::TransientDensity];
-                const float airRatio  = snapshot.features[ProVerbAI::AirRatio];
-                const float presRatio = snapshot.features[ProVerbAI::VocalPresRatio];
 
                 if (transDens >= 2.5f && (airRatio + presRatio) > 0.22f)
                 {
-                    // Sitar, Santoor, Sarod: rapid plucking, sympathetic string shimmer
                     p.id = AudioAnalyzerEngine::ProfileId::StringsPluckedSitar;
-                    rec.profileName = "Sitar & Santoor (Resonant Shimmer Space - AI)";
-                    p.predelayMs   = 22.0f;
+                    rec.profileName = "Sitar & Plucked Strings (Resonant Shimmer - AI)";
+                    p.predelayMs   = juce::jlimit (16.0f, 32.0f, 18.0f + crest * 2.0f);
                     p.size         = 64.0f;
-                    p.decaySeconds = 2.10f;
+                    p.decaySeconds = juce::jlimit (1.60f, 2.50f, 2.10f - 0.08f * transDens);
                     p.diffusion    = 88.0f;
                     p.damping      = 32.0f;
-                    p.lowCut       = 160.0f;
+                    p.lowCut       = juce::jlimit (130.0f, 220.0f, 140.0f + subRatio * 120.0f);
                     p.highCut      = 13500.0f;
                     p.ducking      = 18.0f;
                     p.shimmer      = 10.0f;
@@ -287,16 +324,15 @@ public:
                 }
                 else
                 {
-                    // Acoustic / Electric Guitar: warm woody chamber
                     p.id = AudioAnalyzerEngine::ProfileId::GuitarKeysWarmChamber;
                     rec.profileName = "Acoustic Guitar (Warm Woody Chamber - AI)";
-                    p.predelayMs   = 18.0f;
+                    p.predelayMs   = juce::jlimit (12.0f, 26.0f, 14.0f + crest * 1.5f);
                     p.size         = 52.0f;
-                    p.decaySeconds = 1.30f;
+                    p.decaySeconds = juce::jlimit (1.00f, 1.80f, 1.45f - 0.08f * transDens);
                     p.diffusion    = 80.0f;
                     p.damping      = 45.0f;
-                    p.lowCut       = 140.0f;
-                    p.highCut      = 11500.0f;
+                    p.lowCut       = juce::jlimit (120.0f, 200.0f, 130.0f + subRatio * 100.0f);
+                    p.highCut      = juce::jlimit (9500.0f, 14000.0f, 11000.0f + airRatio * 12000.0f);
                     p.ducking      = 12.0f;
                     p.shimmer      = 0.0f;
                     p.width        = 120.0f;
@@ -310,12 +346,12 @@ public:
                 rec.instrumentCategory = "PIANO / KEYS (AI)";
                 p.id = AudioAnalyzerEngine::ProfileId::PianoKeysConcertHall;
                 rec.profileName = "Piano & Keys (Concert Grand Hall - AI)";
-                p.predelayMs   = 24.0f;
+                p.predelayMs   = juce::jlimit (18.0f, 36.0f, 20.0f + crest * 1.5f);
                 p.size         = 74.0f;
-                p.decaySeconds = 2.20f;
+                p.decaySeconds = juce::jlimit (1.60f, 2.80f, 2.20f - 0.10f * transDens);
                 p.diffusion    = 88.0f;
                 p.damping      = 32.0f;
-                p.lowCut       = 95.0f;
+                p.lowCut       = juce::jlimit (80.0f, 160.0f, 95.0f + subRatio * 80.0f);
                 p.highCut      = 15000.0f;
                 p.ducking      = 10.0f;
                 p.shimmer      = 0.0f;
@@ -328,14 +364,14 @@ public:
             {
                 rec.instrumentCategory = "BASS (AI)";
                 p.id = AudioAnalyzerEngine::ProfileId::BassCleanTightRoom;
-                rec.profileName = "Bass (Tight Dimension - Clean Sub - AI)";
-                p.predelayMs   = 4.0f;
+                rec.profileName = "Bass & 808 (Tight Dimension - Clean Sub - AI)";
+                p.predelayMs   = juce::jlimit (3.0f, 8.0f, 3.0f + crest * 0.8f);
                 p.size         = 24.0f;
-                p.decaySeconds = 0.40f;
+                p.decaySeconds = juce::jlimit (0.30f, 0.55f, 0.45f - 0.03f * transDens);
                 p.diffusion    = 65.0f;
                 p.damping      = 70.0f;
-                p.lowCut       = 240.0f;
-                p.highCut      = 6000.0f;
+                p.lowCut       = juce::jlimit (220.0f, 360.0f, 240.0f + subRatio * 140.0f);
+                p.highCut      = 5500.0f;
                 p.ducking      = 30.0f;
                 p.shimmer      = 0.0f;
                 p.width        = 85.0f;
@@ -348,14 +384,14 @@ public:
                 rec.instrumentCategory = "SYNTH / PAD (AI)";
                 p.id = AudioAnalyzerEngine::ProfileId::SustainedPadCosmicBloom;
                 rec.profileName = "Synth & Pad (Ethereal Cosmic Bloom - AI)";
-                p.predelayMs   = 40.0f;
+                p.predelayMs   = juce::jlimit (25.0f, 55.0f, 30.0f + crest * 3.0f);
                 p.size         = 88.0f;
-                p.decaySeconds = 3.80f;
+                p.decaySeconds = juce::jlimit (2.50f, 4.80f, 3.80f - 0.15f * transDens);
                 p.diffusion    = 95.0f;
                 p.damping      = 24.0f;
-                p.lowCut       = 80.0f;
-                p.highCut      = 17500.0f;
-                p.ducking      = 10.0f;
+                p.lowCut       = juce::jlimit (70.0f, 160.0f, 80.0f + subRatio * 100.0f);
+                p.highCut      = juce::jlimit (14000.0f, 19000.0f, 16000.0f + airRatio * 15000.0f);
+                p.ducking      = juce::jlimit (5.0f, 20.0f, 8.0f + envDyn * 3.0f);
                 p.shimmer      = 16.0f;
                 p.width        = 170.0f;
                 p.wet          = 28.0f;
@@ -364,12 +400,6 @@ public:
 
             default: // Other / Woodwinds / Mixed
             {
-                const float coreRatio = snapshot.features[ProVerbAI::VocalCoreRatio];
-                const float crest     = snapshot.features[ProVerbAI::CrestFactor];
-                const float transDens = snapshot.features[ProVerbAI::TransientDensity];
-                const float airRatio  = snapshot.features[ProVerbAI::AirRatio];
-                const float subRatio  = snapshot.features[ProVerbAI::SubRatio];
-
                 if (coreRatio > 0.32f && crest < 2.8f && transDens < 1.3f && airRatio > 0.12f && subRatio < 0.08f)
                 {
                     // Woodwinds & Flute (Bansuri, Shakuhachi, Flute)
