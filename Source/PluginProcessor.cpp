@@ -272,10 +272,19 @@ void ProVerbAudioProcessor::handleAsyncUpdate()
     // 2. High-Accuracy Source Family Detection
     if (detectedFamily != SourceDetector::FAMILY_UNKNOWN && detectorConf >= 0.22f)
     {
-        chosenInstrument = SourceDetector::getFamilyName (detectedFamily);
-        const char* recommended = SourceDetector::getRecommendedPresetName (detectedFamily);
-        if (recommended != nullptr)
-            chosenPreset = recommended;
+        if (detectedFamily == SourceDetector::FAMILY_MIXED)
+        {
+            const auto summary = sourceDetector.getActiveFamiliesSummary();
+            chosenInstrument = summary.isNotEmpty() ? summary : "Mixed / Ensemble";
+            chosenPreset = "Small Acoustic Ensemble - Intimate Glue";
+        }
+        else
+        {
+            chosenInstrument = SourceDetector::getFamilyName (detectedFamily);
+            const char* recommended = SourceDetector::getRecommendedPresetName (detectedFamily);
+            if (recommended != nullptr)
+                chosenPreset = recommended;
+        }
     }
 
     // 3. Fallback/Corroboration from AI Decision Engine (ONNX model / heuristic engine)

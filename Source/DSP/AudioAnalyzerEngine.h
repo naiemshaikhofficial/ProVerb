@@ -289,8 +289,8 @@ public:
             samplesSinceLastTransient++;
             if (samplesSinceLastTransient > transientRefractorySamples)
             {
-                // Transient hit: fast envelope sharply exceeds slow envelope by 2.2x and above -36dB
-                if (envFast > (envSlow * 2.2f + 0.015f) && absVal > 0.02f)
+                // Adaptive transient hit: fast envelope exceeds slow envelope by 1.55x, floor scaled to RMS
+                if (envFast > (envSlow * 1.55f + 0.005f) && absVal > 0.008f)
                 {
                     transientHits++;
                     samplesSinceLastTransient = 0;
@@ -412,21 +412,26 @@ private:
         // ---------------------------------------------------------------------
 
         // 1. DRUMS SCORE:
-        // High crest factor, fast transient density (>1.8/s), balanced punch & top-end air
+        // High crest factor (>3.0), distinct transient density (>=0.7/s for half-time/90BPM beats), punch in sub/bass and air
         float scoreDrums = 0.0f;
-        if (crestFactor > 4.2f) scoreDrums += 35.0f;
-        if (transientDensity > 1.8f) scoreDrums += 45.0f;
-        if ((subRatio + airRatio) > 0.30f) scoreDrums += 20.0f;
+        if (crestFactor > 3.0f) scoreDrums += 25.0f;
+        if (crestFactor > 4.2f) scoreDrums += 15.0f;
+        if (transientDensity >= 0.7f) scoreDrums += 25.0f;
+        if (transientDensity >= 1.5f) scoreDrums += 20.0f;
+        if ((subRatio + airRatio) > 0.22f) scoreDrums += 20.0f;
+        if (crestFactor > 3.6f && (subRatio > 0.14f || airRatio > 0.10f)) scoreDrums += 15.0f;
 
         // 2. VOCALS SCORE:
-        // Energy strongly concentrated in 320 Hz - 6500 Hz (vocalBandRatio > 0.45),
-        // Very low sub-bass (<95Hz is <0.12), syllabic envelope dynamics (>0.7), moderate crest factor
+        // Energy concentrated in 320 Hz - 6500 Hz (vocalBandRatio > 0.45),
+        // Very low sub-bass (<95Hz is <0.12), syllabic envelope dynamics (>0.6), moderate crest factor
+        // Suppress vocal if audio exhibits plucked string behaviour (sharp plucked transients + high crest factor)
         float scoreVocal = 0.0f;
-        if (vocalBandRatio > 0.45f) scoreVocal += 45.0f;
-        if (vocalCoreRatio > 0.28f) scoreVocal += 20.0f;
-        if (subRatio < 0.12f) scoreVocal += 20.0f;
+        if (vocalBandRatio > 0.45f) scoreVocal += 35.0f;
+        if (vocalCoreRatio > 0.28f) scoreVocal += 15.0f;
+        if (subRatio < 0.12f) scoreVocal += 15.0f;
         if (envDynamics > 0.6f && transientDensity < 4.5f) scoreVocal += 15.0f;
         if (zcr >= 0.035f && zcr <= 0.20f) scoreVocal += 10.0f;
+        if (transientDensity >= 0.7f && crestFactor >= 2.8f) scoreVocal -= 25.0f;
 
         // 3. BASS SCORE (Strict! Only true bass instruments):
         // True bass has dominant sub + low bass (>0.60), and practically ZERO air/presence (<0.08)
@@ -436,19 +441,20 @@ private:
         if (zcr < 0.045f) scoreBass += 20.0f;
 
         // 4. GUITAR SCORE:
-        // Plucked transients (0.8 - 3.0/s), body in 100Hz - 2kHz, low sub
+        // Plucked note transients (0.7 - 3.8/s), acoustic body in 100Hz - 2.5kHz, low sub
         float scoreGuitar = 0.0f;
-        if ((bassRatio + vocalCoreRatio) > 0.50f) scoreGuitar += 35.0f;
+        if ((bassRatio + vocalCoreRatio) > 0.42f) scoreGuitar += 35.0f;
         if (subRatio < 0.14f) scoreGuitar += 20.0f;
-        if (transientDensity >= 0.8f && transientDensity <= 3.2f) scoreGuitar += 25.0f;
-        if (crestFactor >= 2.5f && crestFactor <= 5.0f) scoreGuitar += 15.0f;
+        if (transientDensity >= 0.7f && transientDensity <= 3.8f) scoreGuitar += 30.0f;
+        if (crestFactor >= 2.4f && crestFactor <= 5.5f) scoreGuitar += 25.0f;
+        if (vocalPresRatio > 0.10f && airRatio > 0.03f) scoreGuitar += 15.0f;
 
         // 5. PIANO / KEYS SCORE:
         // Wide polyphony across bass, core, presence, with distinct percussive-harmonic decay
         float scorePiano = 0.0f;
         if (bassRatio > 0.15f && vocalCoreRatio > 0.20f && vocalPresRatio > 0.15f) scorePiano += 40.0f;
         if (crestFactor >= 2.6f && crestFactor <= 4.6f) scorePiano += 25.0f;
-        if (transientDensity >= 0.6f && transientDensity <= 2.2f) scorePiano += 20.0f;
+        if (transientDensity >= 0.5f && transientDensity <= 2.2f) scorePiano += 20.0f;
 
         // 6. SYNTH / AMBIENT PAD SCORE:
         // Very low crest factor (<2.3), very few transients (<0.6/s), sustained flat envelope

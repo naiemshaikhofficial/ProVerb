@@ -294,7 +294,7 @@ private:
         float badgeH = bounds.getHeight() - 7.0f;
         
         juce::Font badgeFont (juce::FontOptions (10.0f, juce::Font::bold));
-        float badgeW = 90.0f;
+        float badgeW = juce::jlimit (75.0f, 130.0f, static_cast<float> (badgeFont.getStringWidth (detectedInstrument)) + 26.0f);
 
         auto badgeRect = juce::Rectangle<float> (badgeX, badgeY, badgeW, badgeH);
         g.setColour (juce::Colour (0xff20242f));

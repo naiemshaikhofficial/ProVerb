@@ -104,6 +104,10 @@ public:
     float getSourceFamilyProbability (int familyIndex) const noexcept { return sourceDetector.getFamilyProbability (familyIndex); }
     juce::String getDetectedSourceFamilyName() const { return SourceDetector::getFamilyName (sourceDetector.getDominantFamily()); }
     juce::String getDetectedSourceAliases() const { return SourceDetector::getFamilyAliases (sourceDetector.getDominantFamily()); }
+    bool isSourceFamilyActive (int familyIndex) const noexcept { return sourceDetector.isFamilyActive (familyIndex); }
+    uint32_t getActiveSourceFamiliesMask() const noexcept { return sourceDetector.getActiveFamiliesMask(); }
+    int getActiveSourceFamilyCount() const noexcept { return sourceDetector.getActiveFamilyCount(); }
+    juce::String getActiveSourceFamiliesSummary() const { return sourceDetector.getActiveFamiliesSummary(); }
     juce::String getDetectedSourceRecommendedPreset() const
     {
         auto* p = SourceDetector::getRecommendedPresetName (sourceDetector.getDominantFamily());

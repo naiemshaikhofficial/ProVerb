@@ -53,6 +53,8 @@ public:
         }
         dominantFamily.store (FAMILY_UNKNOWN, std::memory_order_relaxed);
         dominantConfidence.store (0.0f, std::memory_order_relaxed);
+        activeFamiliesMask.store (0, std::memory_order_relaxed);
+        activeFamiliesCount.store (0, std::memory_order_relaxed);
     }
 
     ~SourceDetector() override
@@ -80,6 +82,8 @@ public:
         }
         dominantFamily.store (FAMILY_UNKNOWN, std::memory_order_relaxed);
         dominantConfidence.store (0.0f, std::memory_order_relaxed);
+        activeFamiliesMask.store (0, std::memory_order_relaxed);
+        activeFamiliesCount.store (0, std::memory_order_relaxed);
         pendingFamily = FAMILY_UNKNOWN;
         pendingHoldHops = 0;
 
@@ -113,6 +117,8 @@ public:
         }
         dominantFamily.store (FAMILY_UNKNOWN, std::memory_order_relaxed);
         dominantConfidence.store (0.0f, std::memory_order_relaxed);
+        activeFamiliesMask.store (0, std::memory_order_relaxed);
+        activeFamiliesCount.store (0, std::memory_order_relaxed);
         pendingFamily = FAMILY_UNKNOWN;
         pendingHoldHops = 0;
     }
@@ -204,6 +210,62 @@ public:
         return 0.0f;
     }
 
+    bool isFamilyActive (int familyIndex) const noexcept
+    {
+        if (familyIndex >= 0 && familyIndex < NUM_FAMILIES)
+            return (activeFamiliesMask.load (std::memory_order_relaxed) & (1u << static_cast<uint32_t> (familyIndex))) != 0;
+        return false;
+    }
+
+    uint32_t getActiveFamiliesMask() const noexcept
+    {
+        return activeFamiliesMask.load (std::memory_order_relaxed);
+    }
+
+    int getActiveFamilyCount() const noexcept
+    {
+        return activeFamiliesCount.load (std::memory_order_relaxed);
+    }
+
+    static const char* getFamilyShortName (int familyIndex) noexcept
+    {
+        switch (familyIndex)
+        {
+            case 0: return "Voice";
+            case 1: return "Drums";
+            case 2: return "Bass";
+            case 3: return "Keys";
+            case 4: return "Guitar";
+            case 5: return "Strings";
+            case 6: return "Winds";
+            case 7: return "Electronic";
+            default: return "";
+        }
+    }
+
+    juce::String getActiveFamiliesSummary() const
+    {
+        const uint32_t mask = activeFamiliesMask.load (std::memory_order_relaxed);
+        if (mask == 0)
+            return {};
+
+        juce::StringArray activeNames;
+        for (int i = 0; i < NUM_FAMILIES; ++i)
+        {
+            if ((mask & (1u << static_cast<uint32_t> (i))) != 0)
+                activeNames.add (getFamilyShortName (i));
+        }
+
+        if (activeNames.size() == 1)
+            return activeNames[0];
+        if (activeNames.size() == 2)
+            return activeNames[0] + " + " + activeNames[1];
+        if (activeNames.size() >= 3)
+            return activeNames[0] + " + " + activeNames[1] + " (" + juce::String (activeNames.size()) + " Elements)";
+
+        return {};
+    }
+
     static const char* getFamilyName (int familyIndex) noexcept
     {
         switch (familyIndex)
@@ -211,13 +273,13 @@ public:
             case 0: return "Voice";
             case 1: return "Drums & Percussion";
             case 2: return "Bass";
-            case 3: return "Keys & Mallets";
-            case 4: return "Plucked Strings";
+            case 3: return "Keys & Piano";
+            case 4: return "Guitar";
             case 5: return "Bowed Strings";
             case 6: return "Winds & Brass";
-            case 7: return "Electronic";
+            case 7: return "Electronic / Synth";
             case FAMILY_MIXED:   return "Mixed / Ensemble";
-            case FAMILY_UNKNOWN: return "Unknown / Low Confidence";
+            case FAMILY_UNKNOWN: return "Uncertain / Ambience";
             default:             return "Unknown";
         }
     }
@@ -349,7 +411,8 @@ public:
             if (static_cast<float> (envSlow) > maxEnvSlow)
                 maxEnvSlow = static_cast<float> (envSlow);
 
-            if ((envFast > (envSlow * 2.2 + 0.015)) && (absX > 0.02))
+            const double dynFloor = std::max (0.005, static_cast<double> (rms) * 0.18);
+            if ((envFast > (envSlow * 1.55 + 0.005)) && (absX > dynFloor))
             {
                 if (i - lastHit > refractorySamples)
                 {
@@ -574,11 +637,12 @@ private:
         else
             std::fill (probs.begin(), probs.end(), 0.0f);
 
+        uint32_t activeMask = 0;
         int activeCount = 0;
         int topFamily = -1;
-        float maxProb = 0.0f;
+        float maxRel = 0.0f;
         int secondFamily = -1;
-        float secondProb = 0.0f;
+        float secondRel = 0.0f;
 
         for (int i = 0; i < NUM_FAMILIES; ++i)
         {
@@ -587,24 +651,31 @@ private:
             const float updated = prev * 0.80f + probs[i] * 0.20f;
             smoothedProbs[i].store (updated, std::memory_order_relaxed);
 
-            if (updated >= SourceDetectorWeights::THRESHOLDS[i])
+            const float thresh = SourceDetectorWeights::THRESHOLDS[i];
+            const float rel = updated / (thresh > 0.001f ? thresh : 0.20f);
+
+            if (updated >= thresh)
             {
                 activeCount++;
+                activeMask |= (1u << static_cast<uint32_t> (i));
             }
 
-            if (updated > maxProb)
+            if (rel > maxRel)
             {
-                secondProb = maxProb;
+                secondRel = maxRel;
                 secondFamily = topFamily;
-                maxProb = updated;
+                maxRel = rel;
                 topFamily = i;
             }
-            else if (updated > secondProb)
+            else if (rel > secondRel)
             {
-                secondProb = updated;
+                secondRel = rel;
                 secondFamily = i;
             }
         }
+
+        activeFamiliesMask.store (activeMask, std::memory_order_release);
+        activeFamiliesCount.store (activeCount, std::memory_order_release);
 
         // Multi-Label Arbitration:
         // Distinguish single dominant instrument vs. genuine multi-instrument polyphonic mix
@@ -616,27 +687,30 @@ private:
             candidateFamily = FAMILY_UNKNOWN;
             candidateConf = 0.0f;
         }
-        else if (activeCount >= 2 && (maxProb - secondProb) < 0.09f && secondProb >= 0.26f)
+        else if (activeCount >= 2 && secondRel >= 1.0f && (maxRel - secondRel) < 0.35f)
         {
-            // Two or more active families with competing close probabilities -> Mixed / Ensemble
+            // Two or more active families with competing close calibrated confidence -> Mixed / Ensemble
             candidateFamily = FAMILY_MIXED;
-            candidateConf = (maxProb + secondProb) * 0.5f;
+            const float p1 = (topFamily >= 0) ? smoothedProbs[topFamily].load (std::memory_order_relaxed) : 0.0f;
+            const float p2 = (secondFamily >= 0) ? smoothedProbs[secondFamily].load (std::memory_order_relaxed) : 0.0f;
+            candidateConf = juce::jlimit (0.0f, 1.0f, (p1 + p2) * 0.5f);
         }
-        else if (topFamily >= 0 && maxProb >= SourceDetectorWeights::THRESHOLDS[topFamily])
+        else if (topFamily >= 0 && maxRel >= 1.0f)
         {
             // Decisive dominant family exceeding trained threshold
             candidateFamily = topFamily;
-            candidateConf = maxProb;
+            candidateConf = smoothedProbs[topFamily].load (std::memory_order_relaxed);
         }
-        else if (topFamily >= 0 && maxProb >= 0.24f)
+        else if (topFamily >= 0 && maxRel >= 0.85f && (maxRel - secondRel) >= 0.20f)
         {
+            // Near threshold with solid margin over next runner
             candidateFamily = topFamily;
-            candidateConf = maxProb;
+            candidateConf = smoothedProbs[topFamily].load (std::memory_order_relaxed);
         }
         else
         {
             candidateFamily = FAMILY_UNKNOWN;
-            candidateConf = maxProb;
+            candidateConf = (topFamily >= 0) ? smoothedProbs[topFamily].load (std::memory_order_relaxed) : 0.0f;
         }
 
         // Hold-time and hysteresis state machine (responsive 3 hops = ~450ms)
@@ -678,6 +752,8 @@ private:
     std::atomic<float> smoothedProbs[NUM_FAMILIES];
     std::atomic<int> dominantFamily { FAMILY_UNKNOWN };
     std::atomic<float> dominantConfidence { 0.0f };
+    std::atomic<uint32_t> activeFamiliesMask { 0 };
+    std::atomic<int> activeFamiliesCount { 0 };
 
     // Hysteresis & hold state
     int pendingFamily { FAMILY_UNKNOWN };
