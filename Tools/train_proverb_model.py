@@ -151,7 +151,7 @@ def extract_features_exact_cpp(audio_mono: np.ndarray, sample_rate: float = 4410
     env_diff = env_fast - env_slow
     env_dynamics = float(np.sum(env_diff * env_diff) * 10000.0) / max(1, n_samples)
 
-    spike_candidates = (env_fast > (env_slow * 2.2 + 0.015)) & (abs_mono > 0.02)
+    spike_candidates = (env_fast > (env_slow * 1.55 + 0.005)) & (abs_mono > 0.008)
     spike_indices = np.where(spike_candidates)[0]
 
     transient_hits = 0
