@@ -146,30 +146,48 @@ public:
         const float transDens  = snapshot.features[ProVerbAI::TransientDensity];
         const float envDyn     = snapshot.features[ProVerbAI::EnvDynamics];
 
-        // 1. DRUMS / PERCUSSION DISAMBIGUATION:
-        // Sharp transients (crestFactor >= 4.0) with rhythmic attacks (transDens >= 0.7 hits/s).
-        // Real-world vocals and guitars do not produce explosive drum transient crests >= 4.5.
-        if (crest >= 4.2f && transDens >= 0.7f && (subRatio + airRatio > 0.16f || envDyn > 3.5f || crest >= 4.8f))
+        // 1. PLUCKED TONAL INSTRUMENTS (Acoustic / Electric Guitar, Sitar, Plucks):
+        // Plucked strings exhibit sharp dynamic pick attacks (high crest factor >= 4.0),
+        // rhythmic transient strikes (transDens 0.7 - 5.5 hits/s), low zero-crossing rate
+        // (zcr <= 0.052 indicating resonant harmonic pitch rather than drum noise),
+        // and solid acoustic wood resonance ((bassRatio + coreRatio) >= 0.38 with subRatio < 0.35).
+        // NEVER hijack real guitars into Drums!
+        const bool isPluckedTonal = (crest >= 4.0f && transDens >= 0.7f && transDens <= 5.5f
+                                     && zcr <= 0.052f && (bassRatio + coreRatio) >= 0.38f && subRatio < 0.35f);
+
+        if (isPluckedTonal)
         {
-            if (topClass != ProVerbAI::ClassDrums)
+            if (topClass != ProVerbAI::ClassGuitar)
+            {
+                topClass = ProVerbAI::ClassGuitar;
+                rec.confidence = std::max (rec.confidence, 0.85f);
+            }
+        }
+        // 2. VOCALS REALITY CHECK:
+        // Singing human voice is concentrated in vocal core & presence formants.
+        // It CANNOT physically consist of >45% sub-bass (<95Hz) with <12% vocal core!
+        // If a track has >45% sub-bass and high rhythmic transients, it is Drums/Beat (or Bass).
+        else if (topClass == ProVerbAI::ClassVocals && (subRatio > 0.45f || coreRatio < 0.12f || (transDens > 5.0f && crest > 4.5f)))
+        {
+            if (transDens >= 1.5f || (subRatio + airRatio) > 0.30f)
+                topClass = ProVerbAI::ClassDrums;
+            else
+                topClass = ProVerbAI::ClassBass;
+            rec.confidence = std::max (rec.confidence, 0.82f);
+        }
+        // 3. TRUE DRUMS / PERCUSSION DISAMBIGUATION:
+        // True percussion requires sharp attacks AND either substantial sub kick or high unpitched
+        // noise / cymbal / snare sizzle (high ZCR or airRatio), with lower continuous harmonic body.
+        else if (crest >= 3.8f && transDens >= 1.2f && (zcr >= 0.075f || subRatio >= 0.40f || airRatio >= 0.14f)
+                 && (bassRatio + coreRatio) < 0.62f)
+        {
+            if (topClass != ProVerbAI::ClassDrums && topClass != ProVerbAI::ClassGuitar)
             {
                 topClass = ProVerbAI::ClassDrums;
-                rec.confidence = std::max (rec.confidence, 0.88f);
+                rec.confidence = std::max (rec.confidence, 0.86f);
             }
         }
-        // 2. VOCALS & VOCAL MELODIES DISAMBIGUATION:
-        // Vocal core presence (coreRatio >= 0.18), pitched harmonic structure (zcr <= 0.055),
-        // and syllabic modulation (envDyn >= 1.0).
-        // Fixes model misclassifying vocal chants, hooks, or baritone vocals as Guitar:
-        else if (coreRatio >= 0.18f && envDyn >= 1.0f && zcr <= 0.055f && (subRatio + bassRatio) >= 0.30f)
-        {
-            if (topClass == ProVerbAI::ClassGuitar || topClass == ProVerbAI::ClassSynthPad || topClass == ProVerbAI::ClassBass)
-            {
-                topClass = ProVerbAI::ClassVocals;
-                rec.confidence = std::max (rec.confidence, 0.88f);
-            }
-        }
-        // 3. TRUE BASS & 808 SUB DISAMBIGUATION:
+        // 4. TRUE BASS & 808 SUB DISAMBIGUATION:
         // Dominant energy concentrated strictly in <320Hz (>= 0.68) with negligible air/presence.
         else if ((subRatio + bassRatio) >= 0.68f && presRatio < 0.06f && airRatio < 0.03f)
         {
@@ -400,12 +418,12 @@ public:
 
             default: // Other / Woodwinds / Mixed
             {
-                if (coreRatio > 0.32f && crest < 2.8f && transDens < 1.3f && airRatio > 0.12f && subRatio < 0.08f)
+                if (coreRatio > 0.25f && crest < 3.5f && transDens < 1.8f && airRatio > 0.05f && subRatio < 0.12f)
                 {
                     // Woodwinds & Flute (Bansuri, Shakuhachi, Flute)
                     rec.instrumentCategory = "WOODWINDS / FLUTE (AI)";
                     p.id = AudioAnalyzerEngine::ProfileId::WoodwindsFlute;
-                    rec.profileName = "Woodwind & Flute (Ethereal Breath Hall - AI)";
+                    rec.profileName = "Flute & Bansuri (Breath of Sky - AI)";
                     p.predelayMs   = 35.0f;
                     p.size         = 82.0f;
                     p.decaySeconds = 2.80f;

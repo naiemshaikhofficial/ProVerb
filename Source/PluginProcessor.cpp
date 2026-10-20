@@ -426,8 +426,23 @@ void ProVerbAudioProcessor::handleAsyncUpdate()
         }
         else if (chosenInstrument.containsIgnoreCase ("Drum") || chosenInstrument.containsIgnoreCase ("Perc"))
         {
-            chosenInstrument = "DRUMS (AI)";
-            chosenPreset = "Snare Drum - Tight Studio Room";
+            if (rec.profile.id == AudioAnalyzerEngine::ProfileId::PercussionTablaHand
+                || rec.profileName.containsIgnoreCase ("Tabla"))
+            {
+                chosenInstrument = "PERCUSSION (AI)";
+                chosenPreset = "Tabla & Dholak - Intimate Acoustic";
+            }
+            else if (rec.profile.id == AudioAnalyzerEngine::ProfileId::DrumsKickLowClean
+                     || rec.profile.decaySeconds < 0.75f)
+            {
+                chosenInstrument = "KICK / 808 (AI)";
+                chosenPreset = "Kick Drum - Low-End Room Clean";
+            }
+            else
+            {
+                chosenInstrument = "DRUMS (AI)";
+                chosenPreset = "Snare Drum - Tight Studio Room";
+            }
         }
         else if (chosenInstrument.containsIgnoreCase ("Bass"))
         {
@@ -436,13 +451,27 @@ void ProVerbAudioProcessor::handleAsyncUpdate()
         }
         else if (chosenInstrument.containsIgnoreCase ("Piano") || chosenInstrument.containsIgnoreCase ("Keys"))
         {
-            chosenInstrument = "KEYS (AI)";
+            chosenInstrument = "KEYS / PIANO (AI)";
             chosenPreset = "Grand Piano - Concert Hall";
         }
         else if (chosenInstrument.containsIgnoreCase ("Guitar") || chosenInstrument.containsIgnoreCase ("Pluck"))
         {
-            chosenInstrument = "GUITAR (AI)";
-            chosenPreset = "Steel-String Acoustic Guitar";
+            if (rec.profile.id == AudioAnalyzerEngine::ProfileId::StringsPluckedSitar
+                || rec.profileName.containsIgnoreCase ("Sitar"))
+            {
+                chosenInstrument = "SITAR / PLUCK (AI)";
+                chosenPreset = "Sitar & Classical Plucked Strings";
+            }
+            else if (rec.profile.decaySeconds > 1.6f)
+            {
+                chosenInstrument = "ELECTRIC GUITAR (AI)";
+                chosenPreset = "Clean Electric Guitar - Studio Plate-Style";
+            }
+            else
+            {
+                chosenInstrument = "ACOUSTIC GUITAR (AI)";
+                chosenPreset = "Steel-String Acoustic Guitar";
+            }
         }
         else if (chosenInstrument.containsIgnoreCase ("String") || chosenInstrument.containsIgnoreCase ("Bowed"))
         {
@@ -451,12 +480,12 @@ void ProVerbAudioProcessor::handleAsyncUpdate()
         }
         else if (chosenInstrument.containsIgnoreCase ("Wind") || chosenInstrument.containsIgnoreCase ("Brass") || chosenInstrument.containsIgnoreCase ("Flute"))
         {
-            chosenInstrument = "WINDS (AI)";
+            chosenInstrument = "WINDS / FLUTE (AI)";
             chosenPreset = "Flute & Bansuri - Breath of Sky";
         }
-        else if (chosenInstrument.containsIgnoreCase ("Synth") || chosenInstrument.containsIgnoreCase ("Electronic"))
+        else if (chosenInstrument.containsIgnoreCase ("Synth") || chosenInstrument.containsIgnoreCase ("Electronic") || chosenInstrument.containsIgnoreCase ("Pad"))
         {
-            chosenInstrument = "SYNTH (AI)";
+            chosenInstrument = "SYNTH / PAD (AI)";
             chosenPreset = "Synth Lead & Pluck - Polished Modern";
         }
         else if (chosenInstrument.containsIgnoreCase ("Mixed") || chosenInstrument.containsIgnoreCase ("Ensemble"))

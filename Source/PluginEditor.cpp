@@ -799,12 +799,20 @@ void ProVerbAudioProcessorEditor::resized()
     abButton.setBounds (curX, headerY, abW, ctrlH);
     curX -= headerGap + 12;
 
-    // Center: < Smart Reverb AI ♡ > Preset Capsule
+    // Center: [ SMART REVERB AI / RE-SCAN ]  < Preset Capsule ♡ >  [ UNDO ]
     int leftBrandRight = ptLogoBounds.getRight();
     int centerAvailW = curX - (leftBrandRight + 16);
-    int capsuleW = juce::jlimit (240, 320, centerAvailW - 60);
-    int capsuleX = (leftBrandRight + 16) + (centerAvailW - capsuleW) / 2;
 
+    const int learnW = 136;
+    const int midGap = 8;
+    const int undoW = undoAutoLearnButton.isVisible() ? 48 : 0;
+    int capsuleW = juce::jlimit (230, 300, centerAvailW - learnW - midGap - (undoW > 0 ? (midGap + undoW) : 0));
+    int groupTotalW = learnW + midGap + capsuleW + (undoW > 0 ? (midGap + undoW) : 0);
+    int groupStartX = (leftBrandRight + 16) + std::max (0, (centerAvailW - groupTotalW) / 2);
+
+    smartAutoLearnButton.setBounds (groupStartX, headerY, learnW, ctrlH);
+
+    int capsuleX = groupStartX + learnW + midGap;
     auto capsuleBounds = juce::Rectangle<int> (capsuleX, headerY, capsuleW, ctrlH);
     prevPresetBtn.setBounds (capsuleBounds.removeFromLeft (24));
     nextPresetBtn.setBounds (capsuleBounds.removeFromRight (24));
@@ -813,10 +821,8 @@ void ProVerbAudioProcessorEditor::resized()
     presetBox.setBounds (capsuleBounds);
     searchBox.setBounds (capsuleBounds);
 
-    // Smart AI Auto Learn Button positioned smoothly adjacent
-    smartAutoLearnButton.setBounds (capsuleX - 64, headerY, 60, ctrlH);
     if (undoAutoLearnButton.isVisible())
-        undoAutoLearnButton.setBounds (capsuleX + capsuleW + 8, headerY + 2, 48, ctrlH - 4);
+        undoAutoLearnButton.setBounds (capsuleX + capsuleW + midGap, headerY + 2, undoW, ctrlH - 4);
 
     // Bottom Reverb EQ & Spectrum Module — dynamically scales with window height
     int eqH = juce::jlimit (135, 210, (int) (getHeight() * 0.28f));

@@ -203,29 +203,30 @@ private:
     juce::Rectangle<float> getReanalyzeBounds() const
     {
         auto bounds = getLocalBounds().toFloat();
-        return juce::Rectangle<float> (bounds.getRight() - 92.0f, bounds.getY() + 3.5f, 86.0f, bounds.getHeight() - 7.0f);
+        float reW = juce::jlimit (54.0f, 68.0f, bounds.getWidth() * 0.48f);
+        return juce::Rectangle<float> (bounds.getRight() - reW - 3.5f, bounds.getY() + 3.0f, reW, bounds.getHeight() - 6.0f);
     }
 
     void paintIdleState (juce::Graphics& g, juce::Rectangle<float> bounds)
     {
         // High-Tech AI Neural Assistant Icon (Left)
-        float iconSize = 14.0f;
-        float iconX = bounds.getX() + 14.0f;
+        float iconSize = 12.0f;
+        float iconX = bounds.getX() + 10.0f;
         float iconY = bounds.getCentreY() - iconSize * 0.5f;
 
         g.setColour (isMouseOver ? juce::Colour (0xff00f0ff) : juce::Colour (0xff38bdf8));
         
         // 3 mini vertical EQ spectrum bars as acoustic emblem
         float barW = 2.0f;
-        float barGap = 2.5f;
-        g.fillRoundedRectangle (iconX, iconY + 4.0f, barW, 6.0f, 1.0f);
-        g.fillRoundedRectangle (iconX + barW + barGap, iconY + 1.0f, barW, 12.0f, 1.0f);
-        g.fillRoundedRectangle (iconX + (barW + barGap) * 2.0f, iconY + 3.0f, barW, 8.0f, 1.0f);
+        float barGap = 2.0f;
+        g.fillRoundedRectangle (iconX, iconY + 3.0f, barW, 6.0f, 1.0f);
+        g.fillRoundedRectangle (iconX + barW + barGap, iconY, barW, 12.0f, 1.0f);
+        g.fillRoundedRectangle (iconX + (barW + barGap) * 2.0f, iconY + 2.0f, barW, 8.0f, 1.0f);
 
         // Center / Main Typography
-        g.setFont (juce::FontOptions (10.5f, juce::Font::bold));
+        g.setFont (juce::FontOptions (10.0f, juce::Font::bold));
         g.setColour (isMouseOver ? juce::Colour (0xffffffff) : juce::Colour (0xffe2e8f0));
-        g.drawText ("SMART REVERB AI", bounds.withTrimmedLeft (34.0f).withTrimmedRight (14.0f),
+        g.drawText ("SMART REVERB AI", bounds.withTrimmedLeft (24.0f).withTrimmedRight (6.0f),
                     juce::Justification::centred, false);
     }
 
@@ -287,71 +288,59 @@ private:
 
     void paintLearnedState (juce::Graphics& g, juce::Rectangle<float> bounds)
     {
+        auto reanalyzeRect = getReanalyzeBounds();
+
         // 1. Detected Instrument Badge (Left)
         // High-tech studio graphite pill with ice cyan accent
-        float badgeX = bounds.getX() + 6.0f;
-        float badgeY = bounds.getY() + 3.5f;
-        float badgeH = bounds.getHeight() - 7.0f;
-        
-        juce::Font badgeFont (juce::FontOptions (10.0f, juce::Font::bold));
-        float badgeW = juce::jlimit (75.0f, 130.0f, static_cast<float> (badgeFont.getStringWidth (detectedInstrument)) + 26.0f);
+        float badgeX = bounds.getX() + 4.0f;
+        float badgeY = bounds.getY() + 3.0f;
+        float badgeH = bounds.getHeight() - 6.0f;
+
+        juce::String cleanInst = detectedInstrument;
+        if (cleanInst.containsIgnoreCase ("Guitar")) cleanInst = "GUITAR";
+        else if (cleanInst.containsIgnoreCase ("Vocal")) cleanInst = "VOCALS";
+        else if (cleanInst.containsIgnoreCase ("Drum") || cleanInst.containsIgnoreCase ("Perc")) cleanInst = "DRUMS";
+        else if (cleanInst.containsIgnoreCase ("Bass")) cleanInst = "BASS";
+        else if (cleanInst.containsIgnoreCase ("Keys") || cleanInst.containsIgnoreCase ("Piano")) cleanInst = "KEYS";
+        else if (cleanInst.containsIgnoreCase ("Synth") || cleanInst.containsIgnoreCase ("Pad")) cleanInst = "SYNTH";
+        else if (cleanInst.containsIgnoreCase ("Flute") || cleanInst.containsIgnoreCase ("Wind")) cleanInst = "FLUTE";
+        else if (cleanInst.containsIgnoreCase ("String")) cleanInst = "STRINGS";
+        else cleanInst = cleanInst.upToFirstOccurrenceOf (" ", false, false);
+        if (cleanInst.isEmpty()) cleanInst = "AI LEARN";
+
+        juce::Font badgeFont (juce::FontOptions (9.5f, juce::Font::bold));
+        float availBadgeW = std::max (30.0f, reanalyzeRect.getX() - badgeX - 4.0f);
+        float badgeW = std::min (availBadgeW, static_cast<float> (badgeFont.getStringWidth (cleanInst)) + 18.0f);
 
         auto badgeRect = juce::Rectangle<float> (badgeX, badgeY, badgeW, badgeH);
         g.setColour (juce::Colour (0xff20242f));
-        g.fillRoundedRectangle (badgeRect, 5.0f);
+        g.fillRoundedRectangle (badgeRect, 4.0f);
 
         // High-tech Cyan/Ice accent dot & border
         g.setColour (juce::Colour (0xff38bdf8).withAlpha (0.45f));
-        g.drawRoundedRectangle (badgeRect, 5.0f, 1.0f);
+        g.drawRoundedRectangle (badgeRect, 4.0f, 1.0f);
 
         // Glowing Cyan Dot
         g.setColour (juce::Colour (0xff38bdf8));
-        g.fillEllipse (badgeX + 7.0f, badgeY + badgeH * 0.5f - 2.5f, 5.0f, 5.0f);
+        g.fillEllipse (badgeX + 5.0f, badgeY + badgeH * 0.5f - 2.5f, 5.0f, 5.0f);
 
         // Instrument Name
         g.setFont (badgeFont);
         g.setColour (juce::Colour (0xffffffff));
-        g.drawText (detectedInstrument, badgeRect.withTrimmedLeft (17.0f).withTrimmedRight (4.0f),
+        g.drawText (cleanInst, badgeRect.withTrimmedLeft (13.0f).withTrimmedRight (3.0f),
                     juce::Justification::centredLeft, true);
 
-        // 2. Preset / Status Description (Center)
-        float textX = badgeRect.getRight() + 10.0f;
-        float textW = bounds.getRight() - 100.0f - textX;
-        if (textW > 20.0f)
-        {
-            g.setFont (juce::FontOptions (10.0f, juce::Font::plain));
-            g.setColour (juce::Colour (0xffcbd5e1));
-
-            juce::String disp = detectedPreset;
-            if (disp.containsChar ('(') && disp.containsChar (')'))
-                disp = disp.fromFirstOccurrenceOf ("(", false, false).upToLastOccurrenceOf (")", false, false);
-
-            disp = disp.replace ("•", " - ")
-                       .replace ("\xe2\x80\xa2", " - ")
-                       .replace ("â—†", " - ")
-                       .replace ("â–¡¢", " - ")
-                       .replace ("â", "")
-                       .replace ("¢", "")
-                       .replace ("--", "-")
-                       .replace ("  ", " ")
-                       .trim();
-
-            g.drawText (disp, (int) textX, (int) bounds.getY(), (int) textW, (int) bounds.getHeight(),
-                        juce::Justification::centredLeft, true);
-        }
-
-        // 3. Dedicated Re-Scan Button (Right)
-        auto reanalyzeRect = getReanalyzeBounds();
+        // 2. Dedicated Re-Scan Button (Right)
         juce::Colour reBtnBg = isOverReanalyze ? juce::Colour (0xff2d3240) : juce::Colour (0xff1e212b);
         juce::Colour reBtnBorder = isOverReanalyze ? juce::Colour (0xff525c6e) : juce::Colour (0xff333846);
 
         g.setColour (reBtnBg);
-        g.fillRoundedRectangle (reanalyzeRect, 5.0f);
+        g.fillRoundedRectangle (reanalyzeRect, 4.0f);
         g.setColour (reBtnBorder);
-        g.drawRoundedRectangle (reanalyzeRect, 5.0f, 1.0f);
+        g.drawRoundedRectangle (reanalyzeRect, 4.0f, 1.0f);
 
         // Refresh icon & "RE-SCAN"
-        g.setFont (juce::FontOptions (9.5f, juce::Font::bold));
+        g.setFont (juce::FontOptions (9.0f, juce::Font::bold));
         g.setColour (isOverReanalyze ? juce::Colour (0xffffffff) : juce::Colour (0xff94a3b8));
         g.drawText (juce::CharPointer_UTF8 ("\xe2\x9f\xb3 RE-SCAN"), reanalyzeRect, juce::Justification::centred, true);
     }
