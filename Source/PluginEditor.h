@@ -1,5 +1,6 @@
 #pragma once
 
+#include <set>
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "PluginProcessor.h"
@@ -136,6 +137,8 @@ private:
     void saveUserToyPreset (const juce::String& presetName);
     void loadUserToyPreset (const juce::File& file);
     void rebuildPresetMenu();
+    std::set<juce::String> favoritePresets;
+    void updateHeartButtonState();
     void setGuiScale (float scale);
     void performPresetSearch (const juce::String& query);
     std::shared_ptr<juce::FileChooser> fileChooser;

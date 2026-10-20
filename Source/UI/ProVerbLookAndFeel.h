@@ -390,6 +390,45 @@ public:
         auto bounds = button.getLocalBounds().toFloat().reduced (1.0f);
         const float cornerR = bounds.getHeight() * 0.48f; // Elegant Capsule Pill
 
+        if (button.getComponentID() == "heartPresetBtn")
+        {
+            const bool isFav = button.getToggleState();
+            juce::Colour bgTop = shouldDrawButtonAsDown ? juce::Colour (0xff14161e)
+                               : (shouldDrawButtonAsHighlighted ? juce::Colour (0xff1d202b) : juce::Colour (0xff11131a));
+            juce::Colour bgBot = juce::Colour (0xff0a0b0f);
+            juce::ColourGradient grad (bgTop, 0.0f, bounds.getY(), bgBot, 0.0f, bounds.getBottom(), false);
+            g.setGradientFill (grad);
+            g.fillRoundedRectangle (bounds, cornerR);
+
+            juce::Colour borderCol;
+            if (isFav)
+                borderCol = shouldDrawButtonAsHighlighted ? juce::Colour (0xffff4d6d) : juce::Colour (0xffff3366).withAlpha (0.85f);
+            else if (shouldDrawButtonAsHighlighted)
+                borderCol = juce::Colour (0xffff4d6d).withAlpha (0.6f);
+            else
+                borderCol = juce::Colour (0xff242836);
+
+            g.setColour (borderCol);
+            g.drawRoundedRectangle (bounds, cornerR, 1.0f);
+            return;
+        }
+
+        if (button.getComponentID() == "prevPresetBtn" || button.getComponentID() == "nextPresetBtn")
+        {
+            juce::Colour bgTop = shouldDrawButtonAsDown ? juce::Colour (0xff14161e)
+                               : (shouldDrawButtonAsHighlighted ? juce::Colour (0xff1d202b) : juce::Colour (0xff11131a));
+            juce::Colour bgBot = juce::Colour (0xff0a0b0f);
+            juce::ColourGradient grad (bgTop, 0.0f, bounds.getY(), bgBot, 0.0f, bounds.getBottom(), false);
+            g.setGradientFill (grad);
+            g.fillRoundedRectangle (bounds, cornerR);
+
+            juce::Colour borderCol = shouldDrawButtonAsHighlighted ? juce::Colour (0xff00f0ff).withAlpha (0.75f)
+                                                                    : juce::Colour (0xff242836);
+            g.setColour (borderCol);
+            g.drawRoundedRectangle (bounds, cornerR, 1.0f);
+            return;
+        }
+
         juce::Colour bg = backgroundColour;
         if (shouldDrawButtonAsDown)
             bg = bg.darker (0.3f);
@@ -408,8 +447,87 @@ public:
     }
 
     void drawButtonText (juce::Graphics& g, juce::TextButton& button,
-                         bool /*shouldDrawButtonAsHighlighted*/, bool /*shouldDrawButtonAsDown*/) override
+                         bool shouldDrawButtonAsHighlighted, bool /*shouldDrawButtonAsDown*/) override
     {
+        if (button.getComponentID() == "heartPresetBtn")
+        {
+            auto bounds = button.getLocalBounds().toFloat();
+            const float cx = bounds.getCentreX();
+            const float cy = bounds.getCentreY();
+            const bool isFav = button.getToggleState();
+
+            // Studio-grade vector heart
+            const float w = 15.0f;
+            const float h = 13.5f;
+            const float l = cx - w * 0.5f;
+            const float t = cy - h * 0.5f - 0.5f;
+
+            juce::Path heart;
+            heart.startNewSubPath (l + w * 0.5f, t + h);
+            heart.cubicTo (l + w * 0.05f, t + h * 0.65f,
+                           l,             t + h * 0.35f,
+                           l,             t + h * 0.22f);
+            heart.cubicTo (l,             t + h * 0.02f,
+                           l + w * 0.22f, t,
+                           l + w * 0.40f, t);
+            heart.cubicTo (l + w * 0.48f, t,
+                           l + w * 0.50f, t + h * 0.12f,
+                           l + w * 0.50f, t + h * 0.20f);
+            heart.cubicTo (l + w * 0.50f, t + h * 0.12f,
+                           l + w * 0.52f, t,
+                           l + w * 0.60f, t);
+            heart.cubicTo (l + w * 0.78f, t,
+                           l + w,         t + h * 0.02f,
+                           l + w,         t + h * 0.22f);
+            heart.cubicTo (l + w,         t + h * 0.35f,
+                           l + w * 0.95f, t + h * 0.65f,
+                           l + w * 0.5f,  t + h);
+            heart.closeSubPath();
+
+            if (isFav)
+            {
+                g.setColour (juce::Colour (0x33ff3366));
+                g.strokePath (heart, juce::PathStrokeType (3.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+                g.setColour (shouldDrawButtonAsHighlighted ? juce::Colour (0xffff6688) : juce::Colour (0xffff3366));
+                g.fillPath (heart);
+            }
+            else
+            {
+                juce::Colour strokeCol = shouldDrawButtonAsHighlighted ? juce::Colour (0xffff6688) : juce::Colour (0xff94a3b8);
+                g.setColour (strokeCol);
+                g.strokePath (heart, juce::PathStrokeType (1.6f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+            }
+            return;
+        }
+
+        if (button.getComponentID() == "prevPresetBtn")
+        {
+            auto bounds = button.getLocalBounds().toFloat();
+            const float cx = bounds.getCentreX();
+            const float cy = bounds.getCentreY();
+            juce::Path chev;
+            chev.startNewSubPath (cx + 2.0f, cy - 4.5f);
+            chev.lineTo (cx - 2.5f, cy);
+            chev.lineTo (cx + 2.0f, cy + 4.5f);
+            g.setColour (shouldDrawButtonAsHighlighted ? juce::Colour (0xffffffff) : juce::Colour (0xff94a3b8));
+            g.strokePath (chev, juce::PathStrokeType (1.75f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+            return;
+        }
+
+        if (button.getComponentID() == "nextPresetBtn")
+        {
+            auto bounds = button.getLocalBounds().toFloat();
+            const float cx = bounds.getCentreX();
+            const float cy = bounds.getCentreY();
+            juce::Path chev;
+            chev.startNewSubPath (cx - 2.0f, cy - 4.5f);
+            chev.lineTo (cx + 2.5f, cy);
+            chev.lineTo (cx - 2.0f, cy + 4.5f);
+            g.setColour (shouldDrawButtonAsHighlighted ? juce::Colour (0xffffffff) : juce::Colour (0xff94a3b8));
+            g.strokePath (chev, juce::PathStrokeType (1.75f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+            return;
+        }
+
         auto font = getTextButtonFont (button, button.getHeight());
         g.setFont (font);
         g.setColour (button.findColour (button.getToggleState() ? juce::TextButton::textColourOnId

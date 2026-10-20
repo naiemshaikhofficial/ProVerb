@@ -106,6 +106,7 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
 
     // Top Bar - Categorized Professional Presets + User .toy Presets
     addAndMakeVisible (presetBox);
+    presetBox.setJustificationType (juce::Justification::centred);
     rebuildPresetMenu();
 
     // Preset Instant Search Bar (Embedded inside Preset Selector)
@@ -132,6 +133,7 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
                 audioProcessor.setCurrentProgram (prog);
                 lastMatchedPresetIndex = prog;
                 presetBox.setSelectedId (prog + 1, juce::dontSendNotification);
+                updateHeartButtonState();
                 searchBox.setVisible (false);
                 searchBox.clear();
             }
@@ -140,8 +142,9 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
 
     // Preset Navigation Buttons (< and > and ♡)
     addAndMakeVisible (prevPresetBtn);
+    prevPresetBtn.setComponentID ("prevPresetBtn");
     prevPresetBtn.setColour (juce::TextButton::buttonColourId, juce::Colour (0x00000000));
-    prevPresetBtn.setColour (juce::TextButton::textColourOffId, juce::Colour (0xff94a3b8));
+    prevPresetBtn.setTooltip ("Previous preset");
     prevPresetBtn.onClick = [this]()
     {
         int cur = presetBox.getSelectedId();
@@ -149,11 +152,13 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
             presetBox.setSelectedId (cur - 1);
         else if (cur == 1)
             presetBox.setSelectedId (presetBox.getNumItems());
+        updateHeartButtonState();
     };
 
     addAndMakeVisible (nextPresetBtn);
+    nextPresetBtn.setComponentID ("nextPresetBtn");
     nextPresetBtn.setColour (juce::TextButton::buttonColourId, juce::Colour (0x00000000));
-    nextPresetBtn.setColour (juce::TextButton::textColourOffId, juce::Colour (0xff94a3b8));
+    nextPresetBtn.setTooltip ("Next preset");
     nextPresetBtn.onClick = [this]()
     {
         int cur = presetBox.getSelectedId();
@@ -161,18 +166,25 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
             presetBox.setSelectedId (cur + 1);
         else
             presetBox.setSelectedId (1);
+        updateHeartButtonState();
     };
 
     addAndMakeVisible (heartPresetBtn);
-    heartPresetBtn.setButtonText (juce::CharPointer_UTF8 ("\xe2\x99\xa1")); // ♡
+    heartPresetBtn.setComponentID ("heartPresetBtn");
     heartPresetBtn.setColour (juce::TextButton::buttonColourId, juce::Colour (0x00000000));
-    heartPresetBtn.setColour (juce::TextButton::textColourOffId, juce::Colour (0xff94a3b8));
+    heartPresetBtn.setTooltip ("Favorite this preset");
     heartPresetBtn.onClick = [this]()
     {
-        static bool isFav = false;
-        isFav = ! isFav;
-        heartPresetBtn.setButtonText (isFav ? juce::CharPointer_UTF8 ("\xe2\x99\xa5") : juce::CharPointer_UTF8 ("\xe2\x99\xa1"));
-        heartPresetBtn.setColour (juce::TextButton::textColourOffId, isFav ? juce::Colour (0xffff4d6d) : juce::Colour (0xff94a3b8));
+        juce::String name = presetBox.getText().trim();
+        if (name.isNotEmpty() && name != "Custom")
+        {
+            if (favoritePresets.count (name) > 0)
+                favoritePresets.erase (name);
+            else
+                favoritePresets.insert (name);
+
+            updateHeartButtonState();
+        }
     };
 
     // Header Settings (⚙) and Menu (☰) Buttons
@@ -534,6 +546,7 @@ void ProVerbAudioProcessorEditor::timerCallback()
                 presetBox.setSelectedId (0, juce::dontSendNotification);
                 presetBox.setText ("Custom", juce::dontSendNotification);
             }
+            updateHeartButtonState();
         }
     }
 
@@ -773,32 +786,45 @@ void ProVerbAudioProcessorEditor::resized()
     const int abW = 54;
     curX -= abW;
     abButton.setBounds (curX, headerY, abW, ctrlH);
-    curX -= headerGap + 12;
+    curX -= headerGap + 8;
 
-    // Center: [ ✦ Reverb Assistant ]  < Preset Capsule ♡ >  [ UNDO ]
-    int leftBrandRight = ptLogoBounds.getRight();
-    int centerAvailW = curX - (leftBrandRight + 16);
+    // Top Bar Center: [ ✦ Reverb Assistant ]  [ < ]  [ Preset ComboBox ... ▼ ]  [ > ]  [ ♡ ]  [ UNDO ]
+    // Eliminates all dead empty space and distributes available width to the preset selector and heart button
+    const int leftBrandRight = ptLogoBounds.getRight();
+    const int assistantX = leftBrandRight + 16;
+    const int assistantW = 152;
+    reverbAssistantBtn.setBounds (assistantX, headerY, assistantW, ctrlH);
 
-    const int assistantW = 142;
-    const int midGap = 8;
-    const int undoW = undoAutoLearnButton.isVisible() ? 52 : 0;
-    int capsuleW = juce::jlimit (210, 280, centerAvailW - assistantW - midGap - (undoW > 0 ? (midGap + undoW) : 0));
-    int groupTotalW = assistantW + midGap + capsuleW + (undoW > 0 ? (midGap + undoW) : 0);
-    int groupStartX = (leftBrandRight + 16) + std::max (0, (centerAvailW - groupTotalW) / 2);
+    const int undoW = undoAutoLearnButton.isVisible() ? 56 : 0;
+    const int gap = 8;
 
-    reverbAssistantBtn.setBounds (groupStartX, headerY, assistantW, ctrlH);
+    if (undoW > 0)
+    {
+        undoAutoLearnButton.setBounds (curX - undoW, headerY, undoW, ctrlH);
+    }
 
-    int capsuleX = groupStartX + assistantW + midGap;
-    auto capsuleBounds = juce::Rectangle<int> (capsuleX, headerY, capsuleW, ctrlH);
-    prevPresetBtn.setBounds (capsuleBounds.removeFromLeft (24));
-    nextPresetBtn.setBounds (capsuleBounds.removeFromRight (24));
-    heartPresetBtn.setBounds (capsuleBounds.removeFromRight (26));
+    const int presetStartX = assistantX + assistantW + gap + 2;
+    const int presetEndX = (undoW > 0) ? (curX - undoW - gap) : curX;
 
-    presetBox.setBounds (capsuleBounds);
-    searchBox.setBounds (capsuleBounds);
+    const int navBtnW = 28;
+    const int heartBtnW = 36;
+    const int heartGap = 8;
+    const int navGap = 4;
 
-    if (undoAutoLearnButton.isVisible())
-        undoAutoLearnButton.setBounds (capsuleX + capsuleW + midGap, headerY + 1, undoW, ctrlH - 2);
+    int pX = presetStartX;
+    prevPresetBtn.setBounds (pX, headerY, navBtnW, ctrlH);
+    pX += navBtnW + navGap;
+
+    const int heartX = presetEndX - heartBtnW;
+    heartPresetBtn.setBounds (heartX, headerY, heartBtnW, ctrlH);
+
+    const int nextX = heartX - heartGap - navBtnW;
+    nextPresetBtn.setBounds (nextX, headerY, navBtnW, ctrlH);
+
+    const int boxW = std::max (140, nextX - navGap - pX);
+    auto pBoxBounds = juce::Rectangle<int> (pX, headerY, boxW, ctrlH);
+    presetBox.setBounds (pBoxBounds);
+    searchBox.setBounds (pBoxBounds);
 
     // Bottom Reverb EQ & Spectrum Module — dynamically scales with window height
     int eqH = juce::jlimit (135, 210, (int) (getHeight() * 0.28f));
@@ -1190,13 +1216,16 @@ void ProVerbAudioProcessorEditor::rebuildPresetMenu()
             if (userIdx >= 0 && userIdx < toyFiles.size())
                 loadUserToyPreset (toyFiles[userIdx]);
         }
+        updateHeartButtonState();
     };
 
     audioProcessor.onProgramChange = [this](int prog)
     {
         lastMatchedPresetIndex = prog;
         presetBox.setSelectedId (prog + 1, juce::dontSendNotification);
+        updateHeartButtonState();
     };
+    updateHeartButtonState();
 }
 
 void ProVerbAudioProcessorEditor::performPresetSearch (const juce::String& query)
@@ -1329,4 +1358,13 @@ void ProVerbAudioProcessorEditor::filesDropped (const juce::StringArray& files, 
         }
     }
 }
+
+void ProVerbAudioProcessorEditor::updateHeartButtonState()
+{
+    const juce::String name = presetBox.getText().trim();
+    const bool isFav = (name.isNotEmpty() && name != "Custom" && favoritePresets.count (name) > 0);
+    heartPresetBtn.setToggleState (isFav, juce::dontSendNotification);
+    heartPresetBtn.repaint();
+}
+
 
