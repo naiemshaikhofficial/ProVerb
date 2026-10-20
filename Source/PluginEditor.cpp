@@ -662,10 +662,10 @@ void ProVerbAudioProcessorEditor::paint (juce::Graphics& g)
     const int cardBottomY = getHeight() - eqH - 6;
     const int cardH = cardBottomY - cardTopY;
 
-    float col1W = (float) getWidth() * 0.16f;
-    float col2W = (float) getWidth() * 0.19f;
-    float col3W = (float) getWidth() * 0.28f;
-    float col4W = (float) getWidth() * 0.17f;
+    float col1W = (float) getWidth() * 0.14f;
+    float col2W = (float) getWidth() * 0.15f;
+    float col3W = (float) getWidth() * 0.38f;
+    float col4W = (float) getWidth() * 0.15f;
 
     float x1 = col1W;
     float x2 = x1 + col2W;
@@ -832,12 +832,12 @@ void ProVerbAudioProcessorEditor::resized()
     auto eqArea = area.removeFromBottom (eqH).reduced (8, 4);
     modernEQ.setBounds (eqArea);
 
-    // 5 Middle Workspace Columns
+    // 5 Middle Workspace Columns (ACOUSTIC SPACE as the dominant center centerpiece)
     int totalW = getWidth();
-    int col1W = (int) (totalW * 0.16f); // Filters (H.CUT, L.CUT, DUCK, MID/SIDE)
-    int col2W = (int) (totalW * 0.19f); // Space & Time (DELAY, SIZE, DIFF, SHIMMER)
-    int col3W = (int) (totalW * 0.28f); // Center Holographic Aura & 3D SpaceVisualizer
-    int col4W = (int) (totalW * 0.17f); // Decay & Damping (DEC, DAMP, WIDTH)
+    int col1W = (int) (totalW * 0.14f); // Filters (H.CUT, L.CUT, DUCK, MID/SIDE)
+    int col2W = (int) (totalW * 0.15f); // Space & Time (DELAY, SIZE, DIFF, SHIMMER)
+    int col3W = (int) (totalW * 0.38f); // Center Acoustic Space Visualizer (DOMINANT / LARGEST PANEL)
+    int col4W = (int) (totalW * 0.15f); // Decay & Damping (DEC, DAMP, WIDTH)
     int col5W = totalW - (col1W + col2W + col3W + col4W); // Console Mixer
     juce::ignoreUnused (col5W);
 

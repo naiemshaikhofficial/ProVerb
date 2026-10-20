@@ -159,35 +159,14 @@ public:
         // 8. Draw Central Draggable Control Puck
         drawControlPuck (g, puckPos);
 
-        // 9. Draw Static 3D View Pill Badge in top-right
-        draw3DBadge (g, bounds);
-
-        // 10. Draw Bottom Controls (SPACE Slider & Real-Time Phase Correlation Meter)
+        // 9. Draw Bottom Controls (SPACE Slider & Real-Time Phase Correlation Meter)
         drawBottomBar (g, bounds);
 
-        // 11. Draw AI Acoustic Scan Overlay (if analyzing)
+        // 10. Draw AI Acoustic Scan Overlay (if analyzing)
         if (isAnalyzing)
         {
             drawAnalysisOverlay (g, centre, radius);
         }
-    }
-
-    void draw3DBadge (juce::Graphics& g, juce::Rectangle<float> bounds)
-    {
-        const float badgeW = 68.0f;
-        const float badgeH = 18.0f;
-        auto badgeRect = juce::Rectangle<float> (bounds.getRight() - badgeW - 10.0f, bounds.getY() + 8.0f, badgeW, badgeH);
-        const float pillR = badgeH * 0.45f;
-
-        // Dark recessed capsule well
-        g.setColour (juce::Colour (0xff101217));
-        g.fillRoundedRectangle (badgeRect, pillR);
-        g.setColour (juce::Colour (0xff202430));
-        g.drawRoundedRectangle (badgeRect, pillR, 1.0f);
-
-        g.setFont (juce::FontOptions ("Segoe UI", 8.5f, juce::Font::bold));
-        g.setColour (juce::Colour (0xff38bdf8));
-        g.drawText ("3D VIEW", badgeRect, juce::Justification::centred, true);
     }
 
     void mouseDown (const juce::MouseEvent& e) override
