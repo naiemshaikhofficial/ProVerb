@@ -1,4 +1,5 @@
 CompileFlags:
+  CompilationDatabase: "D:/Website/ProducerToy-Plugins/ProVerb/build"
   Add:
     - "-xc++"
     - "-std=c++17"

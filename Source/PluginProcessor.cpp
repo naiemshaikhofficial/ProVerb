@@ -1,3 +1,4 @@
+#include <juce_audio_processors/juce_audio_processors.h>
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "Licensing/LicenseClient.h"
