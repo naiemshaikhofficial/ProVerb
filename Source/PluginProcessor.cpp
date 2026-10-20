@@ -405,10 +405,17 @@ void ProVerbAudioProcessor::handleAsyncUpdate()
     {
         if (chosenInstrument.containsIgnoreCase ("Vocal") || chosenInstrument.containsIgnoreCase ("Voice"))
         {
-            if (rec.profile.ducking > 28.0f || rec.profile.decaySeconds < 1.4f || rec.profile.id == AudioAnalyzerEngine::ProfileId::VocalsRap)
+            if (rec.profile.id == AudioAnalyzerEngine::ProfileId::VocalsRap
+                || rec.profile.ducking > 38.0f || rec.profile.decaySeconds < 1.35f)
             {
                 chosenInstrument = "RAP / HIP-HOP (AI)";
                 chosenPreset = "Hip-Hop & Trap Vocal (Tight & Punchy)";
+            }
+            else if (rec.profile.id == AudioAnalyzerEngine::ProfileId::VocalWarmStudioHall
+                     || rec.profile.decaySeconds > 2.0f || rec.profile.shimmer > 3.0f)
+            {
+                chosenInstrument = "AIRY VOCAL HALL (AI)";
+                chosenPreset = "Warm Studio Vocal Hall";
             }
             else
             {
