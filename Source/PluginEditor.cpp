@@ -1,5 +1,6 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "Licensing/LicenseClient.h"
 #include <BinaryData.h>
 
 ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor& p)

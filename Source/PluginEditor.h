@@ -10,7 +10,6 @@
 #include "UI/SmartAutoLearnButton.h"
 #include "UI/LicensePanel.h"
 #include "UI/ReverbAssistantPanel.h"
-#include "Licensing/LicenseClient.h"
 
 class ProVerbAudioProcessorEditor : public juce::AudioProcessorEditor,
                                     public juce::FileDragAndDropTarget,
