@@ -2,6 +2,7 @@
 
 #include <juce_dsp/juce_dsp.h>
 #include <cmath>
+#include <algorithm>
 
 class ToneEQ
 {
