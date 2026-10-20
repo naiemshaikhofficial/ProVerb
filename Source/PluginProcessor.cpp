@@ -478,52 +478,10 @@ void ProVerbAudioProcessor::handleAsyncUpdate()
         }
     };
 
-    if (matchedPresetIndex >= 0 && matchedPresetIndex < static_cast<int> (list.size()))
+    if (rec.profile.id != AudioAnalyzerEngine::ProfileId::None
+        && rec.profile.id != AudioAnalyzerEngine::ProfileId::NoAudio)
     {
-        currentProgram = matchedPresetIndex;
-        loadPreset (currentProgram);
-
-        // Top mixing engineer adaptive EQ & ducking polish based on analyzed audio:
-        if (rec.profile.id != AudioAnalyzerEngine::ProfileId::NoAudio)
-        {
-            // Abbey Road Low-Cut Trick: protect low-end headroom from reverb clutter
-            if (rec.profile.lowCut > 130.0f)
-            {
-                if (auto* rawLowCut = apvts.getRawParameterValue ("lowCut"))
-                {
-                    if (rawLowCut->load() < rec.profile.lowCut)
-                        setParam ("lowCut", rec.profile.lowCut);
-                }
-            }
-
-            // Sibilance High-Cut Damping: tame high-end harshness & splash
-            if (rec.profile.highCut < 13500.0f)
-            {
-                if (auto* rawHighCut = apvts.getRawParameterValue ("highCut"))
-                {
-                    if (rawHighCut->load() > rec.profile.highCut)
-                        setParam ("highCut", rec.profile.highCut);
-                }
-            }
-
-            // Musical sidechain ducking for leads / vocals / guitars
-            if (rec.profile.ducking > 15.0f)
-            {
-                if (auto* rawDucking = apvts.getRawParameterValue ("ducking"))
-                {
-                    if (rawDucking->load() < rec.profile.ducking)
-                        setParam ("ducking", rec.profile.ducking);
-                }
-            }
-        }
-
-        hasAnalyzedResult = true;
-        hasPendingSuggestion = true;
-        suggestedProgram = matchedPresetIndex;
-        suggestedConfidence = detectorConf;
-    }
-    else if (rec.profile.id != AudioAnalyzerEngine::ProfileId::None && detectorConf >= 0.22f)
-    {
+        // Direct dynamic application of AI-calculated waveform parameters:
         setParam ("predelayMs",    rec.profile.predelayMs);
         setParam ("size",          rec.profile.size);
         setParam ("decaySeconds",  rec.profile.decaySeconds);
@@ -538,6 +496,7 @@ void ProVerbAudioProcessor::handleAsyncUpdate()
 
         hasAnalyzedResult = true;
         hasPendingSuggestion = true;
+        suggestedProgram = matchedPresetIndex;
         suggestedConfidence = detectorConf;
     }
     else

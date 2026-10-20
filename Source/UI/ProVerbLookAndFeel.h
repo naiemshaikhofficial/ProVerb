@@ -90,9 +90,12 @@ public:
             activeArc.addCentredArc (centre.x, centre.y, arcRadius, arcRadius, 0.0f,
                                      rotaryStartAngle, toAngle, true);
             
-            // Soft Ambient Neon Bloom
-            g.setColour (arcCol.withAlpha (0.28f));
-            g.strokePath (activeArc, juce::PathStrokeType (6.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+            // Soft Ambient Neon Bloom (Pulsing subtly with incoming/outgoing music level)
+            const float pulse = audioPulseLevel * 0.45f;
+            float bloomAlpha = juce::jlimit (0.20f, 0.55f, 0.28f + pulse * 0.25f);
+            float bloomStroke = 6.5f + pulse * 2.0f;
+            g.setColour (arcCol.withAlpha (bloomAlpha));
+            g.strokePath (activeArc, juce::PathStrokeType (bloomStroke, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
             // Sharp Luminous Laser Core
             juce::ColourGradient arcGrad (arcCol, squareBounds.getX(), squareBounds.getY(),
@@ -104,9 +107,10 @@ public:
             float pipX = centre.x + std::sin (toAngle) * arcRadius;
             float pipY = centre.y - std::cos (toAngle) * arcRadius;
             
-            // Pip Neon Halo
-            g.setColour (arcCol.withAlpha (0.55f));
-            g.fillEllipse (pipX - 3.5f, pipY - 3.5f, 7.0f, 7.0f);
+            // Pip Neon Halo (music reactive)
+            float pipHaloR = 3.5f + pulse * 1.5f;
+            g.setColour (arcCol.withAlpha (juce::jlimit (0.45f, 0.85f, 0.55f + pulse * 0.30f)));
+            g.fillEllipse (pipX - pipHaloR, pipY - pipHaloR, pipHaloR * 2.0f, pipHaloR * 2.0f);
             
             // Pure White Laser Core Dot
             g.setColour (juce::Colour (0xffffffff));
@@ -393,4 +397,12 @@ public:
         g.drawText (button.getButtonText(), button.getLocalBounds(),
                     juce::Justification::centred, false);
     }
+
+    void setAudioPulseLevel (float level) noexcept
+    {
+        audioPulseLevel = juce::jlimit (0.0f, 1.0f, level);
+    }
+
+private:
+    float audioPulseLevel { 0.0f };
 };

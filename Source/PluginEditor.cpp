@@ -39,9 +39,9 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
     midSideButton.setColour (juce::ToggleButton::textColourId, juce::Colour (0xff9e9ea6));
     midSideButton.setColour (juce::ToggleButton::tickColourId, juce::Colour (0xff00f0ff));
 
-    setupKnob (hCutSlider, hCutLabel, "High Cut", " Hz", 14000.0, juce::Colour (0xff00f0ff));
-    setupKnob (lCutSlider, lCutLabel, "Low Cut", " Hz", 80.0, juce::Colour (0xffec4899));
-    setupKnob (duckSlider, duckLabel, "Duck", " %", 0.0, juce::Colour (0xfff59e0b));
+    setupKnob (hCutSlider, hCutLabel, "High Cut", " Hz", 14000.0, juce::Colour (0xff38bdf8));
+    setupKnob (lCutSlider, lCutLabel, "Low Cut", " Hz", 80.0, juce::Colour (0xffc084fc));
+    setupKnob (duckSlider, duckLabel, "Duck", " %", 0.0, juce::Colour (0xfffbbf24));
 
     // Module 2: Futuristic Sidechain Ducking Source Selector Button
     addAndMakeVisible (sidechainModeButton);
@@ -82,26 +82,26 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
             });
     };
 
-    // Module 3: Space & Time (Soft Rainbow Accents: Pink, Sky Blue, Teal, Amber)
-    setupKnob (delaySlider, delayLabel, "Pre-Delay", " ms", 20.0, juce::Colour (0xffec4899));
+    // Module 3: Space & Time (Soft Chromatic Accents: Rose Pink, Sky Blue, Mint Teal, Amber Gold)
+    setupKnob (delaySlider, delayLabel, "Pre-Delay", " ms", 20.0, juce::Colour (0xfff472b6));
     setupKnob (sizeSlider, sizeLabel, "Size", " %", 70.0, juce::Colour (0xff38bdf8));
-    setupKnob (diffSlider, diffLabel, "Diffusion", " %", 75.0, juce::Colour (0xff14b8a6));
-    setupKnob (shimmerSlider, shimmerLabel, "Shimmer", " %", 0.0, juce::Colour (0xffeab308));
+    setupKnob (diffSlider, diffLabel, "Diffusion", " %", 75.0, juce::Colour (0xff2dd4bf));
+    setupKnob (shimmerSlider, shimmerLabel, "Shimmer", " %", 0.0, juce::Colour (0xfff59e0b));
 
-    // Module 4: Decay & Damping (Soft Rainbow Accents: Cyan, Violet)
-    setupKnob (decSlider, decLabel, "Decay Time", " s", 2.8, juce::Colour (0xff00f0ff));
-    setupKnob (dampSlider, dampLabel, "Damping", " %", 45.0, juce::Colour (0xffa855f7));
+    // Module 4: Decay & Damping (Soft Chromatic Accents: Cyan, Violet Orchid)
+    setupKnob (decSlider, decLabel, "Decay Time", " s", 2.8, juce::Colour (0xff06b6d4));
+    setupKnob (dampSlider, dampLabel, "Damping", " %", 45.0, juce::Colour (0xffe879f9));
 
     addAndMakeVisible (freezeButton);
     freezeButton.setColour (juce::ToggleButton::textColourId, juce::Colour (0xffffffff));
-    freezeButton.setColour (juce::ToggleButton::tickColourId, juce::Colour (0xff00f0ff));
+    freezeButton.setColour (juce::ToggleButton::tickColourId, juce::Colour (0xff06b6d4));
 
-    // Module 5: Console Mixer Faders (Glowing Neon: Cyan, Magenta, Amber, Emerald) & SEP Knob (Violet)
+    // Module 5: Console Mixer Faders (Glowing Soft Chromatic: Cyan, Soft Violet, Amber Gold, Mint) & SEP Knob (Violet)
     setupFader (inGainFader, inGainLabel, "INPUT", 0.0, juce::Colour (0xff38bdf8));
-    setupFader (dryFader, dryLabel, "DRY", 100.0, juce::Colour (0xffd946ef));
-    setupFader (wetFader, wetLabel, "WET", 35.0, juce::Colour (0xfff59e0b));
-    setupFader (outGainFader, outGainLabel, "OUTPUT", 0.0, juce::Colour (0xff10b981));
-    setupKnob (sepSlider, sepLabel, "SEP", " %", 100.0, juce::Colour (0xff8b5cf6));
+    setupFader (dryFader, dryLabel, "DRY", 100.0, juce::Colour (0xffc084fc));
+    setupFader (wetFader, wetLabel, "WET", 35.0, juce::Colour (0xfffbbf24));
+    setupFader (outGainFader, outGainLabel, "OUTPUT", 0.0, juce::Colour (0xff34d399));
+    setupKnob (sepSlider, sepLabel, "SEP", " %", 100.0, juce::Colour (0xffc084fc));
 
     // Top Bar - Categorized Professional Presets + User .toy Presets
     addAndMakeVisible (presetBox);
@@ -498,6 +498,8 @@ void ProVerbAudioProcessorEditor::timerCallback()
 
     modernEQ.updateParameters ((float) lCutSlider.getValue(), (float) hCutSlider.getValue(), audioProcessor.getRmsOutput());
     modernEQ.advanceAnimation (0.05f);
+
+    customLaf.setAudioPulseLevel (audioProcessor.getRmsOutput());
 }
 
 void ProVerbAudioProcessorEditor::paint (juce::Graphics& g)
@@ -596,37 +598,40 @@ void ProVerbAudioProcessorEditor::paint (juce::Graphics& g)
         g.setColour (juce::Colour (0x18ffffff));
         g.drawHorizontalLine ((int) cardRect.getY() + 1, cardRect.getX() + 6.0f, cardRect.getRight() - 6.0f);
 
-        // 4. Futuristic Minimalist Title Header
-        float titleY = cardRect.getY() + 5.0f;
-        float titleH = 16.0f;
+        if (title != nullptr && title[0] != '\0')
+        {
+            // 4. Futuristic Minimalist Title Header
+            float titleY = cardRect.getY() + 5.0f;
+            float titleH = 16.0f;
 
-        // Glowing Neon Cyan Micro-Pip
-        g.setColour (juce::Colour (0x4400f0ff));
-        g.fillEllipse (cardRect.getX() + 10.0f, titleY + 4.5f, 6.0f, 6.0f);
-        g.setColour (juce::Colour (0xff00f0ff));
-        g.fillEllipse (cardRect.getX() + 11.5f, titleY + 6.0f, 3.0f, 3.0f);
+            // Glowing Neon Cyan Micro-Pip
+            g.setColour (juce::Colour (0x4400f0ff));
+            g.fillEllipse (cardRect.getX() + 10.0f, titleY + 4.5f, 6.0f, 6.0f);
+            g.setColour (juce::Colour (0xff00f0ff));
+            g.fillEllipse (cardRect.getX() + 11.5f, titleY + 6.0f, 3.0f, 3.0f);
 
-        // Title Text — Crisp modern typography
-        float titleFontSize = (cw < 150.0f) ? 8.5f : 9.0f;
-        g.setFont (juce::FontOptions (titleFontSize, juce::Font::bold));
-        g.setColour (juce::Colour (0xff9aa0b2));
-        auto titleBounds = juce::Rectangle<float> (cardRect.getX() + 20.0f, titleY, cardRect.getWidth() - 26.0f, titleH);
-        g.drawText (title, titleBounds.toNearestInt(), juce::Justification::centredLeft, true);
+            // Title Text — Crisp modern typography
+            float titleFontSize = (cw < 150.0f) ? 8.5f : 9.0f;
+            g.setFont (juce::FontOptions (titleFontSize, juce::Font::bold));
+            g.setColour (juce::Colour (0xff9aa0b2));
+            auto titleBounds = juce::Rectangle<float> (cardRect.getX() + 20.0f, titleY, cardRect.getWidth() - 26.0f, titleH);
+            g.drawText (title, titleBounds.toNearestInt(), juce::Justification::centredLeft, true);
 
-        // 5. Minimalist Hairline Separator with subtle cyan accent fade
-        float lineY = cardRect.getY() + 24.0f;
-        g.setColour (juce::Colour (0xff181a24));
-        g.drawHorizontalLine ((int) lineY, cardRect.getX() + 8.0f, cardRect.getRight() - 8.0f);
-        
-        juce::ColourGradient lineAccent (juce::Colour (0x4400f0ff), cardRect.getX() + 8.0f, lineY,
-                                         juce::Colour (0x0000f0ff), cardRect.getX() + 80.0f, lineY, false);
-        g.setGradientFill (lineAccent);
-        g.drawHorizontalLine ((int) lineY, cardRect.getX() + 8.0f, cardRect.getX() + 80.0f);
+            // 5. Minimalist Hairline Separator with subtle cyan accent fade
+            float lineY = cardRect.getY() + 24.0f;
+            g.setColour (juce::Colour (0xff181a24));
+            g.drawHorizontalLine ((int) lineY, cardRect.getX() + 8.0f, cardRect.getRight() - 8.0f);
+            
+            juce::ColourGradient lineAccent (juce::Colour (0x4400f0ff), cardRect.getX() + 8.0f, lineY,
+                                             juce::Colour (0x0000f0ff), cardRect.getX() + 80.0f, lineY, false);
+            g.setGradientFill (lineAccent);
+            g.drawHorizontalLine ((int) lineY, cardRect.getX() + 8.0f, cardRect.getX() + 80.0f);
+        }
     };
 
     drawModuleCard (0.0f, col1W, "ROUTING & FILTERS");
     drawModuleCard (x1, col2W, "SPACE & TIME");
-    drawModuleCard (x2, col3W, "ACOUSTIC SPACE");
+    drawModuleCard (x2, col3W, "");
     drawModuleCard (x3, col4W, "DECAY & DAMP");
     drawModuleCard (x4, (float) getWidth() - x4, "CONSOLE MIXER");
 }
@@ -809,8 +814,8 @@ void ProVerbAudioProcessorEditor::resized()
     layoutM2Knob (2, diffLabel, diffSlider);
     layoutM2Knob (3, shimmerLabel, shimmerSlider);
 
-    // Module 3 (Center): Centerpiece Holographic Acoustic Aura Visualizer
-    visualizer.setBounds (m3Area.getX() + 5, contentTopY + 2, m3Area.getWidth() - 10, contentBottomY - contentTopY - 4);
+    // Module 3 (Center): Centerpiece 3D Acoustic Aura Prism (Expanded uncluttered)
+    visualizer.setBounds (m3Area.getX() + 5, cardTopY + 4, m3Area.getWidth() - 10, cardBottomY - cardTopY - 8);
 
     // Module 4 (Right 1): Decay & Damping (DEC, DAMP, FREEZE)
     int freezeH = 24;

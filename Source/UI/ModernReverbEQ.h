@@ -4,7 +4,6 @@
 #include <cmath>
 #include <functional>
 #include <algorithm>
-#include <vector>
 
 /**
  * ModernReverbEQ — Next-Gen Interactive Reverb Filter & Acoustic Spectrum Analyzer
