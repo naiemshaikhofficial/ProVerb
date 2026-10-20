@@ -156,9 +156,13 @@ void ProVerbAudioProcessor::applyDetectedSourcePreset()
     const auto& list = getPresetList();
     for (size_t i = 0; i < list.size(); ++i)
     {
-        if (list[i].name == recName)
+        if (list[i].name == recName || list[i].name.equalsIgnoreCase (recName) || list[i].name.containsIgnoreCase (recName))
         {
             loadPreset (static_cast<int> (i));
+            currentProgram = static_cast<int> (i);
+            updateHostDisplay();
+            if (onProgramChange)
+                onProgramChange (currentProgram);
             break;
         }
     }
@@ -301,18 +305,27 @@ void ProVerbAudioProcessor::handleAsyncUpdate()
     int matchedPresetIndex = -1;
     const auto& list = getPresetList();
 
-    // 4. Smart Mapping to Known Curated Factory Presets
-    if (chosenPreset.isNotEmpty())
+    auto findPresetIndexByName = [&](const juce::String& targetName) -> int
     {
         for (size_t i = 0; i < list.size(); ++i)
         {
-            if (list[i].name == chosenPreset || list[i].name.equalsIgnoreCase (chosenPreset))
-            {
-                matchedPresetIndex = static_cast<int> (i);
-                chosenPreset = list[i].name;
-                break;
-            }
+            if (list[i].name == targetName || list[i].name.equalsIgnoreCase (targetName))
+                return static_cast<int> (i);
         }
+        for (size_t i = 0; i < list.size(); ++i)
+        {
+            if (list[i].name.containsIgnoreCase (targetName))
+                return static_cast<int> (i);
+        }
+        return -1;
+    };
+
+    // 4. Smart Mapping to Known Curated Factory Presets
+    if (chosenPreset.isNotEmpty())
+    {
+        matchedPresetIndex = findPresetIndexByName (chosenPreset);
+        if (matchedPresetIndex >= 0)
+            chosenPreset = list[(size_t) matchedPresetIndex].name;
     }
 
     if (matchedPresetIndex < 0 && chosenInstrument.isNotEmpty())
@@ -323,57 +336,55 @@ void ProVerbAudioProcessor::handleAsyncUpdate()
             {
                 chosenInstrument = "RAP / HIP-HOP (AI)";
                 chosenPreset = "Hip-Hop & Trap Vocal (Tight & Punchy)";
-                matchedPresetIndex = 2;
             }
             else
             {
                 chosenInstrument = "POP VOCALS (AI)";
                 chosenPreset = "Modern Billboard Pop Vocal";
-                matchedPresetIndex = 1;
             }
         }
         else if (chosenInstrument.containsIgnoreCase ("Drum") || chosenInstrument.containsIgnoreCase ("Perc"))
         {
             chosenInstrument = "DRUMS (AI)";
             chosenPreset = "Snare Drum - Tight Studio Room";
-            matchedPresetIndex = 13;
         }
         else if (chosenInstrument.containsIgnoreCase ("Bass"))
         {
             chosenInstrument = "BASS (AI)";
             chosenPreset = "Bass Dry / Keep the Low End Tight";
-            matchedPresetIndex = 25;
         }
         else if (chosenInstrument.containsIgnoreCase ("Piano") || chosenInstrument.containsIgnoreCase ("Keys"))
         {
             chosenInstrument = "KEYS (AI)";
             chosenPreset = "Grand Piano - Concert Hall";
-            matchedPresetIndex = 37;
         }
         else if (chosenInstrument.containsIgnoreCase ("Guitar") || chosenInstrument.containsIgnoreCase ("Pluck"))
         {
             chosenInstrument = "GUITAR (AI)";
             chosenPreset = "Steel-String Acoustic Guitar";
-            matchedPresetIndex = 43;
         }
         else if (chosenInstrument.containsIgnoreCase ("String") || chosenInstrument.containsIgnoreCase ("Bowed"))
         {
             chosenInstrument = "STRINGS (AI)";
             chosenPreset = "String Section - Lush Scoring Stage";
-            matchedPresetIndex = 49;
         }
         else if (chosenInstrument.containsIgnoreCase ("Wind") || chosenInstrument.containsIgnoreCase ("Brass") || chosenInstrument.containsIgnoreCase ("Flute"))
         {
             chosenInstrument = "WINDS (AI)";
             chosenPreset = "Flute & Bansuri - Breath of Sky";
-            matchedPresetIndex = 55;
         }
         else if (chosenInstrument.containsIgnoreCase ("Synth") || chosenInstrument.containsIgnoreCase ("Electronic"))
         {
             chosenInstrument = "SYNTH (AI)";
             chosenPreset = "Synth Lead & Pluck - Polished Modern";
-            matchedPresetIndex = 31;
         }
+        else if (chosenInstrument.containsIgnoreCase ("Mixed") || chosenInstrument.containsIgnoreCase ("Ensemble"))
+        {
+            chosenInstrument = "MIXED ENSEMBLE (AI)";
+            chosenPreset = "Small Acoustic Ensemble - Intimate Glue";
+        }
+
+        matchedPresetIndex = findPresetIndexByName (chosenPreset);
     }
 
     auto setParam = [this](const juce::String& paramId, float value)
@@ -390,6 +401,41 @@ void ProVerbAudioProcessor::handleAsyncUpdate()
     {
         currentProgram = matchedPresetIndex;
         loadPreset (currentProgram);
+
+        // Top mixing engineer adaptive EQ & ducking polish based on analyzed audio:
+        if (rec.profile.id != AudioAnalyzerEngine::ProfileId::NoAudio)
+        {
+            // Abbey Road Low-Cut Trick: protect low-end headroom from reverb clutter
+            if (rec.profile.lowCut > 130.0f)
+            {
+                if (auto* rawLowCut = apvts.getRawParameterValue ("lowCut"))
+                {
+                    if (rawLowCut->load() < rec.profile.lowCut)
+                        setParam ("lowCut", rec.profile.lowCut);
+                }
+            }
+
+            // Sibilance High-Cut Damping: tame high-end harshness & splash
+            if (rec.profile.highCut < 13500.0f)
+            {
+                if (auto* rawHighCut = apvts.getRawParameterValue ("highCut"))
+                {
+                    if (rawHighCut->load() > rec.profile.highCut)
+                        setParam ("highCut", rec.profile.highCut);
+                }
+            }
+
+            // Musical sidechain ducking for leads / vocals / guitars
+            if (rec.profile.ducking > 15.0f)
+            {
+                if (auto* rawDucking = apvts.getRawParameterValue ("ducking"))
+                {
+                    if (rawDucking->load() < rec.profile.ducking)
+                        setParam ("ducking", rec.profile.ducking);
+                }
+            }
+        }
+
         hasAnalyzedResult = true;
         hasPendingSuggestion = true;
         suggestedProgram = matchedPresetIndex;

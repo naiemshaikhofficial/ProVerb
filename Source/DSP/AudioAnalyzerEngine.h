@@ -529,35 +529,35 @@ private:
         }
         else if (bestId == ProfileId::DrumsPunchyRoom)
         {
-            // Industry standard Drum Room: short decay, high diffusion, tight predelay, cut low sub
+            // Industry standard Drum Room: short punchy decay, high diffusion, tight predelay, Abbey Road low-cut protecting kick
             p.id = ProfileId::DrumsPunchyRoom;
             p.predelayMs    = 8.0f;
-            p.size          = 38.0f;
-            p.decaySeconds  = 0.75f;
-            p.diffusion     = 92.0f;
-            p.damping       = 52.0f;
+            p.size          = 32.0f;
+            p.decaySeconds  = 0.80f;
+            p.diffusion     = 85.0f;
+            p.damping       = 55.0f;
             p.lowCut        = 180.0f;   // Protect kick drum punch from low-end reverb clutter
-            p.highCut       = 10000.0f;
+            p.highCut       = 9500.0f;
             p.ducking       = 0.0f;
             p.shimmer       = 0.0f;
-            p.width         = 110.0f;
-            p.wet           = 22.0f;
+            p.width         = 105.0f;
+            p.wet           = 16.0f;
         }
         else if (bestId == ProfileId::GuitarKeysWarmChamber)
         {
-            // Acoustic / Electric Guitar: warm chamber, natural wood bloom
+            // Acoustic / Electric Guitar: warm woody chamber, Abbey Road 140Hz low-cut, pick clatter smoothing
             p.id = ProfileId::GuitarKeysWarmChamber;
             p.predelayMs    = 18.0f;
-            p.size          = 58.0f;
-            p.decaySeconds  = 1.55f;
-            p.diffusion     = 82.0f;
-            p.damping       = 40.0f;
-            p.lowCut        = 100.0f;
-            p.highCut       = 14000.0f;
-            p.ducking       = 15.0f;
+            p.size          = 50.0f;
+            p.decaySeconds  = 1.25f;
+            p.diffusion     = 75.0f;
+            p.damping       = 48.0f;
+            p.lowCut        = 140.0f;   // Clean acoustic body low-end, zero boom
+            p.highCut       = 11000.0f; // Smooth pick clatter & harsh fret noise
+            p.ducking       = 10.0f;    // Subtle ducking keeps plucked transients articulate
             p.shimmer       = 0.0f;
-            p.width         = 125.0f;
-            p.wet           = 26.0f;
+            p.width         = 120.0f;
+            p.wet           = 15.0f;
         }
         else if (bestId == ProfileId::PianoKeysConcertHall)
         {

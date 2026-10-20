@@ -204,16 +204,16 @@ public:
                 p.id = AudioAnalyzerEngine::ProfileId::GuitarKeysWarmChamber;
                 rec.profileName = "Guitar (Warm Acoustic Chamber - AI)";
                 p.predelayMs   = 18.0f;
-                p.size         = 58.0f;
-                p.decaySeconds = 1.55f;
-                p.diffusion    = 82.0f;
-                p.damping      = 40.0f;
-                p.lowCut       = 100.0f;
-                p.highCut      = 14000.0f;
-                p.ducking      = 15.0f;
+                p.size         = 50.0f;
+                p.decaySeconds = 1.25f;
+                p.diffusion    = 75.0f;
+                p.damping      = 48.0f;
+                p.lowCut       = 140.0f;
+                p.highCut      = 11000.0f;
+                p.ducking      = 10.0f;
                 p.shimmer      = 0.0f;
-                p.width        = 125.0f;
-                p.wet          = 26.0f;
+                p.width        = 120.0f;
+                p.wet          = 15.0f;
                 break;
             }
 
@@ -416,15 +416,15 @@ public:
         {
             rec.instrumentCategory = "DRUMS";
             rec.profileName = "Drums (Punchy Studio Room)";
-            p.predelayMs   = 8.0f; p.size = 38.0f; p.decaySeconds = 0.75f; p.diffusion = 92.0f; p.damping = 52.0f;
-            p.lowCut = 180.0f; p.highCut = 10000.0f; p.ducking = 0.0f; p.shimmer = 0.0f; p.width = 110.0f; p.wet = 22.0f;
+            p.predelayMs   = 8.0f; p.size = 32.0f; p.decaySeconds = 0.80f; p.diffusion = 85.0f; p.damping = 55.0f;
+            p.lowCut = 180.0f; p.highCut = 9500.0f; p.ducking = 0.0f; p.shimmer = 0.0f; p.width = 105.0f; p.wet = 16.0f;
         }
         else if (bestId == AudioAnalyzerEngine::ProfileId::GuitarKeysWarmChamber)
         {
             rec.instrumentCategory = "GUITAR";
             rec.profileName = "Guitar (Warm Acoustic Chamber)";
-            p.predelayMs   = 18.0f; p.size = 58.0f; p.decaySeconds = 1.55f; p.diffusion = 82.0f; p.damping = 40.0f;
-            p.lowCut = 100.0f; p.highCut = 14000.0f; p.ducking = 15.0f; p.shimmer = 0.0f; p.width = 125.0f; p.wet = 26.0f;
+            p.predelayMs   = 18.0f; p.size = 50.0f; p.decaySeconds = 1.25f; p.diffusion = 75.0f; p.damping = 48.0f;
+            p.lowCut = 140.0f; p.highCut = 11000.0f; p.ducking = 10.0f; p.shimmer = 0.0f; p.width = 120.0f; p.wet = 15.0f;
         }
         else if (bestId == AudioAnalyzerEngine::ProfileId::PianoKeysConcertHall)
         {
