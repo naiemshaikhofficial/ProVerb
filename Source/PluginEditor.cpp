@@ -23,6 +23,45 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
     setupKnob (lCutSlider, lCutLabel, "L.CUT", " Hz", 80.0);
     setupKnob (duckSlider, duckLabel, "DUCK", " %", 0.0);
 
+    // Module 2: Futuristic Sidechain Ducking Source Selector Button
+    addAndMakeVisible (sidechainModeButton);
+    sidechainModeButton.setButtonText ("SC: AUTO");
+    sidechainModeButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xff14151a));
+    sidechainModeButton.setColour (juce::TextButton::textColourOffId, juce::Colour (0xff38bdf8));
+    sidechainModeButton.setTooltip ("Sidechain Trigger: Auto (Smart AI) / Internal / External DAW Track");
+    sidechainModeButton.onClick = [this]()
+    {
+        auto* p = audioProcessor.getAPVTS().getParameter ("duckingSource");
+        if (p == nullptr) return;
+
+        juce::PopupMenu menu;
+        int curVal = static_cast<int> (p->getValue() * 2.0f + 0.5f);
+        menu.addItem (1, "Auto (Smart AI) [Recommended]", true, curVal == 0);
+        menu.addItem (2, "Internal (Dry Track)", true, curVal == 1);
+        menu.addItem (3, "External (DAW Sidechain Bus)", true, curVal == 2);
+        menu.addSeparator();
+
+        bool hasScAudio = audioProcessor.isSidechainActive();
+        bool hasScBus = audioProcessor.hasSidechainConnection();
+        juce::String scStatus = hasScAudio ? "DAW Sidechain: ACTIVE SIGNAL DETECTED"
+                                : (hasScBus ? "DAW Sidechain: Connected (Waiting for Audio)" : "DAW Sidechain: No Input Routed");
+        menu.addItem (100, scStatus, false);
+
+        juce::Component::SafePointer<ProVerbAudioProcessorEditor> safeThis (this);
+        menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&sidechainModeButton),
+            [safeThis, p](int result)
+            {
+                if (result >= 1 && result <= 3)
+                {
+                    p->beginChangeGesture();
+                    p->setValueNotifyingHost ((result - 1) / 2.0f);
+                    p->endChangeGesture();
+                    if (safeThis != nullptr)
+                        safeThis->resized();
+                }
+            });
+    };
+
     // Module 3: Space & Time
     setupKnob (delaySlider, delayLabel, "DELAY", " ms", 20.0);
     setupKnob (sizeSlider, sizeLabel, "SIZE", " %", 70.0);
@@ -402,6 +441,28 @@ void ProVerbAudioProcessorEditor::timerCallback()
 
     smartAutoLearnButton.advanceAnimation (0.05f);
 
+    // Real-time Sidechain status & glowing LED activity update
+    auto* scParam = audioProcessor.getAPVTS().getRawParameterValue ("duckingSource");
+    const int scMode = scParam != nullptr ? static_cast<int> (scParam->load()) : 0;
+    const bool isScActive = audioProcessor.isSidechainActive();
+    if (scMode == 0)
+        sidechainModeButton.setButtonText (isScActive ? "● SC: AUTO" : "SC: AUTO");
+    else if (scMode == 1)
+        sidechainModeButton.setButtonText ("SC: INT");
+    else
+        sidechainModeButton.setButtonText (isScActive ? "● SC: EXT" : "SC: EXT");
+
+    if (isScActive)
+    {
+        sidechainModeButton.setColour (juce::TextButton::textColourOffId, juce::Colour (0xff00f0ff));
+        sidechainModeButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xff0c2738));
+    }
+    else
+    {
+        sidechainModeButton.setColour (juce::TextButton::textColourOffId, juce::Colour (0xff94a3b8));
+        sidechainModeButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xff14151a));
+    }
+
     visualizer.updateAllParameters (audioProcessor.getRmsInput(),
                                     audioProcessor.getRmsOutput(),
                                     (float) sizeSlider.getValue(),
@@ -695,12 +756,14 @@ void ProVerbAudioProcessorEditor::resized()
     lCutSlider.setBounds (juce::Rectangle<int> (m1Area.getX(), y1_2 + pad1_2 + m1LabelH, m1Area.getWidth(), m1SliderH)
                              .withSizeKeepingCentre (m1SliderW, m1SliderH));
 
-    // Row 3: DUCK
+    // Row 3: DUCK & Sidechain Selector
     int y1_3 = m1KnobsStart + m1SlotH * 2;
-    int pad1_3 = (m1SlotH - (m1LabelH + m1SliderH)) / 2;
+    int pad1_3 = (m1SlotH - (m1LabelH + m1SliderH + 18)) / 2;
     duckLabel.setBounds (m1Area.getX(), y1_3 + pad1_3, m1Area.getWidth(), m1LabelH);
     duckSlider.setBounds (juce::Rectangle<int> (m1Area.getX(), y1_3 + pad1_3 + m1LabelH, m1Area.getWidth(), m1SliderH)
                              .withSizeKeepingCentre (m1SliderW, m1SliderH));
+    sidechainModeButton.setBounds (juce::Rectangle<int> (m1Area.getX(), y1_3 + pad1_3 + m1LabelH + m1SliderH + 2, m1Area.getWidth(), 16)
+                                      .withSizeKeepingCentre (juce::jmin (m1Area.getWidth() - 10, 68), 15));
 
     // Module 2 (Left 2): Space & Time (DELAY, SIZE, DIFF, SHIMMER)
     int m2KnobsHeight = contentBottomY - contentTopY;
@@ -1103,3 +1166,39 @@ void ProVerbAudioProcessorEditor::hideLicensePanel()
         licensePanel.reset();
     }
 }
+
+bool ProVerbAudioProcessorEditor::isInterestedInFileDrag (const juce::StringArray& files)
+{
+    for (const auto& file : files)
+    {
+        if (file.endsWithIgnoreCase (".wav")
+            || file.endsWithIgnoreCase (".aif")
+            || file.endsWithIgnoreCase (".aiff")
+            || file.endsWithIgnoreCase (".mp3")
+            || file.endsWithIgnoreCase (".flac"))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+void ProVerbAudioProcessorEditor::filesDropped (const juce::StringArray& files, int /*x*/, int /*y*/)
+{
+    for (const auto& filePath : files)
+    {
+        juce::File audioFile (filePath);
+        if (audioFile.existsAsFile())
+        {
+            wasAnalyzing = true;
+            analysisWatchdogTicks = 0;
+            smartAutoLearnButton.setAnalyzing (true, 0.25f, 0.5f);
+            visualizer.setAnalyzing (true, 0.25f);
+            modernEQ.setAnalyzing (true, 0.25f);
+
+            audioProcessor.analyzeAudioFileAsync (audioFile);
+            break;
+        }
+    }
+}
+

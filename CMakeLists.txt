@@ -145,7 +145,10 @@ function(proverb_deploy_onnx_runtime target_name)
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 "${ORT_SHARED_DLL}"
                 "$<TARGET_FILE_DIR:${target_name}>"
-            COMMENT "[ProVerb] Deploying ONNX Runtime DLLs to $<TARGET_FILE_DIR:${target_name}>"
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${CMAKE_CURRENT_SOURCE_DIR}/Assets/ProVerb_AI.onnx"
+                "$<TARGET_FILE_DIR:${target_name}>/ProVerb_AI.onnx"
+            COMMENT "[ProVerb] Deploying ONNX Runtime DLLs & ProVerb_AI.onnx to $<TARGET_FILE_DIR:${target_name}>"
         )
     endif()
 endfunction()
@@ -215,6 +218,7 @@ target_link_libraries(ProVerb
         ProVerb_ONNX_Runtime
         juce::juce_audio_utils
         juce::juce_audio_processors
+        juce::juce_audio_formats
         juce::juce_dsp
         juce::juce_gui_basics
         juce::juce_gui_extra

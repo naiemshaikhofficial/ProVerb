@@ -1,15 +1,17 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "Licensing/LicenseClient.h"
+#include <juce_audio_formats/juce_audio_formats.h>
 
 ProVerbAudioProcessor::ProVerbAudioProcessor()
 #ifndef JucePlugin_PreferredChannelConfigurations
     : AudioProcessor (BusesProperties()
                       #if ! JucePlugin_IsMidiEffect
                        #if ! JucePlugin_IsSynth
-                        .withInput  ("Input",  juce::AudioChannelSet::stereo(), true)
+                        .withInput  ("Input",     juce::AudioChannelSet::stereo(), true)
                        #endif
-                        .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
+                        .withInput  ("Sidechain", juce::AudioChannelSet::stereo(), false)
+                        .withOutput ("Output",    juce::AudioChannelSet::stereo(), true)
                       #endif
                       ),
       apvts (*this, nullptr, "ProVerbState", createProVerbParameterLayout())
@@ -247,6 +249,65 @@ void ProVerbAudioProcessor::undoAutoLearn()
     updateHostDisplay();
 }
 
+void ProVerbAudioProcessor::analyzeAudioFileAsync (const juce::File& audioFile)
+{
+    if (! audioFile.existsAsFile())
+        return;
+
+    // Snapshot parameters so user can Undo/Revert
+    stateBeforeAutoLearn.clear();
+    for (auto* param : getParameters())
+    {
+        if (auto* p = dynamic_cast<juce::RangedAudioParameter*> (param))
+            stateBeforeAutoLearn[p->paramID] = p->getValue();
+    }
+    programBeforeAutoLearn = currentProgram;
+    hasUndoState = true;
+    isAnalyzingActive.store (true, std::memory_order_release);
+
+    juce::Thread::launch ([this, audioFile]()
+    {
+        juce::AudioFormatManager formatManager;
+        formatManager.registerBasicFormats();
+
+        std::unique_ptr<juce::AudioFormatReader> reader (formatManager.createReaderFor (audioFile));
+        if (reader == nullptr)
+        {
+            isAnalyzingActive.store (false, std::memory_order_release);
+            return;
+        }
+
+        const int maxSamples = static_cast<int> (std::min<int64_t> (reader->lengthInSamples, static_cast<int64_t> (reader->sampleRate * 6.0)));
+        if (maxSamples <= 0)
+        {
+            isAnalyzingActive.store (false, std::memory_order_release);
+            return;
+        }
+
+        juce::AudioBuffer<float> tempBuffer (static_cast<int> (reader->numChannels), maxSamples);
+        reader->read (&tempBuffer, 0, maxSamples, 0, true, true);
+
+        AudioAnalyzerEngine engine;
+        engine.prepare (reader->sampleRate);
+        const float durationSec = static_cast<float> (maxSamples) / static_cast<float> (reader->sampleRate);
+        engine.startLearning (durationSec);
+
+        const float* left = tempBuffer.getReadPointer (0);
+        const float* right = tempBuffer.getNumChannels() > 1 ? tempBuffer.getReadPointer (1) : left;
+
+        ProVerbAI::FeatureSnapshot snapshot;
+        const int blockSize = 512;
+        for (int offset = 0; offset < maxSamples; offset += blockSize)
+        {
+            const int curChunk = std::min (maxSamples - offset, blockSize);
+            engine.process (left + offset, right + offset, curChunk, snapshot);
+        }
+
+        engine.extractFeatureSnapshot (snapshot);
+        aiWorker.postAnalysisJob (snapshot);
+    });
+}
+
 void ProVerbAudioProcessor::handleAsyncUpdate()
 {
     isAnalyzingActive.store (false, std::memory_order_release);
@@ -258,7 +319,7 @@ void ProVerbAudioProcessor::handleAsyncUpdate()
 
     // 1. Check for genuine silence or uncertain/low-confidence detection
     if (rec.profile.id == AudioAnalyzerEngine::ProfileId::NoAudio
-        || (detectedFamily == SourceDetector::FAMILY_UNKNOWN && detectorConf < 0.22f))
+        || (detectedFamily == SourceDetector::FAMILY_UNKNOWN && detectorConf < 0.22f && ! rec.isAIModel))
     {
         autoLearnProfileName = AudioAnalyzerEngine::getProfileName (rec.profile.id);
         detectedInstrument = (rec.profile.id == AudioAnalyzerEngine::ProfileId::NoAudio) ? "NO AUDIO" : "Uncertain / Ambience";
@@ -273,8 +334,25 @@ void ProVerbAudioProcessor::handleAsyncUpdate()
     juce::String chosenInstrument;
     juce::String chosenPreset;
 
-    // 2. High-Accuracy Source Family Detection
-    if (detectedFamily != SourceDetector::FAMILY_UNKNOWN && detectorConf >= 0.22f)
+    // 2. PRIMARY: High-Confidence ONNX Deep Learning Neural Network
+    if (rec.isAIModel && aiWorker.isModelLoaded() && rec.confidence >= 0.25f
+        && rec.instrumentCategory.isNotEmpty() && ! rec.instrumentCategory.containsIgnoreCase ("Uncertain"))
+    {
+        chosenInstrument = rec.instrumentCategory;
+        chosenPreset = rec.profileName;
+
+        // Sub-family & multi-label corroboration from real-time source detector
+        if (detectedFamily != SourceDetector::FAMILY_UNKNOWN && detectorConf >= 0.35f)
+        {
+            auto detName = juce::String (SourceDetector::getFamilyName (detectedFamily));
+            if (detName.containsIgnoreCase ("Acoustic") && chosenInstrument.containsIgnoreCase ("Guitar"))
+                chosenInstrument = "ACOUSTIC GUITAR (ONNX)";
+            else if (detName.containsIgnoreCase ("Electric") && chosenInstrument.containsIgnoreCase ("Guitar"))
+                chosenInstrument = "ELECTRIC GUITAR (ONNX)";
+        }
+    }
+    // 3. SECONDARY: Multi-Label Source Family Detector
+    else if (detectedFamily != SourceDetector::FAMILY_UNKNOWN && detectorConf >= 0.22f)
     {
         if (detectedFamily == SourceDetector::FAMILY_MIXED)
         {
@@ -290,16 +368,11 @@ void ProVerbAudioProcessor::handleAsyncUpdate()
                 chosenPreset = recommended;
         }
     }
-
-    // 3. Fallback/Corroboration from AI Decision Engine (ONNX model / heuristic engine)
-    if ((chosenInstrument.isEmpty() || chosenInstrument.containsIgnoreCase ("Mixed") || chosenInstrument.containsIgnoreCase ("Unknown"))
-        && rec.profile.id != AudioAnalyzerEngine::ProfileId::NoAudio && rec.profile.id != AudioAnalyzerEngine::ProfileId::None)
+    // 4. TERTIARY: Heuristic Engine Fallback
+    else if (rec.profile.id != AudioAnalyzerEngine::ProfileId::None && rec.instrumentCategory.isNotEmpty())
     {
-        if (rec.instrumentCategory.isNotEmpty() && ! rec.instrumentCategory.containsIgnoreCase ("Uncertain"))
-        {
-            chosenInstrument = rec.instrumentCategory;
-            chosenPreset = rec.profileName;
-        }
+        chosenInstrument = rec.instrumentCategory;
+        chosenPreset = rec.profileName;
     }
 
     int matchedPresetIndex = -1;
@@ -530,6 +603,16 @@ void ProVerbAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     smoothedWidth.reset (sampleRate, 0.035);
     smoothedWidth.setCurrentAndTargetValue (initWidth / 100.0f);
 
+    // Initialize Next-Level Smart AI Automation Smoothers (0.035s de-zippering)
+    smoothedSmartSpace.reset (sampleRate, 0.035);
+    smoothedSmartSpace.setCurrentAndTargetValue (apvts.getRawParameterValue ("smartSpace") != nullptr ? apvts.getRawParameterValue ("smartSpace")->load() : 50.0f);
+
+    smoothedSmartClarity.reset (sampleRate, 0.035);
+    smoothedSmartClarity.setCurrentAndTargetValue (apvts.getRawParameterValue ("smartClarity") != nullptr ? apvts.getRawParameterValue ("smartClarity")->load() : 50.0f);
+
+    smoothedSmartPumping.reset (sampleRate, 0.035);
+    smoothedSmartPumping.setCurrentAndTargetValue (apvts.getRawParameterValue ("smartPumping") != nullptr ? apvts.getRawParameterValue ("smartPumping")->load() : 50.0f);
+
     // Refresh audio-safe license state on prepare
     updateLicenseStatus();
 
@@ -560,43 +643,76 @@ bool ProVerbAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) 
      && mainOut != juce::AudioChannelSet::stereo())
         return false;
 
-    // Supported routing configurations:
+    // Supported routing configurations for main bus:
     // 1. Mono In -> Mono Out
     // 2. Mono In -> Stereo Out (Essential for mono vocal/instrument tracks in DAWs)
     // 3. Stereo In -> Stereo Out
+    bool mainSupported = false;
     if (mainIn == juce::AudioChannelSet::mono())
-        return true;
+        mainSupported = true;
+    else if (mainIn == juce::AudioChannelSet::stereo() && mainOut == juce::AudioChannelSet::stereo())
+        mainSupported = true;
 
-    if (mainIn == juce::AudioChannelSet::stereo() && mainOut == juce::AudioChannelSet::stereo())
-        return true;
+    if (! mainSupported)
+        return false;
 
-    return false;
+    // Auxiliary sidechain bus (bus index 1):
+    // Can be disabled (unconnected), mono, or stereo
+    if (layouts.inputBuses.size() > 1)
+    {
+        const auto& sidechainIn = layouts.getChannelSet (true, 1);
+        if (! sidechainIn.isDisabled()
+            && sidechainIn != juce::AudioChannelSet::mono()
+            && sidechainIn != juce::AudioChannelSet::stereo())
+            return false;
+    }
+
+    return true;
 }
 
 void ProVerbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
 {
     juce::ScopedNoDenormals noDenormals;
-    const int totalNumInputChannels  = getTotalNumInputChannels();
-    const int totalNumOutputChannels = getTotalNumOutputChannels();
-    const int numSamples = buffer.getNumSamples();
 
-    if (numSamples == 0 || totalNumInputChannels == 0 || totalNumOutputChannels == 0)
+    auto mainInput  = getBusBuffer (buffer, true, 0);
+    auto mainOutput = getBusBuffer (buffer, false, 0);
+    const int mainInChannels  = mainInput.getNumChannels();
+    const int mainOutChannels = mainOutput.getNumChannels();
+    const int numSamples      = buffer.getNumSamples();
+
+    if (numSamples == 0 || mainInChannels == 0 || mainOutChannels == 0)
         return;
 
     // Clear unused output channels
-    for (int i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
-        buffer.clear (i, 0, numSamples);
+    for (int i = mainInChannels; i < mainOutChannels; ++i)
+        mainOutput.clear (i, 0, numSamples);
 
-    // Multi-label real-time Source Detector (lock-free SPSC queue, zero allocations on audio thread)
-    sourceDetector.pushAudio (buffer, totalNumInputChannels);
+    // Multi-bus External Sidechain Input (Bus index 1)
+    const bool hasSidechainBus = (getBusCount (true) > 1 && getBus (true, 1) != nullptr && getBus (true, 1)->isEnabled());
+    auto sidechainInput = hasSidechainBus ? getBusBuffer (buffer, true, 1) : juce::AudioBuffer<float>();
+    isSidechainBusConnected.store (hasSidechainBus && sidechainInput.getNumChannels() > 0, std::memory_order_relaxed);
+
+    // Measure sidechain RMS and active signal presence (> -66 dB)
+    float curRmsSc = 0.0f;
+    if (sidechainInput.getNumChannels() > 0)
+    {
+        for (int ch = 0; ch < sidechainInput.getNumChannels(); ++ch)
+            curRmsSc = juce::jmax (curRmsSc, sidechainInput.getRMSLevel (ch, 0, numSamples));
+    }
+    rmsSidechain.store (curRmsSc, std::memory_order_relaxed);
+    const bool scSignalPresent = (curRmsSc > 0.0005f);
+    isSidechainSignalActive.store (scSignalPresent, std::memory_order_relaxed);
+
+    // Multi-label real-time Source Detector (lock-free SPSC queue, listens strictly to primary track)
+    sourceDetector.pushAudio (mainInput, mainInChannels);
 
     // 1. Measure input RMS (thread-safe)
     float curRmsIn = 0.0f;
-    for (int ch = 0; ch < totalNumInputChannels; ++ch)
-        curRmsIn = juce::jmax (curRmsIn, buffer.getRMSLevel (ch, 0, numSamples));
+    for (int ch = 0; ch < mainInChannels; ++ch)
+        curRmsIn = juce::jmax (curRmsIn, mainInput.getRMSLevel (ch, 0, numSamples));
     rmsInput.store (curRmsIn, std::memory_order_relaxed);
 
-    // 2. Read parameter values
+    // 2. Read base parameter values
     const float inGainDb   = apvts.getRawParameterValue ("inputGain")->load();
     const float outGainDb  = apvts.getRawParameterValue ("outputGain")->load();
     const float preDelayMs = apvts.getRawParameterValue ("predelayMs")->load();
@@ -611,6 +727,16 @@ void ProVerbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     const float highCutHz  = apvts.getRawParameterValue ("highCut")->load();
     const float wetPct     = apvts.getRawParameterValue ("wet")->load();
     const float dryPct     = apvts.getRawParameterValue ("dry")->load();
+
+    // Read Next-Level Smart AI Automation & Sidechain parameters
+    const float smartSpaceVal   = apvts.getRawParameterValue ("smartSpace") != nullptr ? apvts.getRawParameterValue ("smartSpace")->load() : 50.0f;
+    const float smartClarityVal = apvts.getRawParameterValue ("smartClarity") != nullptr ? apvts.getRawParameterValue ("smartClarity")->load() : 50.0f;
+    const float smartPumpVal    = apvts.getRawParameterValue ("smartPumping") != nullptr ? apvts.getRawParameterValue ("smartPumping")->load() : 50.0f;
+
+    const int scSourceMode      = apvts.getRawParameterValue ("duckingSource") != nullptr ? static_cast<int> (apvts.getRawParameterValue ("duckingSource")->load()) : 0;
+    const float duckThreshDb    = apvts.getRawParameterValue ("duckingThreshold") != nullptr ? apvts.getRawParameterValue ("duckingThreshold")->load() : -32.0f;
+    const float duckAttackMs    = apvts.getRawParameterValue ("duckingAttack") != nullptr ? apvts.getRawParameterValue ("duckingAttack")->load() : 8.0f;
+    const float duckReleaseMs   = apvts.getRawParameterValue ("duckingRelease") != nullptr ? apvts.getRawParameterValue ("duckingRelease")->load() : 160.0f;
 
     // Zero-allocation, zero-lock real-time audio thread license read
     const bool isUnlocked  = isLicensedAtomic.load (std::memory_order_relaxed);
@@ -628,8 +754,85 @@ void ProVerbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     smoothedWetGain.setTargetValue (effectiveWet);
     smoothedDryGain.setTargetValue (dryPct / 100.0f);
     smoothedBypassGain.setTargetValue (isBypassed ? 0.0f : 1.0f);
-    smoothedPreDelay.setTargetValue (static_cast<float> (getSampleRate() * (preDelayMs / 1000.0f)));
     smoothedWidth.setTargetValue (widthPct / 100.0f);
+
+    smoothedSmartSpace.setTargetValue (smartSpaceVal);
+    smoothedSmartClarity.setTargetValue (smartClarityVal);
+    smoothedSmartPumping.setTargetValue (smartPumpVal);
+
+    currentSmartSpace.store (smartSpaceVal, std::memory_order_relaxed);
+    currentSmartClarity.store (smartClarityVal, std::memory_order_relaxed);
+
+    // Dynamic Smart AI Macro Modulation:
+    // Morph factors: -1.0 to +1.0 (0.0 = 50% neutral default)
+    const float curSpaceMacro   = smoothedSmartSpace.getCurrentValue();
+    const float curClarityMacro = smoothedSmartClarity.getCurrentValue();
+    const float curPumpMacro    = smoothedSmartPumping.getCurrentValue();
+
+    const float spaceMorph   = (curSpaceMacro - 50.0f) / 50.0f;
+    const float clarityMorph = (curClarityMacro - 50.0f) / 50.0f;
+    const float pumpMorph    = (curPumpMacro - 50.0f) / 50.0f;
+
+    // 1. AI Space Morph: Smoothly morphs room size, decay multiplier, and pre-delay
+    float decayScale = 1.0f;
+    float sizeScale  = 1.0f;
+    float predelayScale = 1.0f;
+    float predelayOffset = 0.0f;
+    if (spaceMorph < 0.0f)
+    {
+        decayScale    = 1.0f + spaceMorph * 0.65f;   // Tightens to 0.35x
+        sizeScale     = 1.0f + spaceMorph * 0.50f;   // Tightens to 0.50x
+        predelayScale = 1.0f + spaceMorph * 0.70f;   // Tightens to 0.30x
+    }
+    else if (spaceMorph > 0.0f)
+    {
+        decayScale     = 1.0f + spaceMorph * 1.50f;  // Expands up to 2.50x
+        sizeScale      = 1.0f + spaceMorph * 0.40f;  // Expands up to 1.40x
+        predelayOffset = spaceMorph * 25.0f;         // Spaced by +25ms for lush depth
+    }
+
+    const float effDecaySec = juce::jlimit (0.1f, 30.0f, decaySec * decayScale);
+    const float effSizePct  = juce::jlimit (10.0f, 100.0f, sizePct * sizeScale);
+    const float effPreDelay = juce::jlimit (0.0f, 300.0f, preDelayMs * predelayScale + predelayOffset);
+    smoothedPreDelay.setTargetValue (static_cast<float> (getSampleRate() * (effPreDelay / 1000.0f)));
+
+    // 2. AI Clarity & Anti-Mud: Progressively engages Abbey Road 240Hz HPF & 11kHz air smoothing
+    float effLowCut  = lowCutHz;
+    float effHighCut = highCutHz;
+    float effDamp    = dampPct;
+    if (clarityMorph > 0.0f)
+    {
+        effLowCut  = juce::jmax (lowCutHz, lowCutHz + clarityMorph * (240.0f - lowCutHz));
+        effHighCut = juce::jmin (highCutHz, highCutHz - clarityMorph * (highCutHz - 10500.0f));
+        effDamp    = juce::jlimit (0.0f, 100.0f, dampPct + clarityMorph * 20.0f);
+    }
+    else if (clarityMorph < 0.0f)
+    {
+        effLowCut  = juce::jmax (20.0f, lowCutHz * (1.0f + clarityMorph * 0.5f));
+        effHighCut = juce::jlimit (1000.0f, 20000.0f, highCutHz * (1.0f + clarityMorph * 0.25f));
+    }
+
+    // 3. AI Rhythm Pump & Ducking Ballistics
+    float effDuck    = duckPct;
+    float effAttack  = duckAttackMs;
+    float effRelease = duckReleaseMs;
+    if (pumpMorph > 0.0f)
+    {
+        effDuck    = juce::jlimit (0.0f, 100.0f, duckPct + pumpMorph * 40.0f);
+        effAttack  = juce::jmax (1.0f, duckAttackMs * (1.0f - pumpMorph * 0.5f));
+        effRelease = juce::jmax (20.0f, duckReleaseMs * (1.0f - pumpMorph * 0.4f));
+    }
+    else if (pumpMorph < 0.0f)
+    {
+        effDuck = juce::jlimit (0.0f, 100.0f, duckPct * (1.0f + pumpMorph * 0.6f));
+    }
+
+    // Ducking Source Selection: 0 = Auto (Smart AI), 1 = Internal (Dry), 2 = External (Sidechain)
+    bool useExternalSidechain = false;
+    if (scSourceMode == 0) // Auto Smart AI: Uses external sidechain if routed and active, else internal dry
+        useExternalSidechain = (sidechainInput.getNumChannels() > 0 && scSignalPresent);
+    else if (scSourceMode == 2) // Explicit External Sidechain
+        useExternalSidechain = (sidechainInput.getNumChannels() > 0);
 
     // 3. Process in bounded sub-blocks using pre-allocated scratch capacity (Zero Heap Allocation)
     const int maxChunk = dryBuffer.getNumSamples();
@@ -638,15 +841,15 @@ void ProVerbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     {
         const int curChunk = std::min (numSamples - offset, maxChunk);
 
-        if (totalNumInputChannels == 1)
+        if (mainInChannels == 1)
         {
-            dryBuffer.copyFrom (0, 0, buffer, 0, offset, curChunk);
-            dryBuffer.copyFrom (1, 0, buffer, 0, offset, curChunk);
+            dryBuffer.copyFrom (0, 0, mainInput, 0, offset, curChunk);
+            dryBuffer.copyFrom (1, 0, mainInput, 0, offset, curChunk);
         }
         else
         {
-            dryBuffer.copyFrom (0, 0, buffer, 0, offset, curChunk);
-            dryBuffer.copyFrom (1, 0, buffer, 1, offset, curChunk);
+            dryBuffer.copyFrom (0, 0, mainInput, 0, offset, curChunk);
+            dryBuffer.copyFrom (1, 0, mainInput, 1, offset, curChunk);
         }
 
         // Apply smoothed input gain
@@ -694,7 +897,7 @@ void ProVerbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
             wetBuffer.setSample (1, s, preDelayLine.popSample (1, curDelaySamples));
         }
 
-        // 6. FDN Algorithmic Reverb Core (Late-Only Pre-Delay Architecture)
+        // 6. FDN Algorithmic Reverb Core (Late-Only Pre-Delay Architecture with Smart Space Modulation)
         const float* immL  = immediateBuffer.getReadPointer (0);
         const float* immR  = immediateBuffer.getReadPointer (1);
         const float* lateL = wetBuffer.getReadPointer (0);
@@ -702,20 +905,29 @@ void ProVerbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
         float* wetL = wetBuffer.getWritePointer (0);
         float* wetR = wetBuffer.getWritePointer (1);
 
-        const float erBalance = juce::jlimit (0.35f, 0.65f, 0.60f - (sizePct / 100.0f) * 0.20f);
-        fdnReverb.process (immL, immR, wetL, wetR, curChunk, sizePct, decaySec, dampPct, diffPct, isFrozen,
+        const float erBalance = juce::jlimit (0.35f, 0.65f, 0.60f - (effSizePct / 100.0f) * 0.20f);
+        fdnReverb.process (immL, immR, wetL, wetR, curChunk, effSizePct, effDecaySec, effDamp, diffPct, isFrozen,
                            erBalance, 1.0f, lateL, lateR);
 
         // 7. Celestial Shimmer Pitch Feedback (+1 Octave)
         shimmerEngine.process (wetL, wetR, curChunk, shimPct);
 
-        // 8. Modern Tone EQ (Smooth TPT Filters with bounded sub-block)
-        toneEQ.process (wetBuffer, curChunk, lowCutHz, highCutHz);
+        // 8. Modern Tone EQ (Smooth TPT Filters with Anti-Mud & Clarity Modulation)
+        toneEQ.process (wetBuffer, curChunk, effLowCut, effHighCut);
 
-        // 9. Smart Vocal & Drum Reverb Ducking (Sidechain from un-delayed dry signal)
-        const float* dryL = dryBuffer.getReadPointer (0);
-        const float* dryR = dryBuffer.getReadPointer (1);
-        duckingEngine.process (dryL, dryR, wetL, wetR, curChunk, duckPct);
+        // 9. Smart Vocal & Drum Reverb Ducking (External DAW Sidechain or Dry Input)
+        if (useExternalSidechain)
+        {
+            const float* scL = sidechainInput.getReadPointer (0, offset);
+            const float* scR = sidechainInput.getNumChannels() > 1 ? sidechainInput.getReadPointer (1, offset) : scL;
+            duckingEngine.process (scL, scR, wetL, wetR, curChunk, effDuck, duckThreshDb, effAttack, effRelease);
+        }
+        else
+        {
+            const float* dryL = dryBuffer.getReadPointer (0);
+            const float* dryR = dryBuffer.getReadPointer (1);
+            duckingEngine.process (dryL, dryR, wetL, wetR, curChunk, effDuck, duckThreshDb, effAttack, effRelease);
+        }
 
         // 10. Continuous Smooth Soft Saturation
         for (int ch = 0; ch < 2; ++ch)
@@ -741,45 +953,45 @@ void ProVerbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
         // 12. Output Mix, Master Gain, and Click-Free Bypass Crossfade
         for (int s = 0; s < curChunk; ++s)
         {
-            const float outGain = smoothedOutputGain.getNextValue();
+            const float outGain   = smoothedOutputGain.getNextValue();
             const float activeMix = smoothedBypassGain.getNextValue();
-            const float wetGain = smoothedWetGain.getNextValue() * outGain;
-            const float dryGain = smoothedDryGain.getNextValue() * outGain;
+            const float wetGain   = smoothedWetGain.getNextValue() * outGain;
+            const float dryGain   = smoothedDryGain.getNextValue() * outGain;
             const float bypassMix = 1.0f - activeMix;
 
-            const float originalL = buffer.getSample (0, offset + s);
-            const float originalR = totalNumInputChannels > 1 ? buffer.getSample (1, offset + s) : originalL;
+            const float originalL = mainInput.getSample (0, offset + s);
+            const float originalR = mainInChannels > 1 ? mainInput.getSample (1, offset + s) : originalL;
             const float processedL = (dryBuffer.getSample (0, s) * dryGain) + (wetBuffer.getSample (0, s) * wetGain);
             const float processedR = (dryBuffer.getSample (1, s) * dryGain) + (wetBuffer.getSample (1, s) * wetGain);
             const float outSampleL = (processedL * activeMix) + (originalL * bypassMix);
             const float outSampleR = (processedR * activeMix) + (originalR * bypassMix);
 
-            if (totalNumOutputChannels == 1)
+            if (mainOutChannels == 1)
             {
-                buffer.setSample (0, offset + s, (outSampleL + outSampleR) * 0.5f);
+                mainOutput.setSample (0, offset + s, (outSampleL + outSampleR) * 0.5f);
             }
             else
             {
-                buffer.setSample (0, offset + s, outSampleL);
-                buffer.setSample (1, offset + s, outSampleR);
+                mainOutput.setSample (0, offset + s, outSampleL);
+                mainOutput.setSample (1, offset + s, outSampleR);
             }
         }
     }
 
     // Measure true output RMS (reflects bypass and all processing accurately)
     float curRmsOut = 0.0f;
-    for (int ch = 0; ch < totalNumOutputChannels; ++ch)
-        curRmsOut = juce::jmax (curRmsOut, buffer.getRMSLevel (ch, 0, numSamples));
+    for (int ch = 0; ch < mainOutChannels; ++ch)
+        curRmsOut = juce::jmax (curRmsOut, mainOutput.getRMSLevel (ch, 0, numSamples));
     rmsOutput.store (curRmsOut, std::memory_order_relaxed);
 
     // Measure Real-Time Stereo Phase Correlation (Mono compatibility check)
-    if (totalNumOutputChannels >= 2)
+    if (mainOutChannels >= 2)
     {
         float sumLR = 0.0f;
         float sumL2 = 0.0f;
         float sumR2 = 0.0f;
-        const float* lPtr = buffer.getReadPointer (0);
-        const float* rPtr = buffer.getReadPointer (1);
+        const float* lPtr = mainOutput.getReadPointer (0);
+        const float* rPtr = mainOutput.getReadPointer (1);
         for (int s = 0; s < numSamples; ++s)
         {
             sumLR += lPtr[s] * rPtr[s];

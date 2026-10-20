@@ -90,6 +90,7 @@ public:
 
     bool canUndoAutoLearn() const noexcept { return hasUndoState; }
     void undoAutoLearn();
+    void analyzeAudioFileAsync (const juce::File& audioFile);
 
     std::function<void (const juce::String& instrument, const juce::String& profileName, bool success)> onAutoLearnResult;
 
@@ -120,6 +121,11 @@ public:
     // Atomic meters for thread-safe UI updates
     float getRmsInput() const { return rmsInput.load(); }
     float getRmsOutput() const { return rmsOutput.load(); }
+    float getRmsSidechain() const noexcept { return rmsSidechain.load (std::memory_order_relaxed); }
+    bool isSidechainActive() const noexcept { return isSidechainSignalActive.load (std::memory_order_relaxed); }
+    bool hasSidechainConnection() const noexcept { return isSidechainBusConnected.load (std::memory_order_relaxed); }
+    float getEffectiveSmartSpace() const noexcept { return currentSmartSpace.load (std::memory_order_relaxed); }
+    float getEffectiveSmartClarity() const noexcept { return currentSmartClarity.load (std::memory_order_relaxed); }
     float getStereoPhaseCorrelation() const noexcept { return stereoPhaseCorrelation.load (std::memory_order_relaxed); }
     float getDuckingGainReductionDb() const noexcept { return duckingEngine.getGainReductionDb(); }
 
@@ -172,6 +178,11 @@ private:
     juce::SmoothedValue<float> smoothedBypassGain;
     juce::SmoothedValue<float> smoothedWidth;
 
+    // Smoothed Next-Level AI Macro Automation
+    juce::SmoothedValue<float> smoothedSmartSpace;
+    juce::SmoothedValue<float> smoothedSmartClarity;
+    juce::SmoothedValue<float> smoothedSmartPumping;
+
     // Scratch buffers for stereo processing
     juce::AudioBuffer<float> dryBuffer;
     juce::AudioBuffer<float> wetBuffer;
@@ -180,6 +191,11 @@ private:
     // Thread-safe meter levels
     std::atomic<float> rmsInput  { 0.0f };
     std::atomic<float> rmsOutput { 0.0f };
+    std::atomic<float> rmsSidechain { 0.0f };
+    std::atomic<bool> isSidechainSignalActive { false };
+    std::atomic<bool> isSidechainBusConnected { false };
+    std::atomic<float> currentSmartSpace { 50.0f };
+    std::atomic<float> currentSmartClarity { 50.0f };
     std::atomic<float> stereoPhaseCorrelation { 1.0f };
 
     int currentProgram { 0 };

@@ -21,6 +21,15 @@ namespace ProVerbIDs
     static const juce::ParameterID freeze        { "freeze", 1 };
     static const juce::ParameterID bypass        { "bypass", 1 };
     static const juce::ParameterID midSide       { "midSide", 1 };
+
+    // Smart AI Automation Macros & Sidechain Routing
+    static const juce::ParameterID smartSpace        { "smartSpace", 1 };
+    static const juce::ParameterID smartClarity      { "smartClarity", 1 };
+    static const juce::ParameterID smartPumping      { "smartPumping", 1 };
+    static const juce::ParameterID duckingSource     { "duckingSource", 1 };
+    static const juce::ParameterID duckingThreshold  { "duckingThreshold", 1 };
+    static const juce::ParameterID duckingAttack     { "duckingAttack", 1 };
+    static const juce::ParameterID duckingRelease    { "duckingRelease", 1 };
 }
 
 inline juce::AudioProcessorValueTreeState::ParameterLayout createProVerbParameterLayout()
@@ -122,6 +131,55 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createProVerbParamete
     // Mid/Side Routing Focus Mode
     layout.add (std::make_unique<juce::AudioParameterBool> (
         ProVerbIDs::midSide, "Mid/Side Focus", false));
+
+    // =========================================================================
+    // Next-Level Smart AI Automation Macros & Professional Sidechain Parameters
+    // =========================================================================
+
+    // AI Space Morph Macro (0% to 100%, Default 50% Neutral)
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        ProVerbIDs::smartSpace, "AI Space Morph",
+        juce::NormalisableRange<float> (0.0f, 100.0f, 0.5f), 50.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("%")));
+
+    // AI Anti-Mud & Clarity Macro (0% to 100%, Default 50% Neutral)
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        ProVerbIDs::smartClarity, "AI Clarity & Anti-Mud",
+        juce::NormalisableRange<float> (0.0f, 100.0f, 0.5f), 50.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("%")));
+
+    // AI Rhythm & Ducking Pump Macro (0% to 100%, Default 50% Neutral)
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        ProVerbIDs::smartPumping, "AI Rhythm Pump",
+        juce::NormalisableRange<float> (0.0f, 100.0f, 0.5f), 50.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("%")));
+
+    // Ducking Trigger Source (Auto / Internal / External Sidechain)
+    juce::StringArray duckingSourceChoices;
+    duckingSourceChoices.add ("Auto (Smart AI)");
+    duckingSourceChoices.add ("Internal (Dry)");
+    duckingSourceChoices.add ("External (Sidechain)");
+    layout.add (std::make_unique<juce::AudioParameterChoice> (
+        ProVerbIDs::duckingSource, "Ducking Source",
+        duckingSourceChoices, 0));
+
+    // Ducking Threshold (-48 dB to -6 dB, Default -32 dB)
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        ProVerbIDs::duckingThreshold, "Ducking Threshold",
+        juce::NormalisableRange<float> (-48.0f, -6.0f, 0.5f), -32.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("dB")));
+
+    // Ducking Attack Time (1 ms to 50 ms, Default 8 ms)
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        ProVerbIDs::duckingAttack, "Ducking Attack",
+        juce::NormalisableRange<float> (1.0f, 50.0f, 0.5f), 8.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("ms")));
+
+    // Ducking Release Time (20 ms to 1000 ms, Default 160 ms, logarithmic skew)
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        ProVerbIDs::duckingRelease, "Ducking Release",
+        juce::NormalisableRange<float> (20.0f, 1000.0f, 1.0f, 0.4f), 160.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("ms")));
 
     return layout;
 }

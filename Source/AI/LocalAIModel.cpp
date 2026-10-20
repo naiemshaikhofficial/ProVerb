@@ -8,19 +8,37 @@
 #endif
 #include <windows.h>
 
+extern "C" IMAGE_DOS_HEADER __ImageBase;
+
+static juce::File getPluginModuleFile()
+{
+    WCHAR path[32768];
+    if (GetModuleFileNameW ((HINSTANCE)&__ImageBase, path, 32768) > 0)
+        return juce::File (juce::String (path));
+    return juce::File::getSpecialLocation (juce::File::currentExecutableFile);
+}
+
 static void preloadBundledOnnxRuntime()
 {
     static bool attempted = false;
     if (attempted) return;
     attempted = true;
 
-    auto currentModule = juce::File::getSpecialLocation (juce::File::currentExecutableFile);
+    auto currentModule = getPluginModuleFile();
     auto moduleDir = currentModule.getParentDirectory();
     auto ortDll = moduleDir.getChildFile ("onnxruntime.dll");
 
     if (! ortDll.existsAsFile())
     {
         ortDll = juce::File ("C:\\Program Files\\Common Files\\VST3\\ProVerb.vst3\\Contents\\x86_64-win\\onnxruntime.dll");
+    }
+
+    if (! ortDll.existsAsFile())
+    {
+        auto userVst3 = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
+                            .getChildFile ("Programs\\Common\\VST3\\ProVerb.vst3\\Contents\\x86_64-win\\onnxruntime.dll");
+        if (userVst3.existsAsFile())
+            ortDll = userVst3;
     }
 
     if (ortDll.existsAsFile())
@@ -74,8 +92,12 @@ void LocalAIModel::unload()
 
 juce::File LocalAIModel::locateModelFile()
 {
-    // 1. Directory of the loaded plugin module / binary
+    // 1. Directory of the loaded plugin module / binary (resolved via __ImageBase on Windows)
+#if JUCE_WINDOWS
+    auto moduleFile = getPluginModuleFile();
+#else
     auto moduleFile = juce::File::getSpecialLocation (juce::File::currentExecutableFile);
+#endif
     auto moduleDir = moduleFile.getParentDirectory();
 
     auto candidate1 = moduleDir.getChildFile ("ProVerb_AI.onnx");
@@ -86,6 +108,12 @@ juce::File LocalAIModel::locateModelFile()
     auto bundleResources = moduleDir.getParentDirectory().getChildFile ("Resources").getChildFile ("ProVerb_AI.onnx");
     if (bundleResources.existsAsFile())
         return bundleResources;
+
+    // 2b. User VST3 installation path ($LOCALAPPDATA\Programs\Common\VST3)
+    auto userVst3Model = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
+                             .getChildFile ("Programs\\Common\\VST3\\ProVerb.vst3\\Contents\\x86_64-win\\ProVerb_AI.onnx");
+    if (userVst3Model.existsAsFile())
+        return userVst3Model;
 
     // 3. User Application Data / ProducerToy / ProVerb
     auto appData = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)

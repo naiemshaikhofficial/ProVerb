@@ -11,6 +11,7 @@
 #include "Licensing/LicenseClient.h"
 
 class ProVerbAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                    public juce::FileDragAndDropTarget,
                                     private juce::Timer
 {
 public:
@@ -19,6 +20,10 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
+
+    // Direct WAV / Audio Stem Drag & Drop AI Detection
+    bool isInterestedInFileDrag (const juce::StringArray& files) override;
+    void filesDropped (const juce::StringArray& files, int x, int y) override;
 
 private:
     void timerCallback() override;
@@ -50,6 +55,7 @@ private:
     juce::Label hCutLabel;
     juce::Label lCutLabel;
     juce::Label duckLabel;
+    juce::TextButton sidechainModeButton;
 
     // Module 3: Space & Time
     juce::Slider delaySlider;
