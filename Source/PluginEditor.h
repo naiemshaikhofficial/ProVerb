@@ -199,8 +199,8 @@ private:
 
     KnobContextMenuHelper contextMenuHelper;
 
-    void setupKnob (juce::Slider& slider, juce::Label& label, const juce::String& text, const juce::String& suffix = "", double defaultVal = 0.0);
-    void setupFader (juce::Slider& slider, juce::Label& label, const juce::String& text, double defaultVal = 0.0);
+    void setupKnob (juce::Slider& slider, juce::Label& label, const juce::String& text, const juce::String& suffix = "", double defaultVal = 0.0, juce::Colour accentColour = juce::Colour (0xff00f0ff));
+    void setupFader (juce::Slider& slider, juce::Label& label, const juce::String& text, double defaultVal = 0.0, juce::Colour faderColour = juce::Colour (0xff00d4e8));
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ProVerbAudioProcessorEditor)
 };

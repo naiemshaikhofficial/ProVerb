@@ -13,15 +13,35 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
 
     // Module 1: 3D Cylinder Visualizer
     addAndMakeVisible (visualizer);
+    visualizer.onAcousticBalanceChanged = [this](float bright, float warm, float spacious)
+    {
+        // Smoothly map triangle barycentric balance to DSP parameters
+        float targetHighCut = juce::jmap (bright, 0.05f, 0.95f, 4000.0f, 20000.0f);
+        float targetDamp    = juce::jmap (warm,   0.05f, 0.95f, 15.0f, 85.0f);
+        float targetLowCut  = juce::jmap (warm,   0.05f, 0.95f, 30.0f, 400.0f);
+        float targetSize    = juce::jmap (spacious, 0.05f, 0.95f, 30.0f, 100.0f);
+        float targetDiff    = juce::jmap (spacious, 0.05f, 0.95f, 40.0f, 100.0f);
+
+        hCutSlider.setValue (targetHighCut, juce::sendNotificationSync);
+        dampSlider.setValue (targetDamp, juce::sendNotificationSync);
+        lCutSlider.setValue (targetLowCut, juce::sendNotificationSync);
+        sizeSlider.setValue (targetSize, juce::sendNotificationSync);
+        diffSlider.setValue (targetDiff, juce::sendNotificationSync);
+    };
+
+    visualizer.onSpaceSizeChanged = [this](float newSize)
+    {
+        sizeSlider.setValue (newSize, juce::sendNotificationSync);
+    };
 
     // Module 2: Filters & Routing
     addAndMakeVisible (midSideButton);
     midSideButton.setColour (juce::ToggleButton::textColourId, juce::Colour (0xff9e9ea6));
-    midSideButton.setColour (juce::ToggleButton::tickColourId, juce::Colour (0xffffffff));
+    midSideButton.setColour (juce::ToggleButton::tickColourId, juce::Colour (0xff00f0ff));
 
-    setupKnob (hCutSlider, hCutLabel, "H.CUT", " Hz", 14000.0);
-    setupKnob (lCutSlider, lCutLabel, "L.CUT", " Hz", 80.0);
-    setupKnob (duckSlider, duckLabel, "DUCK", " %", 0.0);
+    setupKnob (hCutSlider, hCutLabel, "High Cut", " Hz", 14000.0, juce::Colour (0xff00f0ff));
+    setupKnob (lCutSlider, lCutLabel, "Low Cut", " Hz", 80.0, juce::Colour (0xffec4899));
+    setupKnob (duckSlider, duckLabel, "Duck", " %", 0.0, juce::Colour (0xfff59e0b));
 
     // Module 2: Futuristic Sidechain Ducking Source Selector Button
     addAndMakeVisible (sidechainModeButton);
@@ -62,26 +82,26 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
             });
     };
 
-    // Module 3: Space & Time
-    setupKnob (delaySlider, delayLabel, "DELAY", " ms", 20.0);
-    setupKnob (sizeSlider, sizeLabel, "SIZE", " %", 70.0);
-    setupKnob (diffSlider, diffLabel, "DIFF", " %", 75.0);
-    setupKnob (shimmerSlider, shimmerLabel, "SHIM", " %", 0.0);
+    // Module 3: Space & Time (Soft Rainbow Accents: Pink, Sky Blue, Teal, Amber)
+    setupKnob (delaySlider, delayLabel, "Pre-Delay", " ms", 20.0, juce::Colour (0xffec4899));
+    setupKnob (sizeSlider, sizeLabel, "Size", " %", 70.0, juce::Colour (0xff38bdf8));
+    setupKnob (diffSlider, diffLabel, "Diffusion", " %", 75.0, juce::Colour (0xff14b8a6));
+    setupKnob (shimmerSlider, shimmerLabel, "Shimmer", " %", 0.0, juce::Colour (0xffeab308));
 
-    // Module 4: Decay & Damping
-    setupKnob (decSlider, decLabel, "DEC", " s", 2.8);
-    setupKnob (dampSlider, dampLabel, "DAMP", " %", 45.0);
+    // Module 4: Decay & Damping (Soft Rainbow Accents: Cyan, Violet)
+    setupKnob (decSlider, decLabel, "Decay Time", " s", 2.8, juce::Colour (0xff00f0ff));
+    setupKnob (dampSlider, dampLabel, "Damping", " %", 45.0, juce::Colour (0xffa855f7));
 
     addAndMakeVisible (freezeButton);
     freezeButton.setColour (juce::ToggleButton::textColourId, juce::Colour (0xffffffff));
-    freezeButton.setColour (juce::ToggleButton::tickColourId, juce::Colour (0xffffffff));
+    freezeButton.setColour (juce::ToggleButton::tickColourId, juce::Colour (0xff00f0ff));
 
-    // Module 5: Console Mixer Faders (INPUT, DRY, WET, OUTPUT) & SEP Knob
-    setupFader (inGainFader, inGainLabel, "INPUT", 0.0);
-    setupFader (dryFader, dryLabel, "DRY", 100.0);
-    setupFader (wetFader, wetLabel, "WET", 35.0);
-    setupFader (outGainFader, outGainLabel, "OUTPUT", 0.0);
-    setupKnob (sepSlider, sepLabel, "SEP", " %", 100.0);
+    // Module 5: Console Mixer Faders (Glowing Neon: Cyan, Magenta, Amber, Emerald) & SEP Knob (Violet)
+    setupFader (inGainFader, inGainLabel, "INPUT", 0.0, juce::Colour (0xff38bdf8));
+    setupFader (dryFader, dryLabel, "DRY", 100.0, juce::Colour (0xffd946ef));
+    setupFader (wetFader, wetLabel, "WET", 35.0, juce::Colour (0xfff59e0b));
+    setupFader (outGainFader, outGainLabel, "OUTPUT", 0.0, juce::Colour (0xff10b981));
+    setupKnob (sepSlider, sepLabel, "SEP", " %", 100.0, juce::Colour (0xff8b5cf6));
 
     // Top Bar - Categorized Professional Presets + User .toy Presets
     addAndMakeVisible (presetBox);
@@ -333,11 +353,12 @@ ProVerbAudioProcessorEditor::~ProVerbAudioProcessorEditor()
 }
 
 void ProVerbAudioProcessorEditor::setupKnob (juce::Slider& slider, juce::Label& label,
-                                             const juce::String& text, const juce::String& suffix, double defaultVal)
+                                             const juce::String& text, const juce::String& suffix, double defaultVal, juce::Colour accentColour)
 {
     slider.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
     slider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 68, 16);
     slider.setTextValueSuffix (suffix);
+    slider.setColour (juce::Slider::rotarySliderFillColourId, accentColour);
     slider.setColour (juce::Slider::textBoxOutlineColourId, juce::Colour (0x00000000));
     slider.setColour (juce::Slider::textBoxTextColourId, juce::Colour (0xffe2e8f0));
     slider.setDoubleClickReturnValue (true, defaultVal);
@@ -351,10 +372,11 @@ void ProVerbAudioProcessorEditor::setupKnob (juce::Slider& slider, juce::Label& 
     addAndMakeVisible (label);
 }
 
-void ProVerbAudioProcessorEditor::setupFader (juce::Slider& slider, juce::Label& label, const juce::String& text, double defaultVal)
+void ProVerbAudioProcessorEditor::setupFader (juce::Slider& slider, juce::Label& label, const juce::String& text, double defaultVal, juce::Colour faderColour)
 {
     slider.setSliderStyle (juce::Slider::LinearVertical);
     slider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 52, 16);
+    slider.setColour (juce::Slider::thumbColourId, faderColour);
     slider.setColour (juce::Slider::textBoxOutlineColourId, juce::Colour (0x18ffffff));
     slider.setColour (juce::Slider::textBoxBackgroundColourId, juce::Colour (0xff0e0f14));
     slider.setColour (juce::Slider::textBoxTextColourId, juce::Colour (0xffe2e8f0));
@@ -604,7 +626,7 @@ void ProVerbAudioProcessorEditor::paint (juce::Graphics& g)
 
     drawModuleCard (0.0f, col1W, "ROUTING & FILTERS");
     drawModuleCard (x1, col2W, "SPACE & TIME");
-    drawModuleCard (x2, col3W, "ACOUSTIC AURA");
+    drawModuleCard (x2, col3W, "ACOUSTIC SPACE");
     drawModuleCard (x3, col4W, "DECAY & DAMP");
     drawModuleCard (x4, (float) getWidth() - x4, "CONSOLE MIXER");
 }

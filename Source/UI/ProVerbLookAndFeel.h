@@ -45,7 +45,7 @@ public:
     // 1. Futuristic Minimalist Rotary Knobs (Obsidian Core with Glowing Luminous Neon Arc & Radiant Pip)
     void drawRotarySlider (juce::Graphics& g, int x, int y, int width, int height,
                            float sliderPosProportional, float rotaryStartAngle,
-                           float rotaryEndAngle, juce::Slider& /*slider*/) override
+                           float rotaryEndAngle, juce::Slider& slider) override
     {
         auto area = juce::Rectangle<int> (x, y, width, height).toFloat();
         auto centre = area.getCentre();
@@ -75,20 +75,28 @@ public:
         g.setColour (juce::Colour (0xff151722));
         g.strokePath (bgArc, juce::PathStrokeType (2.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
-        // 3. Active Luminous Value Arc (Futuristic Glowing Ice-Cyan)
+        // 3. Active Luminous Value Arc (Futuristic Glowing Neon with custom accent colour)
+        juce::Colour arcCol = juce::Colour (0xff00f0ff);
+        if (slider.isColourSpecified (juce::Slider::rotarySliderFillColourId))
+        {
+            auto specifiedCol = slider.findColour (juce::Slider::rotarySliderFillColourId);
+            if (specifiedCol != juce::Colour (0xff34363d))
+                arcCol = specifiedCol;
+        }
+
         if (sliderPosProportional > 0.001f)
         {
             juce::Path activeArc;
             activeArc.addCentredArc (centre.x, centre.y, arcRadius, arcRadius, 0.0f,
                                      rotaryStartAngle, toAngle, true);
             
-            // Soft Ambient Neon Cyan Bloom
-            g.setColour (juce::Colour (0x2800f0ff));
+            // Soft Ambient Neon Bloom
+            g.setColour (arcCol.withAlpha (0.28f));
             g.strokePath (activeArc, juce::PathStrokeType (6.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
             // Sharp Luminous Laser Core
-            juce::ColourGradient arcGrad (juce::Colour (0xff00f0ff), squareBounds.getX(), squareBounds.getY(),
-                                           juce::Colour (0xff38bdf8), squareBounds.getRight(), squareBounds.getBottom(), false);
+            juce::ColourGradient arcGrad (arcCol, squareBounds.getX(), squareBounds.getY(),
+                                          arcCol.brighter (0.25f), squareBounds.getRight(), squareBounds.getBottom(), false);
             g.setGradientFill (arcGrad);
             g.strokePath (activeArc, juce::PathStrokeType (2.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
@@ -97,7 +105,7 @@ public:
             float pipY = centre.y - std::cos (toAngle) * arcRadius;
             
             // Pip Neon Halo
-            g.setColour (juce::Colour (0x5500f0ff));
+            g.setColour (arcCol.withAlpha (0.55f));
             g.fillEllipse (pipX - 3.5f, pipY - 3.5f, 7.0f, 7.0f);
             
             // Pure White Laser Core Dot
@@ -141,8 +149,8 @@ public:
         float xEnd   = centre.x + sinA * needleEnd;
         float yEnd   = centre.y - cosA * needleEnd;
 
-        // Needle subtle cyan bloom
-        g.setColour (juce::Colour (0x4400f0ff));
+        // Needle subtle bloom with custom accent
+        g.setColour (arcCol.withAlpha (0.44f));
         g.drawLine (xStart, yStart, xEnd, yEnd, 3.2f);
 
         // Sharp needle core
@@ -258,15 +266,22 @@ public:
                 g.drawHorizontalLine ((int) ty, trackArea.getRight() + 2.0f, trackArea.getRight() + 5.0f);
             }
 
-            // 3. Luminous Active Beam below Fader Thumb
+            // 3. Luminous Active Beam below Fader Thumb with custom accent color
             auto activeSlot = trackArea.withTop (sliderPos);
+            juce::Colour faderCol = juce::Colour (0xff00d4e8);
+            if (slider.isColourSpecified (juce::Slider::thumbColourId))
+            {
+                auto specifiedCol = slider.findColour (juce::Slider::thumbColourId);
+                if (specifiedCol != juce::Colour (0xffffffff))
+                    faderCol = specifiedCol;
+            }
             
             // Soft ambient glow
-            g.setColour (juce::Colour (0x4400f0ff));
+            g.setColour (faderCol.withAlpha (0.35f));
             g.fillRoundedRectangle (activeSlot.expanded (1.0f, 0.0f), 2.0f);
             
             // Laser beam core
-            g.setColour (juce::Colour (0xff00d4e8));
+            g.setColour (faderCol);
             g.fillRoundedRectangle (activeSlot, 1.5f);
 
             // 4. Futuristic Minimalist Cyber Fader Cap
@@ -286,11 +301,11 @@ public:
             g.fillRoundedRectangle (thumbRect, 2.5f);
 
             // Hairline Cyber Rim
-            g.setColour (juce::Colour (0xff3b4154));
+            g.setColour (faderCol.withAlpha (0.6f));
             g.drawRoundedRectangle (thumbRect, 2.5f, 1.0f);
 
             // Glowing Center Neon Laser Slit
-            g.setColour (juce::Colour (0x6600f0ff));
+            g.setColour (faderCol.withAlpha (0.75f));
             g.drawHorizontalLine ((int) thumbRect.getCentreY(), thumbRect.getX() + 3.0f, thumbRect.getRight() - 3.0f);
             
             g.setColour (juce::Colour (0xffffffff));
