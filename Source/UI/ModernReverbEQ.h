@@ -4,15 +4,16 @@
 #include <cmath>
 #include <functional>
 #include <algorithm>
+#include "ProVerbTokens.h"
 
 /**
  * ModernReverbEQ — Next-Gen Interactive Reverb Filter & Acoustic Spectrum Analyzer
- * ProVerb by ProducerToy
+ * Producer Toy | ProVerb Smart Algorithmic Reverb
  *
- * Implements the 5-node rainbow acoustic EQ interface:
+ * Implements the 5-node rainbow acoustic EQ interface from the ProVerb reference:
  * - 5 Draggable color-coded nodes (Magenta, Cyan, Mint Green, Amber, Coral)
  * - Continuous rainbow gradient response curve with translucent atmospheric fill
- * - Live organic FFT reverberant acoustic spectrum analyzer
+ * - Live organic reverberant acoustic spectrum analyzer
  * - Precision parameter readouts: FREQ, GAIN, Q
  * - Curve toggle and Pre/Post EQ mode selector
  */
@@ -65,15 +66,17 @@ public:
 
     void paint (juce::Graphics& g) override
     {
+        using namespace ProVerbTokens::Colors;
+
         auto bounds = getLocalBounds().toFloat();
 
-        // 1. Chassis Background (Deep Obsidian Black #07080b)
-        g.setColour (juce::Colour (0xff07080b));
-        g.fillRoundedRectangle (bounds, 6.0f);
+        // 1. Chassis Background (Dark Graphite / Navy #0D1521)
+        g.setColour (panelBackground);
+        g.fillRoundedRectangle (bounds, ProVerbTokens::Metrics::panelCornerRadius);
 
-        // Subtle Cyber Border
-        g.setColour (juce::Colour (0xff1c1f2b));
-        g.drawRoundedRectangle (bounds, 6.0f, 1.0f);
+        // Fine cool-gray border #243246
+        g.setColour (border);
+        g.drawRoundedRectangle (bounds, ProVerbTokens::Metrics::panelCornerRadius, 1.0f);
 
         auto plotArea = getPlotArea();
         const float plotW = plotArea.getWidth();
@@ -84,11 +87,11 @@ public:
         if (plotW <= 20.0f || plotH <= 20.0f)
             return;
 
-        // Dark Display Inset Well (Deep OLED #0a0b0f)
-        g.setColour (juce::Colour (0xff090a0e));
-        g.fillRoundedRectangle (plotArea, 4.0f);
-        g.setColour (juce::Colour (0xff181a24));
-        g.drawRoundedRectangle (plotArea, 4.0f, 1.0f);
+        // Dark Display Inset Well (#080C14)
+        g.setColour (panelDarkSlot);
+        g.fillRoundedRectangle (plotArea, ProVerbTokens::Metrics::innerCardRadius);
+        g.setColour (border.withAlpha (0.5f));
+        g.drawRoundedRectangle (plotArea, ProVerbTokens::Metrics::innerCardRadius, 1.0f);
 
         // 2. Frequency Grid Lines & Bottom Scale Labels
         const struct FreqMarker { float freq; const char* label; } markers[] = {
@@ -104,15 +107,15 @@ public:
             { 20000.0f, "20k" }
         };
 
-        g.setFont (juce::FontOptions (8.5f, juce::Font::plain));
+        g.setFont (ProVerbTokens::Typography::makeLabelFont (9.0f, false));
         for (const auto& m : markers)
         {
             float x = freqToX (m.freq, plotW) + plotX;
-            g.setColour (juce::Colour (0x10ffffff));
+            g.setColour (borderSubtle);
             g.drawVerticalLine ((int) x, plotY, plotY + plotH);
 
-            g.setColour (juce::Colour (0xff5a5e6d));
-            g.drawText (m.label, (int) (x - 16.0f), (int) (plotY + plotH + 2.0f), 32, 12, juce::Justification::centred);
+            g.setColour (textMuted);
+            g.drawText (m.label, (int) (x - 18.0f), (int) (plotY + plotH + 2.0f), 36, 14, juce::Justification::centred);
         }
 
         // 3. dB Horizontal Grid Lines (+12dB, 0dB, -12dB, -24dB)
@@ -126,14 +129,14 @@ public:
         for (const auto& dm : dbMarkers)
         {
             float y = dbToY (dm.db, plotH) + plotY;
-            g.setColour (dm.db == 0.0f ? juce::Colour (0x28ffffff) : juce::Colour (0x0cffffff));
+            g.setColour (dm.db == 0.0f ? border.withAlpha (0.7f) : borderSubtle);
             g.drawHorizontalLine ((int) y, plotX, plotX + plotW);
 
-            g.setColour (juce::Colour (0xff4b4e5c));
-            g.drawText (dm.label, (int) (plotX + 4.0f), (int) (y - 6.0f), 24, 12, juce::Justification::left);
+            g.setColour (textMuted);
+            g.drawText (dm.label, (int) (plotX + 6.0f), (int) (y - 7.0f), 28, 14, juce::Justification::left);
         }
 
-        // 4. Multi-Layer Real-Time Spectrum Visualizer (Organic Acoustic Reverberant Energy)
+        // 4. Multi-Layer Real-Time Spectrum Visualizer
         if (rmsLevel > 0.001f)
         {
             juce::Path spectrumPath;
@@ -157,12 +160,12 @@ public:
             spectrumPath.closeSubPath();
 
             // Atmospheric rainbow spectrum fill
-            juce::ColourGradient specGrad (juce::Colour (0x2038bdf8), plotX, plotY + plotH * 0.3f,
-                                           juce::Colour (0x02000000), plotX, plotY + plotH, false);
+            juce::ColourGradient specGrad (neonCyan.withAlpha (0.18f), plotX, plotY + plotH * 0.3f,
+                                           panelDarkSlot.withAlpha (0.0f), plotX, plotY + plotH, false);
             g.setGradientFill (specGrad);
             g.fillPath (spectrumPath);
 
-            g.setColour (juce::Colour (0x4438bdf8));
+            g.setColour (neonCyan.withAlpha (0.35f));
             g.strokePath (spectrumPath, juce::PathStrokeType (1.0f));
         }
 
@@ -222,26 +225,26 @@ public:
         fillPath.closeSubPath();
 
         // 6. Translucent Rainbow Fill under the curve
-        juce::ColourGradient rainbowFill (juce::Colour (0x24ec4899), plotX, plotY,
-                                          juce::Colour (0x24f43f5e), plotX + plotW, plotY, false);
-        rainbowFill.addColour (0.25, juce::Colour (0x2038bdf8));
-        rainbowFill.addColour (0.50, juce::Colour (0x2010b981));
-        rainbowFill.addColour (0.75, juce::Colour (0x20f59e0b));
+        juce::ColourGradient rainbowFill (neonMagenta.withAlpha (0.16f), plotX, plotY,
+                                          neonCoral.withAlpha (0.16f), plotX + plotW, plotY, false);
+        rainbowFill.addColour (0.25, neonCyan.withAlpha (0.15f));
+        rainbowFill.addColour (0.50, neonMint.withAlpha (0.15f));
+        rainbowFill.addColour (0.75, neonAmber.withAlpha (0.15f));
         g.setGradientFill (rainbowFill);
         g.fillPath (fillPath);
 
         // Soft Outer Glow Stroke (Rainbow)
-        juce::ColourGradient rainbowStroke (juce::Colour (0xffec4899), plotX, plotY,
-                                            juce::Colour (0xfff43f5e), plotX + plotW, plotY, false);
-        rainbowStroke.addColour (0.25, juce::Colour (0xff38bdf8));
-        rainbowStroke.addColour (0.50, juce::Colour (0xff10b981));
-        rainbowStroke.addColour (0.75, juce::Colour (0xfff59e0b));
+        juce::ColourGradient rainbowStroke (neonMagenta, plotX, plotY,
+                                            neonCoral, plotX + plotW, plotY, false);
+        rainbowStroke.addColour (0.25, neonCyan);
+        rainbowStroke.addColour (0.50, neonMint);
+        rainbowStroke.addColour (0.75, neonAmber);
 
         g.setGradientFill (rainbowStroke);
         g.strokePath (curvePath, juce::PathStrokeType (3.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
         // Sharp White Core Stroke
-        g.setColour (juce::Colour (0x99ffffff));
+        g.setColour (juce::Colour (0xaaffffff));
         g.strokePath (curvePath, juce::PathStrokeType (1.2f));
 
         // 7. Interactive Node Handles with Guideline Drops
@@ -254,11 +257,11 @@ public:
         };
 
         NodeInfo nodes[5] = {
-            { nodeLowCut,       -3.0f,                juce::Colour (0xffec4899), "1" }, // Pink / Magenta
-            { nodeLowShelfFreq, nodeLowShelfGainDb,  juce::Colour (0xff38bdf8), "2" }, // Cyan / Sky Blue
-            { nodeMidFreq,      nodeMidGainDb,       juce::Colour (0xff10b981), "3" }, // Mint / Emerald
-            { nodeHighShelfFreq,nodeHighShelfGainDb, juce::Colour (0xfff59e0b), "4" }, // Golden Amber
-            { nodeHighCut,      -3.0f,                juce::Colour (0xfff43f5e), "5" }  // Coral / Red
+            { nodeLowCut,       -3.0f,                neonMagenta, "1" }, // Pink / Magenta
+            { nodeLowShelfFreq, nodeLowShelfGainDb,  neonCyan,    "2" }, // Cyan / Sky Blue
+            { nodeMidFreq,      nodeMidGainDb,       neonMint,    "3" }, // Mint / Emerald
+            { nodeHighShelfFreq,nodeHighShelfGainDb, neonAmber,   "4" }, // Golden Amber
+            { nodeHighCut,      -3.0f,                neonCoral,   "5" }  // Coral / Red
         };
 
         for (int i = 0; i < 5; ++i)
@@ -352,7 +355,7 @@ public:
         }
         else if (activeDragNode == 3) // High Shelf
         {
-            nodeHighShelfFreq = juce::jlimit (2000.0f, 16000.0f, newFreq);
+            nodeHighShelfFreq = juce::jlimit (1500.0f, 16000.0f, newFreq);
             nodeHighShelfGainDb = newGain;
         }
         else if (activeDragNode == 4) // High Cut
@@ -374,9 +377,9 @@ public:
 
     void mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails& wheel) override
     {
-        if (selectedNode == 2) // Mid Bell
+        if (selectedNode == 2)
         {
-            qMid = juce::jlimit (0.2f, 5.0f, qMid + wheel.deltaY * 0.4f);
+            qMid = juce::jlimit (0.2f, 8.0f, qMid + wheel.deltaY * 0.4f);
             repaint();
         }
         else if (selectedNode == 0)
@@ -451,9 +454,9 @@ private:
 
     juce::Rectangle<float> getPlotArea() const
     {
-        auto bounds = getLocalBounds().toFloat().reduced (8.0f, 6.0f);
-        bounds.removeFromTop (22.0f);    // Top status bar
-        bounds.removeFromBottom (16.0f); // Bottom freq labels
+        auto bounds = getLocalBounds().toFloat().reduced (10.0f, 8.0f);
+        bounds.removeFromTop (26.0f);    // Top status bar
+        bounds.removeFromBottom (18.0f); // Bottom freq labels
         return bounds;
     }
 
@@ -502,40 +505,42 @@ private:
 
     void drawNodeHandle (juce::Graphics& g, float x, float y, juce::Colour col, bool isActive)
     {
-        float radius = isActive ? 8.0f : 6.5f;
+        using namespace ProVerbTokens::Colors;
+
+        float radius = isActive ? 8.5f : 7.0f;
 
         // Outer soft glow bloom
         g.setColour (col.withAlpha (isActive ? 0.45f : 0.25f));
         g.fillEllipse (x - radius * 1.8f, y - radius * 1.8f, radius * 3.6f, radius * 3.6f);
 
-        // Core fill (dark charcoal)
-        g.setColour (juce::Colour (0xff0a0c12));
+        // Core fill (dark charcoal well)
+        g.setColour (panelDarkSlot);
         g.fillEllipse (x - radius, y - radius, radius * 2.0f, radius * 2.0f);
 
         // Border ring
         g.setColour (col);
-        g.drawEllipse (x - radius, y - radius, radius * 2.0f, radius * 2.0f, isActive ? 2.0f : 1.5f);
+        g.drawEllipse (x - radius, y - radius, radius * 2.0f, radius * 2.0f, isActive ? 2.2f : 1.6f);
 
         // Bright white center jewel dot
         g.setColour (juce::Colour (0xffffffff));
-        float innerR = isActive ? 2.5f : 2.0f;
+        float innerR = isActive ? 2.6f : 2.0f;
         g.fillEllipse (x - innerR, y - innerR, innerR * 2.0f, innerR * 2.0f);
     }
 
     void drawHeaderAndReadouts (juce::Graphics& g, juce::Rectangle<float> bounds)
     {
-        // Glowing cyan micro-pip & modern header
-        float pipX = bounds.getX() + 10.0f;
-        float pipY = bounds.getY() + 11.5f;
+        using namespace ProVerbTokens::Colors;
 
-        g.setColour (juce::Colour (0x4400f0ff));
-        g.fillEllipse (pipX - 2.5f, pipY - 2.5f, 7.0f, 7.0f);
-        g.setColour (juce::Colour (0xff00f0ff));
-        g.fillEllipse (pipX - 1.0f, pipY - 1.0f, 4.0f, 4.0f);
+        // Glowing cyan accent pipe `|`
+        float pipeX = bounds.getX() + 12.0f;
+        float pipeY = bounds.getY() + 8.0f;
 
-        g.setFont (juce::FontOptions (9.0f, juce::Font::bold));
-        g.setColour (juce::Colour (0xffcbd5e1));
-        g.drawText ("REVERB EQ / ACOUSTIC SPECTRUM", (int) bounds.getX() + 20, (int) bounds.getY() + 4, 240, 15, juce::Justification::centredLeft);
+        g.setColour (neonCyan);
+        g.fillRect (pipeX, pipeY, 2.0f, 11.0f);
+
+        g.setFont (ProVerbTokens::Typography::makeTitleFont (9.5f));
+        g.setColour (textPrimary);
+        g.drawText ("REVERB EQ / ACOUSTIC SPECTRUM", (int) pipeX + 8, (int) bounds.getY() + 6, 260, 16, juce::Justification::centredLeft);
 
         // Right side: Active Node Readout & Controls matching mockup
         float curF = (selectedNode == 0) ? nodeLowCut : (selectedNode == 1) ? nodeLowShelfFreq : (selectedNode == 2) ? nodeMidFreq : (selectedNode == 3) ? nodeHighShelfFreq : nodeHighCut;
@@ -546,30 +551,30 @@ private:
                              + "   |   GAIN: " + (curG >= 0.0f ? "+" : "") + juce::String (curG, 1) + " dB"
                              + "   |   Q: " + juce::String (curQ, 2);
 
-        g.setFont (juce::FontOptions (8.5f, juce::Font::bold));
-        g.setColour (juce::Colour (0xff94a3b8));
-        g.drawText (readout, (int) bounds.getRight() - 360, (int) bounds.getY() + 4, 250, 15, juce::Justification::right);
+        g.setFont (ProVerbTokens::Typography::makeLabelFont (9.0f, true));
+        g.setColour (textSecondary);
+        g.drawText (readout, (int) bounds.getRight() - 380, (int) bounds.getY() + 6, 260, 16, juce::Justification::right);
 
         // Curve icon pill [ ~ ]
-        float iconX = bounds.getRight() - 95.0f;
-        float iconY = bounds.getY() + 5.0f;
-        auto iconRect = juce::Rectangle<float> (iconX, iconY, 22.0f, 14.0f);
-        g.setColour (juce::Colour (0xff14161f));
-        g.fillRoundedRectangle (iconRect, 2.0f);
-        g.setColour (juce::Colour (0xff282c3c));
-        g.drawRoundedRectangle (iconRect, 2.0f, 0.8f);
-        g.setColour (juce::Colour (0xff38bdf8));
+        float iconX = bounds.getRight() - 105.0f;
+        float iconY = bounds.getY() + 7.0f;
+        auto iconRect = juce::Rectangle<float> (iconX, iconY, 24.0f, 16.0f);
+        g.setColour (panelElevated);
+        g.fillRoundedRectangle (iconRect, 3.0f);
+        g.setColour (border);
+        g.drawRoundedRectangle (iconRect, 3.0f, 0.8f);
+        g.setColour (neonCyan);
         g.drawText ("~", iconRect.toNearestInt(), juce::Justification::centred);
 
         // [ POST v ] Dropdown pill
-        float postX = bounds.getRight() - 65.0f;
-        auto postRect = juce::Rectangle<float> (postX, iconY, 52.0f, 14.0f);
-        g.setColour (juce::Colour (0xff14161f));
-        g.fillRoundedRectangle (postRect, 2.0f);
-        g.setColour (juce::Colour (0xff282c3c));
-        g.drawRoundedRectangle (postRect, 2.0f, 0.8f);
-        g.setFont (juce::FontOptions (8.0f, juce::Font::bold));
-        g.setColour (juce::Colour (0xffcbd5e1));
+        float postX = bounds.getRight() - 72.0f;
+        auto postRect = juce::Rectangle<float> (postX, iconY, 56.0f, 16.0f);
+        g.setColour (panelElevated);
+        g.fillRoundedRectangle (postRect, 3.0f);
+        g.setColour (border);
+        g.drawRoundedRectangle (postRect, 3.0f, 0.8f);
+        g.setFont (ProVerbTokens::Typography::makeLabelFont (8.5f, true));
+        g.setColour (textPrimary);
         g.drawText ("POST v", postRect.toNearestInt(), juce::Justification::centred);
     }
 

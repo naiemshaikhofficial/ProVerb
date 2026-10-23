@@ -2,6 +2,7 @@
 #include "PluginEditor.h"
 #include "Licensing/LicenseClient.h"
 #include <BinaryData.h>
+#include "UI/ProVerbTokens.h"
 
 ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
@@ -40,9 +41,9 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
     midSideButton.setColour (juce::ToggleButton::textColourId, juce::Colour (0xff9e9ea6));
     midSideButton.setColour (juce::ToggleButton::tickColourId, juce::Colour (0xff00f0ff));
 
-    setupKnob (hCutSlider, hCutLabel, "High Cut", " Hz", 14000.0, juce::Colour (0xff38bdf8));
-    setupKnob (lCutSlider, lCutLabel, "Low Cut", " Hz", 80.0, juce::Colour (0xffc084fc));
-    setupKnob (duckSlider, duckLabel, "Duck", " %", 0.0, juce::Colour (0xfffbbf24));
+    setupKnob (hCutSlider, hCutLabel, "High Cut", " Hz", 14000.0, juce::Colour (0xff24d7ff));
+    setupKnob (lCutSlider, lCutLabel, "Low Cut", " Hz", 80.0, juce::Colour (0xff9460ff));
+    setupKnob (duckSlider, duckLabel, "Duck", " %", 0.0, juce::Colour (0xffffb451));
 
     // Module 2: Futuristic Sidechain Ducking Source Selector Button
     addAndMakeVisible (sidechainModeButton);
@@ -83,27 +84,27 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
             });
     };
 
-    // Module 3: Space & Time (Soft Chromatic Accents: Rose Pink, Sky Blue, Mint Teal, Amber Gold)
-    setupKnob (delaySlider, delayLabel, "Pre-Delay", " ms", 20.0, juce::Colour (0xfff472b6));
-    setupKnob (sizeSlider, sizeLabel, "Size", " %", 70.0, juce::Colour (0xff38bdf8));
-    setupKnob (diffSlider, diffLabel, "Diffusion", " %", 75.0, juce::Colour (0xff2dd4bf));
-    setupKnob (shimmerSlider, shimmerLabel, "Shimmer", " %", 0.0, juce::Colour (0xfff59e0b));
+    // Module 3: Space & Time (Soft Chromatic Accents: Magenta, Sky Blue, Cyan, Amber Gold)
+    setupKnob (delaySlider, delayLabel, "Pre-Delay", " ms", 20.0, juce::Colour (0xfff34db7));
+    setupKnob (sizeSlider, sizeLabel, "Size", " %", 70.0, juce::Colour (0xff357dff));
+    setupKnob (diffSlider, diffLabel, "Diffusion", " %", 75.0, juce::Colour (0xff24d7ff));
+    setupKnob (shimmerSlider, shimmerLabel, "Shimmer", " %", 0.0, juce::Colour (0xffffb451));
 
-    // Module 4: Decay & Damping (Soft Chromatic Accents: Cyan, Magenta, Orange)
-    setupKnob (decSlider, decLabel, "Decay Time", " s", 2.8, juce::Colour (0xff38bdf8));
-    setupKnob (dampSlider, dampLabel, "Damping", " %", 45.0, juce::Colour (0xffe879f9));
-    setupKnob (widthSlider, widthLabel, "Stereo Width", " %", 120.0, juce::Colour (0xfffb923c));
+    // Module 4: Decay & Damping (Soft Chromatic Accents: Cyan, Magenta, Amber)
+    setupKnob (decSlider, decLabel, "Decay Time", " s", 2.8, juce::Colour (0xff357dff));
+    setupKnob (dampSlider, dampLabel, "Damping", " %", 45.0, juce::Colour (0xfff34db7));
+    setupKnob (widthSlider, widthLabel, "Stereo Width", " %", 120.0, juce::Colour (0xffffb451));
 
     addAndMakeVisible (freezeButton);
-    freezeButton.setColour (juce::ToggleButton::textColourId, juce::Colour (0xffffffff));
-    freezeButton.setColour (juce::ToggleButton::tickColourId, juce::Colour (0xff38bdf8));
+    freezeButton.setColour (juce::ToggleButton::textColourId, juce::Colour (0xfff2f6fc));
+    freezeButton.setColour (juce::ToggleButton::tickColourId, juce::Colour (0xff24d7ff));
 
-    // Module 5: Console Mixer Faders (Glowing Soft Chromatic: Cyan, Soft Violet, Amber Gold, Mint) & SEP Knob (Violet)
-    setupFader (inGainFader, inGainLabel, "INPUT", 0.0, juce::Colour (0xff38bdf8));
-    setupFader (dryFader, dryLabel, "DRY", 100.0, juce::Colour (0xffe879f9));
-    setupFader (wetFader, wetLabel, "WET", 35.0, juce::Colour (0xfffacc15));
-    setupFader (outGainFader, outGainLabel, "OUTPUT", 0.0, juce::Colour (0xff34d399));
-    setupKnob (sepSlider, sepLabel, "SEP", " %", 100.0, juce::Colour (0xffc084fc));
+    // Module 5: Console Mixer Faders (Cyan, Magenta, Amber, Mint) & SEP Knob (Violet)
+    setupFader (inGainFader, inGainLabel, "INPUT", 0.0, juce::Colour (0xff24d7ff));
+    setupFader (dryFader, dryLabel, "DRY", 100.0, juce::Colour (0xfff34db7));
+    setupFader (wetFader, wetLabel, "WET", 35.0, juce::Colour (0xffffb451));
+    setupFader (outGainFader, outGainLabel, "OUTPUT", 0.0, juce::Colour (0xff35e6b5));
+    setupKnob (sepSlider, sepLabel, "SEP", " %", 100.0, juce::Colour (0xff9460ff));
 
     // Top Bar - Categorized Professional Presets + User .toy Presets
     addAndMakeVisible (presetBox);
@@ -315,9 +316,9 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
     scaleButton.onClick = [this]()
     {
         juce::PopupMenu menu;
-        menu.addItem (1, "100%  (Standard 1120x640)", true, currentScaleFactor == 1.0f);
-        menu.addItem (2, "125%  (Medium 1400x800)", true, currentScaleFactor == 1.25f);
-        menu.addItem (3, "150%  (Large 1680x960)", true, currentScaleFactor == 1.5f);
+        menu.addItem (1, "100%  (Standard 1540x900)", true, currentScaleFactor == 1.0f);
+        menu.addItem (2, "125%  (Large 1925x1125)", true, currentScaleFactor == 1.25f);
+        menu.addItem (3, "75%   (Compact 1155x675)", true, currentScaleFactor == 0.75f);
         juce::Component::SafePointer<ProVerbAudioProcessorEditor> safeThis (this);
         menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&scaleButton),
             [safeThis](int result)
@@ -325,7 +326,7 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
                 if (safeThis == nullptr) return;
                 if (result == 1) safeThis->setGuiScale (1.0f);
                 else if (result == 2) safeThis->setGuiScale (1.25f);
-                else if (result == 3) safeThis->setGuiScale (1.5f);
+                else if (result == 3) safeThis->setGuiScale (0.75f);
             });
     };
 
@@ -419,10 +420,11 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
         hCutSlider.setValue (hz, juce::sendNotificationSync);
     };
 
-    // Expanded Plugin Dimensions for Neoverb-style Centerpiece & Visual EQ
-    setSize (1120, 640);
+    // Expanded Plugin Dimensions for Widescreen Cinematic Reverb Dashboard
+    setSize (ProVerbTokens::Metrics::defaultWindowWidth, ProVerbTokens::Metrics::defaultWindowHeight);
     setResizable (true, true);
-    setResizeLimits (960, 550, 1680, 960);
+    setResizeLimits (ProVerbTokens::Metrics::minWindowWidth, ProVerbTokens::Metrics::minWindowHeight,
+                     ProVerbTokens::Metrics::maxWindowWidth, ProVerbTokens::Metrics::maxWindowHeight);
 
     // If not activated, immediately show mandatory activation dialog on open
     if (! ProducerToy::Licensing::LicenseClient::getInstance().isLicenseValid())
@@ -445,38 +447,38 @@ void ProVerbAudioProcessorEditor::setupKnob (juce::Slider& slider, juce::Label& 
                                              const juce::String& text, const juce::String& suffix, double defaultVal, juce::Colour accentColour)
 {
     slider.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
-    slider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 68, 16);
+    slider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 72, 18);
     slider.setTextValueSuffix (suffix);
     slider.setColour (juce::Slider::rotarySliderFillColourId, accentColour);
     slider.setColour (juce::Slider::textBoxOutlineColourId, juce::Colour (0x00000000));
-    slider.setColour (juce::Slider::textBoxTextColourId, juce::Colour (0xffe2e8f0));
+    slider.setColour (juce::Slider::textBoxTextColourId, ProVerbTokens::Colors::textPrimary);
     slider.setDoubleClickReturnValue (true, defaultVal);
     slider.addMouseListener (&contextMenuHelper, false);
     addAndMakeVisible (slider);
 
     label.setText (text, juce::dontSendNotification);
     label.setJustificationType (juce::Justification::centred);
-    label.setFont (juce::FontOptions (9.5f, juce::Font::bold));
-    label.setColour (juce::Label::textColourId, juce::Colour (0xff8a90a2));
+    label.setFont (ProVerbTokens::Typography::makeLabelFont (10.0f, true));
+    label.setColour (juce::Label::textColourId, ProVerbTokens::Colors::textSecondary);
     addAndMakeVisible (label);
 }
 
 void ProVerbAudioProcessorEditor::setupFader (juce::Slider& slider, juce::Label& label, const juce::String& text, double defaultVal, juce::Colour faderColour)
 {
     slider.setSliderStyle (juce::Slider::LinearVertical);
-    slider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 52, 16);
+    slider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 56, 18);
     slider.setColour (juce::Slider::thumbColourId, faderColour);
-    slider.setColour (juce::Slider::textBoxOutlineColourId, juce::Colour (0x18ffffff));
-    slider.setColour (juce::Slider::textBoxBackgroundColourId, juce::Colour (0xff0e0f14));
-    slider.setColour (juce::Slider::textBoxTextColourId, juce::Colour (0xffe2e8f0));
+    slider.setColour (juce::Slider::textBoxOutlineColourId, ProVerbTokens::Colors::border);
+    slider.setColour (juce::Slider::textBoxBackgroundColourId, ProVerbTokens::Colors::panelDarkSlot);
+    slider.setColour (juce::Slider::textBoxTextColourId, ProVerbTokens::Colors::textPrimary);
     slider.setDoubleClickReturnValue (true, defaultVal);
     slider.addMouseListener (&contextMenuHelper, false);
     addAndMakeVisible (slider);
 
     label.setText (text, juce::dontSendNotification);
     label.setJustificationType (juce::Justification::centred);
-    label.setFont (juce::FontOptions (9.5f, juce::Font::bold));
-    label.setColour (juce::Label::textColourId, juce::Colour (0xff8a90a2));
+    label.setFont (ProVerbTokens::Typography::makeLabelFont (9.5f, true));
+    label.setColour (juce::Label::textColourId, ProVerbTokens::Colors::textSecondary);
     addAndMakeVisible (label);
 }
 
@@ -597,72 +599,65 @@ void ProVerbAudioProcessorEditor::timerCallback()
 
 void ProVerbAudioProcessorEditor::paint (juce::Graphics& g)
 {
-    // 1. Futuristic Deep OLED Black Canvas
-    g.fillAll (juce::Colour (0xff08090c));
+    using namespace ProVerbTokens::Colors;
 
-    // Outer Precision Cyber Rim
-    g.setColour (juce::Colour (0xff1c1f2b));
+    // 1. Deep Blue-Black Canvas (#070B12)
+    g.fillAll (backgroundMain);
+
+    // Outer Precision Border
+    g.setColour (border);
     g.drawRect (getLocalBounds(), 1);
 
-    // 2. Futuristic Top Header Bar
-    auto headerBounds = getLocalBounds().removeFromTop (52);
-    g.setColour (juce::Colour (0xff0a0b0f));
+    // 2. Header Bar (#080D16, 56px height)
+    auto headerBounds = getLocalBounds().removeFromTop (56);
+    g.setColour (headerBackground);
     g.fillRect (headerBounds);
 
-    // Sleek hairline cyber divider with subtle cyan glow on left
-    g.setColour (juce::Colour (0xff1c1f2b));
-    g.drawHorizontalLine (52, 0.0f, (float) getWidth());
-    juce::ColourGradient headerLineGrad (juce::Colour (0x5500f0ff), 0.0f, 52.0f,
-                                         juce::Colour (0x0000f0ff), (float) getWidth() * 0.4f, 52.0f, false);
+    // Hairline divider with subtle cyan glow on left
+    g.setColour (border);
+    g.drawHorizontalLine (56, 0.0f, (float) getWidth());
+    juce::ColourGradient headerLineGrad (neonCyan.withAlpha (0.45f), 0.0f, 56.0f,
+                                         neonCyan.withAlpha (0.0f), (float) getWidth() * 0.4f, 56.0f, false);
     g.setGradientFill (headerLineGrad);
-    g.drawHorizontalLine (52, 0.0f, (float) getWidth() * 0.4f);
+    g.drawHorizontalLine (56, 0.0f, (float) getWidth() * 0.4f);
 
-    // Enable Studio High-Quality Resampling for razor-sharp, vector-grade logo rendering
-    g.setImageResamplingQuality (juce::Graphics::highResamplingQuality);
+    // 3. Typographic Wordmark: "Pro" in white, "Verb" in violet/cyan gradient, "by PRODUCERTOY" & Logo
+    float brandX = 20.0f;
+    float brandY = 12.0f;
+    g.setFont (juce::FontOptions ("Segoe UI", 24.0f, juce::Font::bold));
+    const float proW = 42.0f;
+    g.setColour (textPrimary);
+    g.drawText ("Pro", (int) brandX, (int) brandY, (int) proW, 32, juce::Justification::centredLeft);
 
-    // Main Logo: Official Bold ProVerb Wordmark
-    if (proverbLogoCached.isValid())
-    {
-        g.drawImage (proverbLogoCached, proverbLogoBounds.toFloat(),
-                     juce::RectanglePlacement (juce::RectanglePlacement::xLeft | juce::RectanglePlacement::yMid | juce::RectanglePlacement::onlyReduceInSize));
-    }
-    else if (proverbLogoImage.isValid())
-    {
-        g.drawImageWithin (proverbLogoImage, proverbLogoBounds.getX(), proverbLogoBounds.getY(),
-                           proverbLogoBounds.getWidth(), proverbLogoBounds.getHeight(),
-                           juce::RectanglePlacement (juce::RectanglePlacement::xLeft | juce::RectanglePlacement::yMid | juce::RectanglePlacement::onlyReduceInSize));
-    }
-    else
-    {
-        g.setFont (juce::FontOptions (17.0f, juce::Font::bold));
-        g.setColour (juce::Colour (0xffffffff));
-        g.drawText ("PROVERB", 14, 0, 130, 52, juce::Justification::centredLeft);
-    }
+    float verbX = brandX + proW;
+    const float verbW = 58.0f;
+    juce::ColourGradient verbGrad (neonViolet, verbX, brandY,
+                                   neonCyan, verbX + verbW, brandY, false);
+    g.setGradientFill (verbGrad);
+    g.drawText ("Verb", (int) verbX, (int) brandY, (int) verbW, 32, juce::Justification::centredLeft);
 
-    // Elegant Divider (Subtle Cyber Line)
-    g.setColour (juce::Colour (0xff252936));
-    g.drawVerticalLine (headerDividerX, 16.0f, 36.0f);
+    float byX = verbX + verbW + 12.0f;
+    g.setFont (juce::Font (juce::FontOptions ("Segoe UI", 9.5f, juce::Font::bold)));
+    g.setColour (textSecondary);
+    g.drawText ("by PRODUCERTOY", (int) byX, (int) brandY + 4, 120, 24, juce::Justification::centredLeft);
 
-    // Secondary Brand: ProducerToy Badge
-    if (ptLogoCached.isValid())
+    if (logoImage.isValid())
     {
-        g.drawImage (ptLogoCached, ptLogoBounds.toFloat(),
-                     juce::RectanglePlacement (juce::RectanglePlacement::xLeft | juce::RectanglePlacement::yMid | juce::RectanglePlacement::onlyReduceInSize));
-    }
-    else if (logoImage.isValid())
-    {
-        g.drawImageWithin (logoImage, ptLogoBounds.getX(), ptLogoBounds.getY(),
-                           ptLogoBounds.getWidth(), ptLogoBounds.getHeight(),
+        int ptX = (int) (byX + 116.0f);
+        int ptY = (int) (brandY + 5.0f);
+        int ptH = 22;
+        int ptW = (int) std::round (ptH * ((float) logoImage.getWidth() / (float) logoImage.getHeight()));
+        g.drawImageWithin (logoImage, ptX, ptY, ptW, ptH,
                            juce::RectanglePlacement (juce::RectanglePlacement::xLeft | juce::RectanglePlacement::yMid | juce::RectanglePlacement::onlyReduceInSize));
     }
 
-    // 4. Middle Workspace Modular Cards (Futuristic Minimalist Obsidian Panels)
-    int eqH = juce::jlimit (135, 210, (int) (getHeight() * 0.28f));
-    const int cardTopY = 56;
-    const int cardBottomY = getHeight() - eqH - 6;
+    // 4. Middle Workspace Modular Cards (Dark Graphite & Navy Panels)
+    int eqH = juce::jlimit (170, 250, (int) (getHeight() * 0.28f));
+    const int cardTopY = 62;
+    const int cardBottomY = getHeight() - eqH - 8;
     const int cardH = cardBottomY - cardTopY;
 
-    float col1W = (float) getWidth() * 0.14f;
+    float col1W = (float) getWidth() * 0.15f;
     float col2W = (float) getWidth() * 0.15f;
     float col3W = (float) getWidth() * 0.38f;
     float col4W = (float) getWidth() * 0.15f;
@@ -672,128 +667,125 @@ void ProVerbAudioProcessorEditor::paint (juce::Graphics& g)
     float x3 = x2 + col3W;
     float x4 = x3 + col4W;
 
-    // Helper to draw modular futuristic cards
     auto drawModuleCard = [&](float cx, float cw, const char* title)
     {
-        auto cardRect = juce::Rectangle<float> (cx + 3.0f, (float) cardTopY, cw - 6.0f, (float) cardH);
+        auto cardRect = juce::Rectangle<float> (cx + 4.0f, (float) cardTopY, cw - 8.0f, (float) cardH);
 
-        // 1. Pure Obsidian Charcoal Background (NO BLUE TINT)
-        juce::ColourGradient cardGrad (juce::Colour (0xff12141a), cx, (float) cardTopY,
-                                       juce::Colour (0xff0a0b0e), cx, (float) (cardTopY + cardH), false);
+        // Elevated Graphite/Navy Background Gradient
+        juce::ColourGradient cardGrad (panelElevated, cx, (float) cardTopY,
+                                       panelBackground, cx, (float) (cardTopY + cardH), false);
         g.setGradientFill (cardGrad);
-        g.fillRoundedRectangle (cardRect, 7.0f);
+        g.fillRoundedRectangle (cardRect, ProVerbTokens::Metrics::panelCornerRadius);
 
-        // 2. Razor-Thin Obsidian Border
-        g.setColour (juce::Colour (0xff20232d));
-        g.drawRoundedRectangle (cardRect, 7.0f, 1.0f);
+        // Fine cool-gray border #243246
+        g.setColour (border);
+        g.drawRoundedRectangle (cardRect, ProVerbTokens::Metrics::panelCornerRadius, 1.0f);
 
-        // 3. Subtle Top Edge Highlight
-        g.setColour (juce::Colour (0x12ffffff));
-        g.drawHorizontalLine ((int) cardRect.getY() + 1, cardRect.getX() + 6.0f, cardRect.getRight() - 6.0f);
+        // Subtle Top Edge Highlight
+        g.setColour (borderHighlight);
+        g.drawHorizontalLine ((int) cardRect.getY() + 1, cardRect.getX() + 10.0f, cardRect.getRight() - 10.0f);
 
         if (title != nullptr && title[0] != '\0')
         {
-            // 4. Futuristic Minimalist Title Header
-            float titleY = cardRect.getY() + 6.0f;
-            float titleH = 16.0f;
+            float titleY = cardRect.getY() + 8.0f;
+            float titleH = 18.0f;
 
-            // Clean Vertical Cyan Bar '|' (replaces dot, NO horizontal divider line)
-            g.setColour (juce::Colour (0xff00f0ff));
-            g.fillRect (cardRect.getX() + 10.0f, titleY + 3.0f, 2.0f, 10.0f);
+            // Vertical Cyan Bar '|'
+            g.setColour (neonCyan);
+            g.fillRect (cardRect.getX() + 12.0f, titleY + 3.0f, 2.5f, 11.0f);
 
-            // Title Text — Crisp modern typography
-            float titleFontSize = (cw < 150.0f) ? 8.5f : 9.0f;
-            g.setFont (juce::FontOptions ("Segoe UI", titleFontSize, juce::Font::bold));
-            g.setColour (juce::Colour (0xffcbd5e1));
-            auto titleBounds = juce::Rectangle<float> (cardRect.getX() + 16.0f, titleY, cardRect.getWidth() - 22.0f, titleH);
+            // Title Text
+            g.setFont (ProVerbTokens::Typography::makeTitleFont (10.0f));
+            g.setColour (textPrimary);
+            auto titleBounds = juce::Rectangle<float> (cardRect.getX() + 18.0f, titleY, cardRect.getWidth() - 24.0f, titleH);
             g.drawText (title, titleBounds.toNearestInt(), juce::Justification::centredLeft, true);
         }
     };
 
     drawModuleCard (0.0f, col1W, "ROUTING & FILTERS");
     drawModuleCard (x1, col2W, "SPACE & TIME");
-    drawModuleCard (x2, col3W, "ACOUSTIC SPACE");
+    // Notice: ACOUSTIC SPACE draws its own integrated panel chassis, header & 3D/2D switch
     drawModuleCard (x3, col4W, "DECAY & DAMP");
     drawModuleCard (x4, (float) getWidth() - x4, "CONSOLE MIXER");
+
+    // Real-Time Audio Level Meters flanking the Input and Output tracks in Console Mixer
+    if (inGainFader.isVisible() && inGainFader.getHeight() > 20)
+    {
+        float inRms = juce::jlimit (0.0f, 1.0f, audioProcessor.getRmsInput() * 1.8f);
+        float outRms = juce::jlimit (0.0f, 1.0f, audioProcessor.getRmsOutput() * 1.8f);
+
+        int trackTopY = inGainFader.getY() + 6;
+        int trackH = inGainFader.getHeight() - 22;
+
+        // Input Meter (Cyan #24D7FF)
+        float meterInX = (float) inGainFader.getX() + 3.0f;
+        g.setColour (juce::Colour (0xff060a10));
+        g.fillRoundedRectangle (meterInX, (float) trackTopY, 2.5f, (float) trackH, 1.0f);
+
+        if (inRms > 0.005f)
+        {
+            float barH = inRms * (float) trackH;
+            g.setColour (neonCyan);
+            g.fillRoundedRectangle (meterInX, (float) (trackTopY + trackH) - barH, 2.5f, barH, 1.0f);
+        }
+
+        // Output Meter (Mint Green #35E6B5)
+        float meterOutX = (float) outGainFader.getRight() - 5.5f;
+        g.setColour (juce::Colour (0xff060a10));
+        g.fillRoundedRectangle (meterOutX, (float) trackTopY, 2.5f, (float) trackH, 1.0f);
+
+        if (outRms > 0.005f)
+        {
+            float barH = outRms * (float) trackH;
+            g.setColour (neonMint);
+            g.fillRoundedRectangle (meterOutX, (float) (trackTopY + trackH) - barH, 2.5f, barH, 1.0f);
+        }
+    }
 }
 
 void ProVerbAudioProcessorEditor::resized()
 {
     auto area = getLocalBounds();
 
-    // Top Header (52px)
-    auto headerArea = area.removeFromTop (52);
+    // Top Header (56px)
+    auto headerArea = area.removeFromTop (56);
 
-    // Header logos - calculate exact pixel bounds and generate high-DPI supersampled cache
-    const int logoH = 34;
-    int logoW = 132;
-    if (proverbLogoImage.isValid() && proverbLogoImage.getHeight() > 0)
-        logoW = (int) std::round (logoH * ((float) proverbLogoImage.getWidth() / (float) proverbLogoImage.getHeight()));
-
-    proverbLogoBounds = juce::Rectangle<int> (14, 9, logoW, logoH);
-    headerDividerX = proverbLogoBounds.getRight() + 10;
-
-    const int ptLogoH = 26;
-    int ptLogoW = 76;
-    if (logoImage.isValid() && logoImage.getHeight() > 0)
-        ptLogoW = (int) std::round (ptLogoH * ((float) logoImage.getWidth() / (float) logoImage.getHeight()));
-
-    ptLogoBounds = juce::Rectangle<int> (headerDividerX + 10, 13, ptLogoW, ptLogoH);
-
-    // Pre-downscale to 2x using high-quality bicubic resampling for razor-sharp Retina/4K clarity
-    if (proverbLogoImage.isValid())
-    {
-        int targetW = logoW * 2;
-        int targetH = logoH * 2;
-        if (! proverbLogoCached.isValid() || proverbLogoCached.getWidth() != targetW || proverbLogoCached.getHeight() != targetH)
-            proverbLogoCached = proverbLogoImage.rescaled (targetW, targetH, juce::Graphics::highResamplingQuality);
-    }
-
-    if (logoImage.isValid())
-    {
-        int targetW = ptLogoW * 2;
-        int targetH = ptLogoH * 2;
-        if (! ptLogoCached.isValid() || ptLogoCached.getWidth() != targetW || ptLogoCached.getHeight() != targetH)
-            ptLogoCached = logoImage.rescaled (targetW, targetH, juce::Graphics::highResamplingQuality);
-    }
-
-    // Right Side: Top Bar Controls (Matching Reference Layout: Menu, Settings, Bypass, A/B)
-    const int rightMargin = 14;
+    // Right Side: Top Bar Controls (Menu, Settings, Bypass, A/B)
+    const int rightMargin = 16;
     const int headerGap = 8;
-    const int headerY = 11;
-    const int ctrlH = 30;
+    const int headerY = 12;
+    const int ctrlH = 32;
 
     int curX = headerArea.getRight() - rightMargin;
 
     // 1. Menu (☰) Button
-    const int menuW = 30;
+    const int menuW = 32;
     curX -= menuW;
     menuButton.setBounds (curX, headerY, menuW, ctrlH);
     curX -= headerGap;
 
     // 2. Settings (⚙) Button
-    const int setW = 30;
+    const int setW = 32;
     curX -= setW;
     settingsButton.setBounds (curX, headerY, setW, ctrlH);
     curX -= headerGap;
 
     // 3. Bypass Button (Capsule Pill)
-    const int bypassW = 76;
+    const int bypassW = 84;
     curX -= bypassW;
     bypassButton.setBounds (curX, headerY, bypassW, ctrlH);
     curX -= headerGap + 2;
 
     // 4. A / B Capsule Toggle Button
-    const int abW = 54;
+    const int abW = 60;
     curX -= abW;
     abButton.setBounds (curX, headerY, abW, ctrlH);
-    curX -= headerGap + 8;
+    curX -= headerGap + 12;
 
-    // Top Bar Center: [ ✦ Reverb Assistant ]  [ < ]  [ Preset ComboBox ... ▼ ]  [ > ]  [ ♡ ]  [ UNDO ]
-    // Eliminates all dead empty space and distributes available width to the preset selector and heart button
-    const int leftBrandRight = ptLogoBounds.getRight();
+    // Top Bar Center: [ ✦ Reverb Assistant ]  [ < ]  [ Preset Selector ... ▼ ]  [ ♡ ]  [ > ]
+    const int leftBrandRight = 240;
     const int assistantX = leftBrandRight + 16;
-    const int assistantW = 152;
+    const int assistantW = 148;
     reverbAssistantBtn.setBounds (assistantX, headerY, assistantW, ctrlH);
 
     const int undoW = undoAutoLearnButton.isVisible() ? 56 : 0;
@@ -804,39 +796,39 @@ void ProVerbAudioProcessorEditor::resized()
         undoAutoLearnButton.setBounds (curX - undoW, headerY, undoW, ctrlH);
     }
 
-    const int presetStartX = assistantX + assistantW + gap + 2;
+    const int presetStartX = assistantX + assistantW + gap + 4;
     const int presetEndX = (undoW > 0) ? (curX - undoW - gap) : curX;
 
-    const int navBtnW = 28;
+    const int navBtnW = 30;
     const int heartBtnW = 36;
-    const int heartGap = 8;
+    const int heartGap = 6;
     const int navGap = 4;
 
     int pX = presetStartX;
     prevPresetBtn.setBounds (pX, headerY, navBtnW, ctrlH);
     pX += navBtnW + navGap;
 
-    const int heartX = presetEndX - heartBtnW;
-    heartPresetBtn.setBounds (heartX, headerY, heartBtnW, ctrlH);
-
-    const int nextX = heartX - heartGap - navBtnW;
+    const int nextX = presetEndX - navBtnW;
     nextPresetBtn.setBounds (nextX, headerY, navBtnW, ctrlH);
 
-    const int boxW = std::max (140, nextX - navGap - pX);
+    const int heartX = nextX - navGap - heartBtnW;
+    heartPresetBtn.setBounds (heartX, headerY, heartBtnW, ctrlH);
+
+    const int boxW = std::max (140, heartX - heartGap - pX);
     auto pBoxBounds = juce::Rectangle<int> (pX, headerY, boxW, ctrlH);
     presetBox.setBounds (pBoxBounds);
     searchBox.setBounds (pBoxBounds);
 
-    // Bottom Reverb EQ & Spectrum Module — dynamically scales with window height
-    int eqH = juce::jlimit (135, 210, (int) (getHeight() * 0.28f));
+    // Bottom Reverb EQ & Spectrum Module
+    int eqH = juce::jlimit (170, 250, (int) (getHeight() * 0.28f));
     auto eqArea = area.removeFromBottom (eqH).reduced (8, 4);
     modernEQ.setBounds (eqArea);
 
-    // 5 Middle Workspace Columns (ACOUSTIC SPACE as the dominant center centerpiece)
+    // 5 Middle Workspace Columns (ACOUSTIC SPACE as dominant center)
     int totalW = getWidth();
-    int col1W = (int) (totalW * 0.14f); // Filters (H.CUT, L.CUT, DUCK, MID/SIDE)
+    int col1W = (int) (totalW * 0.15f); // Filters (H.CUT, L.CUT, DUCK, MID/SIDE)
     int col2W = (int) (totalW * 0.15f); // Space & Time (DELAY, SIZE, DIFF, SHIMMER)
-    int col3W = (int) (totalW * 0.38f); // Center Acoustic Space Visualizer (DOMINANT / LARGEST PANEL)
+    int col3W = (int) (totalW * 0.38f); // Center Acoustic Space (DOMINANT / LARGEST)
     int col4W = (int) (totalW * 0.15f); // Decay & Damping (DEC, DAMP, WIDTH)
     int col5W = totalW - (col1W + col2W + col3W + col4W); // Console Mixer
     juce::ignoreUnused (col5W);
@@ -847,31 +839,32 @@ void ProVerbAudioProcessorEditor::resized()
     auto m4Area = area.removeFromLeft (col4W);
     auto m5Area = area;
 
-    // Card dimensions matching paint()
-    const int cardTopY = 56;
-    const int cardBottomY = getHeight() - eqH - 6;
-    const int contentTopY = cardTopY + 28;
-    const int contentBottomY = cardBottomY - 6;
+    const int cardTopY = 62;
+    const int cardBottomY = getHeight() - eqH - 8;
+    const int cardH = cardBottomY - cardTopY;
+    const int contentTopY = cardTopY + 32;
+    const int contentBottomY = cardBottomY - 8;
     const int availableH = contentBottomY - contentTopY;
 
-    // Module 1 (Left 1): Segmented MID / SIDE Toggle & Horizontal Filters (High Cut, Low Cut, Duck)
-    int m1BtnH = 26;
-    midSideButton.setBounds (m1Area.getX() + 8, contentTopY, m1Area.getWidth() - 16, m1BtnH);
+    // Module 1 (ROUTING & FILTERS):
+    int m1BtnH = 28;
+    midSideButton.setBounds (m1Area.getX() + 12, contentTopY, m1Area.getWidth() - 24, m1BtnH);
 
-    int m1KnobsStart = contentTopY + m1BtnH + 6;
+    int m1KnobsStart = contentTopY + m1BtnH + 10;
     int m1KnobsHeight = contentBottomY - m1KnobsStart;
     int m1SlotH = m1KnobsHeight / 3;
 
-    // Horizontal Row Layout: Circular Knob on left, Label & Value on right
     auto layoutM1Row = [&](int index, juce::Label& lbl, juce::Slider& sld, const juce::String& title)
     {
         int slotY = m1KnobsStart + index * m1SlotH;
-        sld.setTextBoxStyle (juce::Slider::TextBoxRight, false, 56, 18);
-        sld.setBounds (m1Area.getX() + 6, slotY + 2, m1Area.getWidth() - 12, m1SlotH - 6);
+        int rowH = m1SlotH - 8;
+        
+        sld.setTextBoxStyle (juce::Slider::TextBoxRight, false, 64, 18);
+        sld.setBounds (m1Area.getX() + 10, slotY + 2, m1Area.getWidth() - 20, rowH);
         
         lbl.setText (title, juce::dontSendNotification);
         lbl.setJustificationType (juce::Justification::centredLeft);
-        lbl.setBounds (m1Area.getX() + m1Area.getWidth() - 66, slotY + 4, 62, 14);
+        lbl.setBounds (m1Area.getX() + m1Area.getWidth() - 76, slotY + 4, 70, 16);
     };
 
     layoutM1Row (0, hCutLabel, hCutSlider, "High Cut");
@@ -879,15 +872,15 @@ void ProVerbAudioProcessorEditor::resized()
     layoutM1Row (2, duckLabel, duckSlider, "Duck");
 
     int y1_3 = m1KnobsStart + m1SlotH * 2;
-    sidechainModeButton.setBounds (juce::Rectangle<int> (m1Area.getX() + m1Area.getWidth() - 70, y1_3 + m1SlotH - 18, 64, 15));
+    sidechainModeButton.setBounds (m1Area.getX() + m1Area.getWidth() - 78, y1_3 + m1SlotH - 22, 72, 18);
 
-    // Module 2 (Left 2): Space & Time (DELAY, SIZE, DIFF, SHIMMER)
+    // Module 2 (SPACE & TIME):
     int m2KnobsHeight = contentBottomY - contentTopY;
     int m2SlotH = m2KnobsHeight / 4;
-    int m2LabelH = 12;
-    int m2KnobDiam = juce::jlimit (24, 44, juce::jmin (m2Area.getWidth() - 16, m2SlotH - m2LabelH - 14));
-    int m2SliderH = m2KnobDiam + 14;
-    int m2SliderW = juce::jmin (m2Area.getWidth() - 10, juce::jmax (68, m2KnobDiam + 24));
+    int m2LabelH = 14;
+    int m2KnobDiam = juce::jlimit (30, 52, juce::jmin (m2Area.getWidth() - 20, m2SlotH - m2LabelH - 18));
+    int m2SliderH = m2KnobDiam + 18;
+    int m2SliderW = juce::jmin (m2Area.getWidth() - 10, juce::jmax (72, m2KnobDiam + 28));
 
     auto layoutM2Knob = [&](int index, juce::Label& lbl, juce::Slider& sld)
     {
@@ -903,79 +896,65 @@ void ProVerbAudioProcessorEditor::resized()
     layoutM2Knob (2, diffLabel, diffSlider);
     layoutM2Knob (3, shimmerLabel, shimmerSlider);
 
-    // Module 3 (Center): Centerpiece 3D Acoustic Aura Prism
-    visualizer.setBounds (m3Area.getX() + 4, contentTopY, m3Area.getWidth() - 8, availableH);
+    // Module 3: Centerpiece Acoustic Space Prism
+    visualizer.setBounds (m3Area.getX() + 4, cardTopY, m3Area.getWidth() - 8, cardH);
 
-    // Module 4 (Right 1): Decay & Damping (Decay Time, Damping, Stereo Width)
-    int m4SlotH = availableH / 3;
-    int m4LabelH = 13;
-    int m4KnobDiam = juce::jlimit (26, 48, juce::jmin (m4Area.getWidth() - 20, m4SlotH - m4LabelH - 15));
-    int m4SliderH = m4KnobDiam + 15;
-    int m4SliderW = juce::jmin (m4Area.getWidth() - 10, juce::jmax (68, m4KnobDiam + 24));
+    // Module 4 (DECAY & DAMP):
+    int m4SlotH = (availableH - 26) / 3;
+    int m4LabelH = 14;
+    int m4KnobDiam = juce::jlimit (32, 54, juce::jmin (m4Area.getWidth() - 20, m4SlotH - m4LabelH - 18));
+    int m4SliderH = m4KnobDiam + 18;
+    int m4SliderW = juce::jmin (m4Area.getWidth() - 10, juce::jmax (72, m4KnobDiam + 28));
 
-    // Item 1: DEC (Decay Time)
-    int y4_1 = contentTopY;
-    int pad4_1 = (m4SlotH - (m4LabelH + m4SliderH)) / 2;
-    decLabel.setBounds (m4Area.getX(), y4_1 + pad4_1, m4Area.getWidth(), m4LabelH);
-    decSlider.setBounds (juce::Rectangle<int> (m4Area.getX(), y4_1 + pad4_1 + m4LabelH, m4Area.getWidth(), m4SliderH)
-                            .withSizeKeepingCentre (m4SliderW, m4SliderH));
+    auto layoutM4Knob = [&](int index, juce::Label& lbl, juce::Slider& sld)
+    {
+        int slotY = contentTopY + index * m4SlotH;
+        int pad = (m4SlotH - (m4LabelH + m4SliderH)) / 2;
+        lbl.setBounds (m4Area.getX(), slotY + pad, m4Area.getWidth(), m4LabelH);
+        sld.setBounds (juce::Rectangle<int> (m4Area.getX(), slotY + pad + m4LabelH, m4Area.getWidth(), m4SliderH)
+                           .withSizeKeepingCentre (m4SliderW, m4SliderH));
+    };
 
-    // Item 2: DAMP (High Damping)
-    int y4_2 = contentTopY + m4SlotH;
-    int pad4_2 = (m4SlotH - (m4LabelH + m4SliderH)) / 2;
-    dampLabel.setBounds (m4Area.getX(), y4_2 + pad4_2, m4Area.getWidth(), m4LabelH);
-    dampSlider.setBounds (juce::Rectangle<int> (m4Area.getX(), y4_2 + pad4_2 + m4LabelH, m4Area.getWidth(), m4SliderH)
-                             .withSizeKeepingCentre (m4SliderW, m4SliderH));
+    layoutM4Knob (0, decLabel, decSlider);
+    layoutM4Knob (1, dampLabel, dampSlider);
+    layoutM4Knob (2, widthLabel, widthSlider);
 
-    // Item 3: WIDTH (Stereo Width)
-    int y4_3 = contentTopY + m4SlotH * 2;
-    int pad4_3 = (m4SlotH - (m4LabelH + m4SliderH)) / 2;
-    widthLabel.setBounds (m4Area.getX(), y4_3 + pad4_3, m4Area.getWidth(), m4LabelH);
-    widthSlider.setBounds (juce::Rectangle<int> (m4Area.getX(), y4_3 + pad4_3 + m4LabelH, m4Area.getWidth(), m4SliderH)
-                              .withSizeKeepingCentre (m4SliderW, m4SliderH));
+    freezeButton.setBounds (juce::Rectangle<int> (m4Area.getX(), contentBottomY - 22, m4Area.getWidth(), 20)
+                               .withSizeKeepingCentre (juce::jmin (m4Area.getWidth() - 28, 80), 20));
 
-    // Freeze Button placed cleanly at bottom right
-    freezeButton.setBounds (juce::Rectangle<int> (m4Area.getX(), contentBottomY - 18, m4Area.getWidth(), 16)
-                               .withSizeKeepingCentre (juce::jmin (m4Area.getWidth() - 28, 70), 16));
+    // Module 5 (CONSOLE MIXER):
+    int sepSectionH = juce::jlimit (70, 95, (int) (availableH * 0.30f));
+    int faderSectionH = availableH - sepSectionH - 8;
 
-    // Module 5 (Right 2): Console Mixer Faders (INPUT, DRY, WET, OUTPUT) & SEP Knob
-    int sepSectionH = juce::jlimit (62, 78, (int) (availableH * 0.28f));
-    int faderSectionH = availableH - sepSectionH - 6;
-
-    auto fadersArea = juce::Rectangle<int> (m5Area.getX() + 4, contentTopY + 2, m5Area.getWidth() - 8, faderSectionH);
+    auto fadersArea = juce::Rectangle<int> (m5Area.getX() + 8, contentTopY + 4, m5Area.getWidth() - 16, faderSectionH);
     int faderColW = fadersArea.getWidth() / 4;
 
     auto inCol = fadersArea.removeFromLeft (faderColW);
-    inGainLabel.setBounds (inCol.removeFromBottom (13));
+    inGainLabel.setBounds (inCol.removeFromBottom (14));
     inCol.removeFromBottom (2);
     inGainFader.setBounds (inCol);
 
     auto dryCol = fadersArea.removeFromLeft (faderColW);
-    dryLabel.setBounds (dryCol.removeFromBottom (13));
+    dryLabel.setBounds (dryCol.removeFromBottom (14));
     dryCol.removeFromBottom (2);
     dryFader.setBounds (dryCol);
 
     auto wetCol = fadersArea.removeFromLeft (faderColW);
-    wetLabel.setBounds (wetCol.removeFromBottom (13));
+    wetLabel.setBounds (wetCol.removeFromBottom (14));
     wetCol.removeFromBottom (2);
     wetFader.setBounds (wetCol);
 
     auto outCol = fadersArea;
-    outGainLabel.setBounds (outCol.removeFromBottom (13));
+    outGainLabel.setBounds (outCol.removeFromBottom (14));
     outCol.removeFromBottom (2);
     outGainFader.setBounds (outCol);
 
     // Bottom SEP Knob
-    int sepY = contentTopY + faderSectionH + 4;
-    int sepLabelH = 12;
-    int sepKnobDiam = juce::jlimit (26, 42, juce::jmin (m5Area.getWidth() - 16, sepSectionH - sepLabelH - 14));
-    int sepSliderH = sepKnobDiam + 14;
-    int sepSliderW = juce::jmin (m5Area.getWidth() - 10, juce::jmax (68, sepKnobDiam + 24));
-    int sepPad = (sepSectionH - (sepLabelH + sepSliderH)) / 2;
-
-    sepLabel.setBounds (m5Area.getX(), sepY + sepPad, m5Area.getWidth(), sepLabelH);
-    sepSlider.setBounds (juce::Rectangle<int> (m5Area.getX(), sepY + sepPad + sepLabelH, m5Area.getWidth(), sepSliderH)
-                             .withSizeKeepingCentre (sepSliderW, sepSliderH));
+    int sepY = contentTopY + faderSectionH + 6;
+    int sepRowH = sepSectionH - 4;
+    sepSlider.setTextBoxStyle (juce::Slider::TextBoxRight, false, 60, 18);
+    sepSlider.setBounds (m5Area.getX() + 8, sepY, m5Area.getWidth() - 16, sepRowH);
+    sepLabel.setBounds (m5Area.getX() + m5Area.getWidth() - 66, sepY + 4, 60, 14);
 
     if (licensePanel != nullptr)
         licensePanel->setBounds (getLocalBounds());
@@ -989,7 +968,8 @@ void ProVerbAudioProcessorEditor::setGuiScale (float scale)
     currentScaleFactor = scale;
     setScaleFactor (scale);
     scaleButton.setButtonText (juce::String (static_cast<int> (std::round (scale * 100.0f))) + "%");
-    setSize (static_cast<int> (1120.0f * scale), static_cast<int> (640.0f * scale));
+    setSize (static_cast<int> (ProVerbTokens::Metrics::defaultWindowWidth * scale),
+             static_cast<int> (ProVerbTokens::Metrics::defaultWindowHeight * scale));
 }
 
 void ProVerbAudioProcessorEditor::captureSnapshot (ParameterSnapshot& target)
