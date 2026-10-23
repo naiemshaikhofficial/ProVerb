@@ -630,49 +630,55 @@ void ProVerbAudioProcessorEditor::paint (juce::Graphics& g)
     g.setGradientFill (headerLineGrad);
     g.drawHorizontalLine (56, 0.0f, (float) getWidth() * 0.4f);
 
-    // 3. ProVerb Brand Logo & ProducerToy Identity
+    // 3. ProVerb Brand Logo & ProducerToy Identity (High-Resampling Rendering)
     float brandX = 20.0f;
     float brandY = 12.0f;
     float logoMaxH = 32.0f;
     float logoMaxW = 105.0f;
 
-    if (proverbLogoImage.isValid())
     {
-        float aspect = (float) proverbLogoImage.getWidth() / (float) std::max (1, proverbLogoImage.getHeight());
-        float targetW = std::min (logoMaxW, logoMaxH * aspect);
-        g.drawImageWithin (proverbLogoImage, (int) brandX, (int) brandY, (int) targetW, (int) logoMaxH,
-                           juce::RectanglePlacement (juce::RectanglePlacement::xLeft | juce::RectanglePlacement::yMid | juce::RectanglePlacement::onlyReduceInSize));
-        brandX += targetW + 14.0f;
-    }
-    else
-    {
-        // Typographic fallback if image is missing
-        g.setFont (juce::FontOptions ("Segoe UI", 24.0f, juce::Font::bold));
-        const float proW = 42.0f;
-        g.setColour (textPrimary);
-        g.drawText ("Pro", (int) brandX, (int) brandY, (int) proW, 32, juce::Justification::centredLeft);
+        juce::Graphics::ScopedSaveState state (g);
+        g.setImageResamplingQuality (juce::Graphics::highResamplingQuality);
 
-        float verbX = brandX + proW;
-        const float verbW = 58.0f;
-        juce::ColourGradient verbGrad (neonViolet, verbX, brandY,
-                                       neonCyan, verbX + verbW, brandY, false);
-        g.setGradientFill (verbGrad);
-        g.drawText ("Verb", (int) verbX, (int) brandY, (int) verbW, 32, juce::Justification::centredLeft);
-        brandX = verbX + verbW + 12.0f;
-    }
+        if (proverbLogoImage.isValid())
+        {
+            float aspect = (float) proverbLogoImage.getWidth() / (float) std::max (1, proverbLogoImage.getHeight());
+            float targetW = std::min (logoMaxW, logoMaxH * aspect);
+            g.drawImageWithin (proverbLogoImage, (int) brandX, (int) brandY, (int) targetW, (int) logoMaxH,
+                               juce::RectanglePlacement (juce::RectanglePlacement::xLeft | juce::RectanglePlacement::yMid | juce::RectanglePlacement::onlyReduceInSize));
+            brandX += targetW + 12.0f;
+        }
+        else
+        {
+            // Typographic fallback if image is missing
+            g.setFont (juce::FontOptions ("Segoe UI", 24.0f, juce::Font::bold));
+            const float proW = 42.0f;
+            g.setColour (textPrimary);
+            g.drawText ("Pro", (int) brandX, (int) brandY, (int) proW, 32, juce::Justification::centredLeft);
 
-    g.setFont (juce::Font (juce::FontOptions ("Segoe UI", 9.5f, juce::Font::bold)));
-    g.setColour (textSecondary);
-    g.drawText ("by PRODUCERTOY", (int) brandX, (int) brandY + 4, 110, 24, juce::Justification::centredLeft);
+            float verbX = brandX + proW;
+            const float verbW = 58.0f;
+            juce::ColourGradient verbGrad (neonViolet, verbX, brandY,
+                                           neonCyan, verbX + verbW, brandY, false);
+            g.setGradientFill (verbGrad);
+            g.drawText ("Verb", (int) verbX, (int) brandY, (int) verbW, 32, juce::Justification::centredLeft);
+            brandX = verbX + verbW + 12.0f;
+        }
 
-    if (logoImage.isValid())
-    {
-        int ptX = (int) (brandX + 112.0f);
-        int ptY = (int) (brandY + 5.0f);
-        int ptH = 22;
-        int ptW = (int) std::round (ptH * ((float) logoImage.getWidth() / (float) logoImage.getHeight()));
-        g.drawImageWithin (logoImage, ptX, ptY, ptW, ptH,
-                           juce::RectanglePlacement (juce::RectanglePlacement::xLeft | juce::RectanglePlacement::yMid | juce::RectanglePlacement::onlyReduceInSize));
+        // High Quality ProducerToy Logo (without plain text "by PRODUCERTOY")
+        if (logoImage.isValid())
+        {
+            // Subtle hairline separator
+            g.setColour (juce::Colour (0x2affffff));
+            g.drawVerticalLine ((int) brandX, brandY + 4.0f, brandY + 28.0f);
+            brandX += 12.0f;
+
+            float ptH = 24.0f;
+            float ptAspect = (float) logoImage.getWidth() / (float) std::max (1, logoImage.getHeight());
+            float ptW = ptH * ptAspect;
+            g.drawImageWithin (logoImage, (int) brandX, (int) (brandY + 4.0f), (int) ptW, (int) ptH,
+                               juce::RectanglePlacement (juce::RectanglePlacement::xLeft | juce::RectanglePlacement::yMid | juce::RectanglePlacement::onlyReduceInSize));
+        }
     }
 
     // 4. Middle Workspace Modular Cards (Dark Graphite & Navy Panels)
