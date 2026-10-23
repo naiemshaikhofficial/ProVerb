@@ -432,7 +432,7 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
         showLicensePanel();
     }
 
-    startTimerHz (30);
+    startTimerHz (60);
 }
 
 ProVerbAudioProcessorEditor::~ProVerbAudioProcessorEditor()
@@ -577,19 +577,28 @@ void ProVerbAudioProcessorEditor::timerCallback()
         sidechainModeButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xff14151a));
     }
 
-    visualizer.updateAllParameters (audioProcessor.getRmsInput(),
-                                    audioProcessor.getRmsOutput(),
+    auto prismTelem = audioProcessor.getPrismTelemetry();
+    visualizer.updateAudioTelemetry (prismTelem.inputRms,
+                                    prismTelem.inputPeak,
+                                    prismTelem.outputRms,
+                                    prismTelem.wetRms,
+                                    prismTelem.bassEnergy,
+                                    prismTelem.midEnergy,
+                                    prismTelem.trebleEnergy,
+                                    prismTelem.transientScore,
+                                    prismTelem.phaseCorr,
+                                    prismTelem.duckingDb,
                                     (float) sizeSlider.getValue(),
                                     (float) decSlider.getValue(),
                                     (float) diffSlider.getValue(),
                                     (float) dampSlider.getValue(),
                                     (float) delaySlider.getValue(),
                                     (float) shimmerSlider.getValue(),
-                                    audioProcessor.getStereoPhaseCorrelation(),
                                     (float) lCutSlider.getValue(),
                                     (float) hCutSlider.getValue(),
-                                    (float) duckSlider.getValue());
-    visualizer.advanceAnimation (0.05f);
+                                    (float) duckSlider.getValue(),
+                                    (float) widthSlider.getValue());
+    visualizer.advanceAnimation (0.025f);
 
     modernEQ.updateParameters ((float) lCutSlider.getValue(), (float) hCutSlider.getValue(), audioProcessor.getRmsOutput());
     modernEQ.advanceAnimation (0.05f);
@@ -621,29 +630,44 @@ void ProVerbAudioProcessorEditor::paint (juce::Graphics& g)
     g.setGradientFill (headerLineGrad);
     g.drawHorizontalLine (56, 0.0f, (float) getWidth() * 0.4f);
 
-    // 3. Typographic Wordmark: "Pro" in white, "Verb" in violet/cyan gradient, "by PRODUCERTOY" & Logo
+    // 3. ProVerb Brand Logo & ProducerToy Identity
     float brandX = 20.0f;
     float brandY = 12.0f;
-    g.setFont (juce::FontOptions ("Segoe UI", 24.0f, juce::Font::bold));
-    const float proW = 42.0f;
-    g.setColour (textPrimary);
-    g.drawText ("Pro", (int) brandX, (int) brandY, (int) proW, 32, juce::Justification::centredLeft);
+    float logoMaxH = 32.0f;
+    float logoMaxW = 105.0f;
 
-    float verbX = brandX + proW;
-    const float verbW = 58.0f;
-    juce::ColourGradient verbGrad (neonViolet, verbX, brandY,
-                                   neonCyan, verbX + verbW, brandY, false);
-    g.setGradientFill (verbGrad);
-    g.drawText ("Verb", (int) verbX, (int) brandY, (int) verbW, 32, juce::Justification::centredLeft);
+    if (proverbLogoImage.isValid())
+    {
+        float aspect = (float) proverbLogoImage.getWidth() / (float) std::max (1, proverbLogoImage.getHeight());
+        float targetW = std::min (logoMaxW, logoMaxH * aspect);
+        g.drawImageWithin (proverbLogoImage, (int) brandX, (int) brandY, (int) targetW, (int) logoMaxH,
+                           juce::RectanglePlacement (juce::RectanglePlacement::xLeft | juce::RectanglePlacement::yMid | juce::RectanglePlacement::onlyReduceInSize));
+        brandX += targetW + 14.0f;
+    }
+    else
+    {
+        // Typographic fallback if image is missing
+        g.setFont (juce::FontOptions ("Segoe UI", 24.0f, juce::Font::bold));
+        const float proW = 42.0f;
+        g.setColour (textPrimary);
+        g.drawText ("Pro", (int) brandX, (int) brandY, (int) proW, 32, juce::Justification::centredLeft);
 
-    float byX = verbX + verbW + 12.0f;
+        float verbX = brandX + proW;
+        const float verbW = 58.0f;
+        juce::ColourGradient verbGrad (neonViolet, verbX, brandY,
+                                       neonCyan, verbX + verbW, brandY, false);
+        g.setGradientFill (verbGrad);
+        g.drawText ("Verb", (int) verbX, (int) brandY, (int) verbW, 32, juce::Justification::centredLeft);
+        brandX = verbX + verbW + 12.0f;
+    }
+
     g.setFont (juce::Font (juce::FontOptions ("Segoe UI", 9.5f, juce::Font::bold)));
     g.setColour (textSecondary);
-    g.drawText ("by PRODUCERTOY", (int) byX, (int) brandY + 4, 120, 24, juce::Justification::centredLeft);
+    g.drawText ("by PRODUCERTOY", (int) brandX, (int) brandY + 4, 110, 24, juce::Justification::centredLeft);
 
     if (logoImage.isValid())
     {
-        int ptX = (int) (byX + 116.0f);
+        int ptX = (int) (brandX + 112.0f);
         int ptY = (int) (brandY + 5.0f);
         int ptH = 22;
         int ptW = (int) std::round (ptH * ((float) logoImage.getWidth() / (float) logoImage.getHeight()));

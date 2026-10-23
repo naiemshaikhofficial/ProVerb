@@ -612,6 +612,11 @@ void ProVerbAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     // Refresh audio-safe license state on prepare
     updateLicenseStatus();
 
+    prismLpBass = 0.0f;
+    prismLpMid = 0.0f;
+    prismFastEnv = 0.0f;
+    prismSlowEnv = 0.0f;
+
     // Generous pre-allocation to guarantee zero memory reallocations on the audio thread
     const int bufferCapacity = std::max (samplesPerBlock * 2, 8192);
     dryBuffer.setSize (2, bufferCapacity, false, true, false);
@@ -628,6 +633,10 @@ void ProVerbAudioProcessor::releaseResources()
     analyzerEngine.reset();
     sourceDetector.reset();
     preDelayLine.reset();
+    prismLpBass = 0.0f;
+    prismLpMid = 0.0f;
+    prismFastEnv = 0.0f;
+    prismSlowEnv = 0.0f;
 }
 
 bool ProVerbAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
@@ -1003,6 +1012,63 @@ void ProVerbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     {
         stereoPhaseCorrelation.store (1.0f, std::memory_order_relaxed);
     }
+
+    // Real-Time 3D Audio-Reactive Prism Telemetry Extraction (Zero Allocation, Sub-Microsecond)
+    float blockPeak = 0.0f;
+    float blockBassSum = 0.0f;
+    float blockMidSum = 0.0f;
+    float blockTrebleSum = 0.0f;
+
+    const float* inLPtr = mainInput.getReadPointer (0);
+    const float* inRPtr = mainInChannels > 1 ? mainInput.getReadPointer (1) : inLPtr;
+    const float sRate = (float) getSampleRate();
+    const float dtBass = 1.0f - std::exp (-juce::MathConstants<float>::twoPi * 180.0f / sRate * 4.0f);
+    const float dtMid  = 1.0f - std::exp (-juce::MathConstants<float>::twoPi * 3200.0f / sRate * 4.0f);
+
+    int analyzedSamples = 0;
+    for (int s = 0; s < numSamples; s += 4)
+    {
+        const float monoIn = 0.5f * (std::abs (inLPtr[s]) + std::abs (inRPtr[s]));
+        if (monoIn > blockPeak) blockPeak = monoIn;
+
+        prismLpBass += dtBass * (monoIn - prismLpBass);
+        prismLpMid  += dtMid  * (monoIn - prismLpMid);
+
+        const float bassVal = prismLpBass;
+        const float midVal  = std::abs (prismLpMid - prismLpBass);
+        const float trebVal = std::abs (monoIn - prismLpMid);
+
+        blockBassSum += bassVal;
+        blockMidSum  += midVal;
+        blockTrebleSum += trebVal;
+        analyzedSamples++;
+    }
+
+    if (analyzedSamples > 0)
+    {
+        const float invCount = 1.0f / (float) analyzedSamples;
+        const float curBass = blockBassSum * invCount;
+        const float curMid  = blockMidSum * invCount;
+        const float curTreb = blockTrebleSum * invCount;
+
+        // Dynamic transient onset detector
+        prismFastEnv += 0.35f * (blockPeak - prismFastEnv);
+        prismSlowEnv += 0.04f * (blockPeak - prismSlowEnv);
+        const float transDiff = std::max (0.0f, prismFastEnv - prismSlowEnv * 1.5f);
+        const float transVal = juce::jlimit (0.0f, 1.0f, transDiff * 3.5f);
+
+        prismInputPeak.store (blockPeak, std::memory_order_relaxed);
+        prismBassEnergy.store (curBass, std::memory_order_relaxed);
+        prismMidEnergy.store (curMid, std::memory_order_relaxed);
+        prismTrebleEnergy.store (curTreb, std::memory_order_relaxed);
+        prismTransientScore.store (transVal, std::memory_order_relaxed);
+    }
+
+    // Wet reverb RMS from wetBuffer (reverberant tail energy)
+    float blockWetRms = 0.0f;
+    for (int ch = 0; ch < 2; ++ch)
+        blockWetRms = std::max (blockWetRms, wetBuffer.getRMSLevel (ch, 0, std::min (numSamples, maxChunk)));
+    prismWetRms.store (blockWetRms, std::memory_order_relaxed);
 }
 
 bool ProVerbAudioProcessor::hasEditor() const { return true; }

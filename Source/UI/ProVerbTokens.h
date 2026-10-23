@@ -83,6 +83,11 @@ namespace ProVerbTokens
             return juce::Font (juce::FontOptions ("Segoe UI", size, bold ? juce::Font::bold : juce::Font::plain));
         }
 
+        inline juce::Font makeHeaderFont (float size, bool bold = true)
+        {
+            return juce::Font (juce::FontOptions ("Segoe UI", size, bold ? juce::Font::bold : juce::Font::plain));
+        }
+
         inline juce::Font makeValueFont (float size)
         {
             return juce::Font (juce::FontOptions ("Segoe UI", size, juce::Font::bold));

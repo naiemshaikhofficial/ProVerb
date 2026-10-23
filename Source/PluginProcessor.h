@@ -129,6 +129,37 @@ public:
     float getStereoPhaseCorrelation() const noexcept { return stereoPhaseCorrelation.load (std::memory_order_relaxed); }
     float getDuckingGainReductionDb() const noexcept { return duckingEngine.getGainReductionDb(); }
 
+    // Live 3D Audio-Reactive Prism Telemetry Contract
+    struct PrismTelemetry
+    {
+        float inputRms { 0.0f };
+        float inputPeak { 0.0f };
+        float outputRms { 0.0f };
+        float wetRms { 0.0f };
+        float bassEnergy { 0.0f };
+        float midEnergy { 0.0f };
+        float trebleEnergy { 0.0f };
+        float transientScore { 0.0f };
+        float phaseCorr { 1.0f };
+        float duckingDb { 0.0f };
+    };
+
+    PrismTelemetry getPrismTelemetry() const noexcept
+    {
+        PrismTelemetry t;
+        t.inputRms       = rmsInput.load (std::memory_order_relaxed);
+        t.inputPeak      = prismInputPeak.load (std::memory_order_relaxed);
+        t.outputRms      = rmsOutput.load (std::memory_order_relaxed);
+        t.wetRms         = prismWetRms.load (std::memory_order_relaxed);
+        t.bassEnergy     = prismBassEnergy.load (std::memory_order_relaxed);
+        t.midEnergy      = prismMidEnergy.load (std::memory_order_relaxed);
+        t.trebleEnergy   = prismTrebleEnergy.load (std::memory_order_relaxed);
+        t.transientScore = prismTransientScore.load (std::memory_order_relaxed);
+        t.phaseCorr      = stereoPhaseCorrelation.load (std::memory_order_relaxed);
+        t.duckingDb      = duckingEngine.getGainReductionDb();
+        return t;
+    }
+
     // Fast, zero-allocation license checks for audio and GUI threads
     bool isLicenseValid() const noexcept { return isLicensedAtomic.load (std::memory_order_relaxed); }
     void updateLicenseStatus() noexcept;
@@ -197,6 +228,18 @@ private:
     std::atomic<float> currentSmartSpace { 50.0f };
     std::atomic<float> currentSmartClarity { 50.0f };
     std::atomic<float> stereoPhaseCorrelation { 1.0f };
+
+    // Real-Time 3D Audio-Reactive Prism telemetry atomics & audio-thread filter states
+    std::atomic<float> prismInputPeak { 0.0f };
+    std::atomic<float> prismWetRms { 0.0f };
+    std::atomic<float> prismBassEnergy { 0.0f };
+    std::atomic<float> prismMidEnergy { 0.0f };
+    std::atomic<float> prismTrebleEnergy { 0.0f };
+    std::atomic<float> prismTransientScore { 0.0f };
+    float prismLpBass { 0.0f };
+    float prismLpMid { 0.0f };
+    float prismFastEnv { 0.0f };
+    float prismSlowEnv { 0.0f };
 
     int currentProgram { 0 };
 
