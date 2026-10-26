@@ -46,16 +46,20 @@ public:
             return;
         }
 
-        // Ducking depth: 0% = 0dB, 100% = -24dB max reduction
-        const float maxDuckingDepth = (duckingPercent / 100.0f) * 0.94f;
+        // Maximum ducking depth: 0% = 0dB, 100% = -28dB max reduction
+        const float maxDuckingDb = (duckingPercent / 100.0f) * 28.0f;
+        const float duckRatio = juce::jlimit (0.2f, 1.0f, duckingPercent / 100.0f);
 
         // Ballistics coefficients
-        const float attackCoeff    = static_cast<float> (std::exp (-1.0 / ((attackMs * 0.001) * currentSampleRate)));
-        const float releaseCoeff   = static_cast<float> (std::exp (-1.0 / ((releaseMs * 0.001) * currentSampleRate)));
+        const float attackCoeff    = static_cast<float> (std::exp (-1.0 / (juce::jmax (0.0005, attackMs * 0.001) * currentSampleRate)));
+        const float releaseCoeff   = static_cast<float> (std::exp (-1.0 / (juce::jmax (0.010, releaseMs * 0.001) * currentSampleRate)));
         const float rmsWindowCoeff = static_cast<float> (std::exp (-1.0 / (0.025 * currentSampleRate))); // 25ms RMS window
-        const float slewGain       = static_cast<float> (1.0 - std::exp (-1.0 / (0.008 * currentSampleRate)));
+        const float slewGain       = static_cast<float> (1.0 - std::exp (-1.0 / (0.006 * currentSampleRate)));
 
-        const float thresholdLinear = juce::Decibels::decibelsToGain (thresholdDb);
+        constexpr float kneeHalfDb = 3.0f;
+        const float lowerBoundDb = thresholdDb - kneeHalfDb;
+        const float upperBoundDb = thresholdDb + kneeHalfDb;
+
         float minGainInBlock = 1.0f;
 
         for (int i = 0; i < numSamples; ++i)
@@ -78,17 +82,28 @@ public:
             // 3. True Peak + RMS Hybrid Envelope (50% Peak for transients + 50% RMS for vocal body)
             const float hybridEnvelope = (0.50f * peakEnvelope) + (0.50f * instRms);
 
-            // 4. Soft knee threshold curve
-            float excess = hybridEnvelope - thresholdLinear;
-            float normalizedDry = 0.0f;
-            if (excess > 0.0f)
+            // 4. Logarithmic Decibel Soft-Knee Compression Transfer Function
+            const float envDb = juce::Decibels::gainToDecibels (std::max (1.0e-5f, hybridEnvelope));
+            float targetGrDb = 0.0f;
+
+            if (envDb > lowerBoundDb)
             {
-                // Soft sigmoid ramp up to 1.0
-                const float scaledExcess = excess / (thresholdLinear * 3.0f + 1.0e-4f);
-                normalizedDry = juce::jlimit (0.0f, 1.0f, scaledExcess);
+                if (envDb < upperBoundDb)
+                {
+                    // Soft parabolic knee
+                    const float delta = envDb - lowerBoundDb;
+                    const float excess = (delta * delta) / (4.0f * kneeHalfDb);
+                    targetGrDb = -juce::jmin (maxDuckingDb, excess * duckRatio * 0.85f);
+                }
+                else
+                {
+                    // Linear dB reduction above knee
+                    const float excess = envDb - thresholdDb;
+                    targetGrDb = -juce::jmin (maxDuckingDb, excess * duckRatio * 0.85f);
+                }
             }
 
-            const float targetDuckGain = 1.0f - (normalizedDry * maxDuckingDepth);
+            const float targetDuckGain = juce::Decibels::decibelsToGain (targetGrDb);
             smoothedGainReduction += slewGain * (targetDuckGain - smoothedGainReduction);
 
             minGainInBlock = std::min (minGainInBlock, smoothedGainReduction);

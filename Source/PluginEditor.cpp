@@ -419,6 +419,57 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
     {
         hCutSlider.setValue (hz, juce::sendNotificationSync);
     };
+    modernEQ.onLowShelfChanged = [this](float freq, float gainDb)
+    {
+        if (auto* pF = dynamic_cast<juce::RangedAudioParameter*> (audioProcessor.getAPVTS().getParameter ("eqLowShelfFreq")))
+        {
+            pF->beginChangeGesture();
+            pF->setValueNotifyingHost (pF->convertTo0to1 (freq));
+            pF->endChangeGesture();
+        }
+        if (auto* pG = dynamic_cast<juce::RangedAudioParameter*> (audioProcessor.getAPVTS().getParameter ("eqLowShelfGain")))
+        {
+            pG->beginChangeGesture();
+            pG->setValueNotifyingHost (pG->convertTo0to1 (gainDb));
+            pG->endChangeGesture();
+        }
+    };
+    modernEQ.onMidEqChanged = [this](float freq, float gainDb, float q)
+    {
+        if (auto* pF = dynamic_cast<juce::RangedAudioParameter*> (audioProcessor.getAPVTS().getParameter ("eqMidFreq")))
+        {
+            pF->beginChangeGesture();
+            pF->setValueNotifyingHost (pF->convertTo0to1 (freq));
+            pF->endChangeGesture();
+        }
+        if (auto* pG = dynamic_cast<juce::RangedAudioParameter*> (audioProcessor.getAPVTS().getParameter ("eqMidGain")))
+        {
+            pG->beginChangeGesture();
+            pG->setValueNotifyingHost (pG->convertTo0to1 (gainDb));
+            pG->endChangeGesture();
+        }
+        if (auto* pQ = dynamic_cast<juce::RangedAudioParameter*> (audioProcessor.getAPVTS().getParameter ("eqMidQ")))
+        {
+            pQ->beginChangeGesture();
+            pQ->setValueNotifyingHost (pQ->convertTo0to1 (q));
+            pQ->endChangeGesture();
+        }
+    };
+    modernEQ.onHighShelfChanged = [this](float freq, float gainDb)
+    {
+        if (auto* pF = dynamic_cast<juce::RangedAudioParameter*> (audioProcessor.getAPVTS().getParameter ("eqHighShelfFreq")))
+        {
+            pF->beginChangeGesture();
+            pF->setValueNotifyingHost (pF->convertTo0to1 (freq));
+            pF->endChangeGesture();
+        }
+        if (auto* pG = dynamic_cast<juce::RangedAudioParameter*> (audioProcessor.getAPVTS().getParameter ("eqHighShelfGain")))
+        {
+            pG->beginChangeGesture();
+            pG->setValueNotifyingHost (pG->convertTo0to1 (gainDb));
+            pG->endChangeGesture();
+        }
+    };
 
     // Expanded Plugin Dimensions for Widescreen Cinematic Reverb Dashboard
     setSize (ProVerbTokens::Metrics::defaultWindowWidth, ProVerbTokens::Metrics::defaultWindowHeight);
@@ -600,7 +651,19 @@ void ProVerbAudioProcessorEditor::timerCallback()
                                     (float) widthSlider.getValue());
     visualizer.advanceAnimation (0.025f);
 
-    modernEQ.updateParameters ((float) lCutSlider.getValue(), (float) hCutSlider.getValue(), audioProcessor.getRmsOutput());
+    const float curLowShFreq  = audioProcessor.getAPVTS().getRawParameterValue ("eqLowShelfFreq") != nullptr ? audioProcessor.getAPVTS().getRawParameterValue ("eqLowShelfFreq")->load() : 250.0f;
+    const float curLowShGain  = audioProcessor.getAPVTS().getRawParameterValue ("eqLowShelfGain") != nullptr ? audioProcessor.getAPVTS().getRawParameterValue ("eqLowShelfGain")->load() : 0.0f;
+    const float curMidFreq    = audioProcessor.getAPVTS().getRawParameterValue ("eqMidFreq") != nullptr ? audioProcessor.getAPVTS().getRawParameterValue ("eqMidFreq")->load() : 1200.0f;
+    const float curMidGain    = audioProcessor.getAPVTS().getRawParameterValue ("eqMidGain") != nullptr ? audioProcessor.getAPVTS().getRawParameterValue ("eqMidGain")->load() : 0.0f;
+    const float curMidQ       = audioProcessor.getAPVTS().getRawParameterValue ("eqMidQ") != nullptr ? audioProcessor.getAPVTS().getRawParameterValue ("eqMidQ")->load() : 0.70f;
+    const float curHighShFreq = audioProcessor.getAPVTS().getRawParameterValue ("eqHighShelfFreq") != nullptr ? audioProcessor.getAPVTS().getRawParameterValue ("eqHighShelfFreq")->load() : 5000.0f;
+    const float curHighShGain = audioProcessor.getAPVTS().getRawParameterValue ("eqHighShelfGain") != nullptr ? audioProcessor.getAPVTS().getRawParameterValue ("eqHighShelfGain")->load() : 0.0f;
+
+    modernEQ.updateParameters ((float) lCutSlider.getValue(), (float) hCutSlider.getValue(),
+                               curLowShFreq, curLowShGain,
+                               curMidFreq, curMidGain, curMidQ,
+                               curHighShFreq, curHighShGain,
+                               audioProcessor.getRmsOutput());
     modernEQ.advanceAnimation (0.05f);
 
     customLaf.setAudioPulseLevel (audioProcessor.getRmsOutput());

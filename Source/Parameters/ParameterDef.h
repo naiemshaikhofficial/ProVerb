@@ -30,6 +30,15 @@ namespace ProVerbIDs
     static const juce::ParameterID duckingThreshold  { "duckingThreshold", 1 };
     static const juce::ParameterID duckingAttack     { "duckingAttack", 1 };
     static const juce::ParameterID duckingRelease    { "duckingRelease", 1 };
+
+    // Interactive 5-Band Reverb EQ Parameters
+    static const juce::ParameterID eqLowShelfFreq    { "eqLowShelfFreq", 1 };
+    static const juce::ParameterID eqLowShelfGain    { "eqLowShelfGain", 1 };
+    static const juce::ParameterID eqMidFreq         { "eqMidFreq", 1 };
+    static const juce::ParameterID eqMidGain         { "eqMidGain", 1 };
+    static const juce::ParameterID eqMidQ            { "eqMidQ", 1 };
+    static const juce::ParameterID eqHighShelfFreq   { "eqHighShelfFreq", 1 };
+    static const juce::ParameterID eqHighShelfGain   { "eqHighShelfGain", 1 };
 }
 
 inline juce::AudioProcessorValueTreeState::ParameterLayout createProVerbParameterLayout()
@@ -180,6 +189,51 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createProVerbParamete
         ProVerbIDs::duckingRelease, "Ducking Release",
         juce::NormalisableRange<float> (20.0f, 1000.0f, 1.0f, 0.4f), 160.0f,
         juce::AudioParameterFloatAttributes().withLabel ("ms")));
+
+    // =========================================================================
+    // Interactive 5-Band Reverb EQ Parameters
+    // =========================================================================
+
+    // Node 2: Low Shelf Frequency (40 Hz to 800 Hz, Default 250 Hz)
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        ProVerbIDs::eqLowShelfFreq, "EQ Low Shelf Freq",
+        juce::NormalisableRange<float> (40.0f, 800.0f, 1.0f, 0.4f), 250.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("Hz")));
+
+    // Node 2: Low Shelf Gain (-12 dB to +12 dB, Default 0 dB)
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        ProVerbIDs::eqLowShelfGain, "EQ Low Shelf Gain",
+        juce::NormalisableRange<float> (-12.0f, 12.0f, 0.1f), 0.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("dB")));
+
+    // Node 3: Parametric Mid Bell Frequency (100 Hz to 8000 Hz, Default 1200 Hz)
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        ProVerbIDs::eqMidFreq, "EQ Mid Freq",
+        juce::NormalisableRange<float> (100.0f, 8000.0f, 1.0f, 0.35f), 1200.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("Hz")));
+
+    // Node 3: Parametric Mid Bell Gain (-12 dB to +12 dB, Default 0 dB)
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        ProVerbIDs::eqMidGain, "EQ Mid Gain",
+        juce::NormalisableRange<float> (-12.0f, 12.0f, 0.1f), 0.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("dB")));
+
+    // Node 3: Parametric Mid Bell Q (0.2 to 8.0, Default 0.70)
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        ProVerbIDs::eqMidQ, "EQ Mid Q",
+        juce::NormalisableRange<float> (0.2f, 8.0f, 0.05f, 0.5f), 0.70f));
+
+    // Node 4: High Shelf Frequency (1500 Hz to 16000 Hz, Default 5000 Hz)
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        ProVerbIDs::eqHighShelfFreq, "EQ High Shelf Freq",
+        juce::NormalisableRange<float> (1500.0f, 16000.0f, 10.0f, 0.4f), 5000.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("Hz")));
+
+    // Node 4: High Shelf Gain (-12 dB to +12 dB, Default 0 dB)
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        ProVerbIDs::eqHighShelfGain, "EQ High Shelf Gain",
+        juce::NormalisableRange<float> (-12.0f, 12.0f, 0.1f), 0.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("dB")));
 
     return layout;
 }

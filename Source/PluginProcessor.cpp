@@ -142,6 +142,13 @@ void ProVerbAudioProcessor::loadPreset (int index)
     setParam ("inputGain",    p.inputGain);
     setParam ("outputGain",   p.outputGain);
     setParam ("midSide",      p.midSide);
+    setParam ("eqLowShelfFreq",  p.eqLowShelfFreq);
+    setParam ("eqLowShelfGain",  p.eqLowShelfGain);
+    setParam ("eqMidFreq",       p.eqMidFreq);
+    setParam ("eqMidGain",       p.eqMidGain);
+    setParam ("eqMidQ",          p.eqMidQ);
+    setParam ("eqHighShelfFreq", p.eqHighShelfFreq);
+    setParam ("eqHighShelfGain", p.eqHighShelfGain);
 
     updateHostDisplay (juce::AudioProcessor::ChangeDetails().withProgramChanged (true));
 
@@ -743,6 +750,15 @@ void ProVerbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     const float duckAttackMs    = apvts.getRawParameterValue ("duckingAttack") != nullptr ? apvts.getRawParameterValue ("duckingAttack")->load() : 8.0f;
     const float duckReleaseMs   = apvts.getRawParameterValue ("duckingRelease") != nullptr ? apvts.getRawParameterValue ("duckingRelease")->load() : 160.0f;
 
+    // Read Interactive 5-Band Reverb EQ Parameters
+    const float eqLowShFreq   = apvts.getRawParameterValue ("eqLowShelfFreq") != nullptr ? apvts.getRawParameterValue ("eqLowShelfFreq")->load() : 250.0f;
+    const float eqLowShGain   = apvts.getRawParameterValue ("eqLowShelfGain") != nullptr ? apvts.getRawParameterValue ("eqLowShelfGain")->load() : 0.0f;
+    const float eqMidFreq     = apvts.getRawParameterValue ("eqMidFreq") != nullptr ? apvts.getRawParameterValue ("eqMidFreq")->load() : 1200.0f;
+    const float eqMidGain     = apvts.getRawParameterValue ("eqMidGain") != nullptr ? apvts.getRawParameterValue ("eqMidGain")->load() : 0.0f;
+    const float eqMidQ        = apvts.getRawParameterValue ("eqMidQ") != nullptr ? apvts.getRawParameterValue ("eqMidQ")->load() : 0.70f;
+    const float eqHighShFreq  = apvts.getRawParameterValue ("eqHighShelfFreq") != nullptr ? apvts.getRawParameterValue ("eqHighShelfFreq")->load() : 5000.0f;
+    const float eqHighShGain  = apvts.getRawParameterValue ("eqHighShelfGain") != nullptr ? apvts.getRawParameterValue ("eqHighShelfGain")->load() : 0.0f;
+
     // Zero-allocation, zero-lock real-time audio thread license read
     const bool isUnlocked  = isLicensedAtomic.load (std::memory_order_relaxed);
     const bool isFrozen    = isUnlocked && (apvts.getRawParameterValue ("freeze")->load() > 0.5f);
@@ -917,8 +933,11 @@ void ProVerbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
         // 7. Celestial Shimmer Pitch Feedback (+1 Octave)
         shimmerEngine.process (wetL, wetR, curChunk, shimPct);
 
-        // 8. Modern Tone EQ (Smooth TPT Filters with Anti-Mud & Clarity Modulation)
-        toneEQ.process (wetBuffer, curChunk, effLowCut, effHighCut);
+        // 8. Modern 5-Band Tone EQ (Smooth TPT Cuts + Parametric Low Shelf, Mid Bell, and High Shelf)
+        toneEQ.process (wetBuffer, curChunk, effLowCut, effHighCut,
+                        eqLowShFreq, eqLowShGain,
+                        eqMidFreq, eqMidGain, eqMidQ,
+                        eqHighShFreq, eqHighShGain);
 
         // 9. Smart Vocal & Drum Reverb Ducking (External DAW Sidechain or Dry Input)
         if (useExternalSidechain)

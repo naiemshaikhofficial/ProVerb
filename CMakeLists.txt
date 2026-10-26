@@ -328,5 +328,22 @@ target_link_libraries(ProVerb_LicensingTest PRIVATE
     juce::juce_recommended_warning_flags
 )
 
+add_executable(ProVerb_DSPSuiteTest Tools/test_dsp_suite.cpp)
+target_include_directories(ProVerb_DSPSuiteTest PRIVATE Source)
+target_link_libraries(ProVerb_DSPSuiteTest PRIVATE
+    juce::juce_core
+    juce::juce_audio_basics
+    juce::juce_dsp
+    juce::juce_graphics
+    juce::juce_recommended_config_flags
+    juce::juce_recommended_warning_flags
+)
+
+add_test(
+    NAME ProVerb_DSPSuiteTest
+    COMMAND ProVerb_DSPSuiteTest
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+
 
 

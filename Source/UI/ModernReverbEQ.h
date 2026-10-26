@@ -36,18 +36,50 @@ public:
 
     std::function<void(float)> onLowCutChanged;
     std::function<void(float)> onHighCutChanged;
-    std::function<void(float, float)> onMidEqChanged; // freq, gainDb
+    std::function<void(float, float)> onLowShelfChanged;      // freq, gainDb
+    std::function<void(float, float, float)> onMidEqChanged; // freq, gainDb, q
+    std::function<void(float, float)> onHighShelfChanged;     // freq, gainDb
 
-    void updateParameters (float lowCutHz, float highCutHz, float audioRms)
+    void updateParameters (float lowCutHz, float highCutHz,
+                           float lowShelfFreq, float lowShelfGain,
+                           float midFreq, float midGain, float midQ,
+                           float highShelfFreq, float highShelfGain,
+                           float audioRms)
     {
         if (activeDragNode != 0)
             nodeLowCut = juce::jlimit (20.0f, 2000.0f, lowCutHz);
+
+        if (activeDragNode != 1)
+        {
+            nodeLowShelfFreq = juce::jlimit (40.0f, 800.0f, lowShelfFreq);
+            nodeLowShelfGainDb = juce::jlimit (-12.0f, 12.0f, lowShelfGain);
+        }
+
+        if (activeDragNode != 2)
+        {
+            nodeMidFreq = juce::jlimit (100.0f, 8000.0f, midFreq);
+            nodeMidGainDb = juce::jlimit (-12.0f, 12.0f, midGain);
+            qMid = juce::jlimit (0.2f, 8.0f, midQ);
+        }
+
+        if (activeDragNode != 3)
+        {
+            nodeHighShelfFreq = juce::jlimit (1500.0f, 16000.0f, highShelfFreq);
+            nodeHighShelfGainDb = juce::jlimit (-12.0f, 12.0f, highShelfGain);
+        }
 
         if (activeDragNode != 4)
             nodeHighCut = juce::jlimit (500.0f, 20000.0f, highCutHz);
 
         rmsLevel = juce::jlimit (0.0f, 1.0f, audioRms);
         repaint();
+    }
+
+    void updateParameters (float lowCutHz, float highCutHz, float audioRms)
+    {
+        updateParameters (lowCutHz, highCutHz, nodeLowShelfFreq, nodeLowShelfGainDb,
+                          nodeMidFreq, nodeMidGainDb, qMid,
+                          nodeHighShelfFreq, nodeHighShelfGainDb, audioRms);
     }
 
     void setAnalyzing (bool analyzing, float progress = 0.0f)
@@ -345,18 +377,22 @@ public:
         {
             nodeLowShelfFreq = juce::jlimit (40.0f, 800.0f, newFreq);
             nodeLowShelfGainDb = newGain;
+            if (onLowShelfChanged)
+                onLowShelfChanged (nodeLowShelfFreq, nodeLowShelfGainDb);
         }
         else if (activeDragNode == 2) // Mid Bell
         {
             nodeMidFreq = juce::jlimit (100.0f, 8000.0f, newFreq);
             nodeMidGainDb = newGain;
             if (onMidEqChanged)
-                onMidEqChanged (nodeMidFreq, nodeMidGainDb);
+                onMidEqChanged (nodeMidFreq, nodeMidGainDb, qMid);
         }
         else if (activeDragNode == 3) // High Shelf
         {
             nodeHighShelfFreq = juce::jlimit (1500.0f, 16000.0f, newFreq);
             nodeHighShelfGainDb = newGain;
+            if (onHighShelfChanged)
+                onHighShelfChanged (nodeHighShelfFreq, nodeHighShelfGainDb);
         }
         else if (activeDragNode == 4) // High Cut
         {
@@ -380,6 +416,8 @@ public:
         if (selectedNode == 2)
         {
             qMid = juce::jlimit (0.2f, 8.0f, qMid + wheel.deltaY * 0.4f);
+            if (onMidEqChanged)
+                onMidEqChanged (nodeMidFreq, nodeMidGainDb, qMid);
             repaint();
         }
         else if (selectedNode == 0)

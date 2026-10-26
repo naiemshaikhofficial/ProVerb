@@ -56,6 +56,13 @@ public:
         float inputGain = 0.0f;
         float outputGain = 0.0f;
         float midSide = 0.0f;
+        float eqLowShelfFreq = 250.0f;
+        float eqLowShelfGain = 0.0f;
+        float eqMidFreq = 1200.0f;
+        float eqMidGain = 0.0f;
+        float eqMidQ = 0.70f;
+        float eqHighShelfFreq = 5000.0f;
+        float eqHighShelfGain = 0.0f;
         juce::String aliases = {};
         juce::String description = {};
     };
