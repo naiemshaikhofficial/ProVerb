@@ -75,10 +75,10 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createProVerbParamete
         juce::NormalisableRange<float> (0.1f, 30.0f, 0.05f, 0.4f), 2.8f,
         juce::AudioParameterFloatAttributes().withLabel ("s")));
 
-    // Room Size (10% to 100%)
+    // Room Size (0% to 100%)
     layout.add (std::make_unique<juce::AudioParameterFloat> (
         ProVerbIDs::size, "Space Size",
-        juce::NormalisableRange<float> (10.0f, 100.0f, 0.5f), 70.0f,
+        juce::NormalisableRange<float> (0.0f, 100.0f, 0.5f), 70.0f,
         juce::AudioParameterFloatAttributes().withLabel ("%")));
 
     // Diffusion (0% to 100%)

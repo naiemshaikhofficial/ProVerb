@@ -878,6 +878,110 @@ void testRoomSizeAudibleEffectiveness()
         double tailLarge = measureVocalSpaciousTail (100.0f);
         EXPECT_TRUE (tailLarge > tailSmall * 1.5, "Vocal harmonic phrase in 100% Size hall leaves significantly broader, more enveloping reverberant wash than 0% room");
     }
+
+    // 4. DYNAMIC SIZE KNOB SWEEP & ARTIFACT TEST (Clicks, Pitch Glitches, Instability)
+    {
+        FDNReverb reverb;
+        reverb.prepare (sr, blockSize, 50.0f);
+
+        std::vector<float> inL (blockSize, 0.0f), inR (blockSize, 0.0f);
+        std::vector<float> outL (blockSize, 0.0f), outR (blockSize, 0.0f);
+
+        // Continuous sine tone input
+        float lastSampleL = 0.0f;
+        float maxSampleDiff = 0.0f;
+        bool hasNanOrInf = false;
+
+        // Rapid sweep back and forth between 0% and 100% during playback (80 blocks = ~0.85s)
+        for (int b = 0; b < 80; ++b)
+        {
+            // Rapid automation sweep: 0% -> 100% -> 0%
+            float sweepSize = 50.0f + 50.0f * std::sin (2.0 * juce::MathConstants<double>::pi * 2.0 * (b * blockSize) / sr);
+
+            for (int s = 0; s < blockSize; ++s)
+            {
+                double t = (double)(b * blockSize + s) / sr;
+                float val = 0.4f * std::sin (2.0 * juce::MathConstants<double>::pi * 440.0 * t);
+                inL[s] = val; inR[s] = val;
+            }
+
+            reverb.process (inL.data(), inR.data(), outL.data(), outR.data(), blockSize,
+                            sweepSize, 2.0f, 30.0f, 75.0f, false);
+
+            for (int s = 0; s < blockSize; ++s)
+            {
+                if (std::isnan (outL[s]) || std::isnan (outR[s]) || std::isinf (outL[s]) || std::isinf (outR[s]))
+                    hasNanOrInf = true;
+
+                float diff = std::abs (outL[s] - lastSampleL);
+                if (diff > maxSampleDiff)
+                    maxSampleDiff = diff;
+                lastSampleL = outL[s];
+            }
+        }
+
+        EXPECT_TRUE (!hasNanOrInf, "Dynamic Size sweeps produce NO NaN or infinite values");
+        EXPECT_TRUE (maxSampleDiff < 0.65f, "Dynamic Size sweeps exhibit smooth Hermite interpolation without sample discontinuities or clicks");
+    }
+
+    // 5. RT60 DECAY TIME INVARIANCE AUDIT
+    {
+        // Measure decay time (time to drop by -40dB from early peak, extrapolated to -60dB)
+        auto measureRT60 = [=](float sizeVal) -> double {
+            FDNReverb reverb;
+            reverb.prepare (sr, blockSize, sizeVal);
+            std::vector<float> inL (blockSize, 0.0f), inR (blockSize, 0.0f);
+            std::vector<float> outL (blockSize, 0.0f), outR (blockSize, 0.0f);
+
+            inL[0] = 1.0f; inR[0] = 1.0f;
+            reverb.process (inL.data(), inR.data(), outL.data(), outR.data(), blockSize,
+                            sizeVal, 2.0f, 0.0f, 75.0f, false); // 2.0s target decay, 0% damping
+            inL[0] = 0.0f; inR[0] = 0.0f;
+
+            double peakEnergy = 0.0;
+            std::vector<double> blockEnergies;
+
+            for (int b = 1; b <= 280; ++b) // ~3.0s
+            {
+                reverb.process (inL.data(), inR.data(), outL.data(), outR.data(), blockSize,
+                                sizeVal, 2.0f, 0.0f, 75.0f, false);
+                double be = 0.0;
+                for (int s = 0; s < blockSize; ++s)
+                    be += outL[s] * outL[s] + outR[s] * outR[s];
+                be /= (double)blockSize;
+                blockEnergies.push_back (be);
+                if (b <= 10 && be > peakEnergy)
+                    peakEnergy = be;
+            }
+
+            if (peakEnergy <= 1e-12) return 0.0;
+
+            // Find block where energy drops below -40 dB (1e-4 of peak)
+            double threshold = peakEnergy * 1e-4;
+            double t40 = 2.0;
+            for (size_t i = 15; i < blockEnergies.size(); ++i)
+            {
+                if (blockEnergies[i] < threshold)
+                {
+                    t40 = (double)i * blockSize / sr;
+                    break;
+                }
+            }
+            // RT60 is 1.5 * T40
+            return t40 * 1.5;
+        };
+
+        double rt60Size0   = measureRT60 (0.0f);
+        double rt60Size50  = measureRT60 (50.0f);
+        double rt60Size100 = measureRT60 (100.0f);
+
+        std::cout << "  Measured RT60 at 2.0s target: Size 0% = " << std::fixed << std::setprecision(2) << rt60Size0
+                  << "s, Size 50% = " << rt60Size50 << "s, Size 100% = " << rt60Size100 << "s\n";
+
+        EXPECT_TRUE (std::abs (rt60Size0 - 2.0) < 0.6, "Size 0% maintains RT60 decay target within reasonable acoustic tolerance");
+        EXPECT_TRUE (std::abs (rt60Size50 - 2.0) < 0.5, "Size 50% maintains RT60 decay target within reasonable acoustic tolerance");
+        EXPECT_TRUE (std::abs (rt60Size100 - 2.0) < 0.6, "Size 100% maintains RT60 decay target within reasonable acoustic tolerance");
+    }
 }
 
 int main()
