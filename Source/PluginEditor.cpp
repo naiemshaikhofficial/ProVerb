@@ -197,11 +197,54 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
     settingsButton.onClick = [this]()
     {
         juce::PopupMenu menu;
+
+        // Submenu: Algorithm Mode
+        juce::PopupMenu algoSubMenu;
+        auto* algoParam = audioProcessor.getAPVTS().getRawParameterValue ("algoMode");
+        const int curAlgo = algoParam != nullptr ? static_cast<int> (algoParam->load()) : 0;
+        algoSubMenu.addItem (10, "1. Neutral Room", true, curAlgo == 0);
+        algoSubMenu.addItem (11, "2. Dense Room", true, curAlgo == 1);
+        algoSubMenu.addItem (12, "3. Wide Hall", true, curAlgo == 2);
+        algoSubMenu.addItem (13, "4. Plate Character", true, curAlgo == 3);
+        algoSubMenu.addItem (14, "5. Smooth Chamber", true, curAlgo == 4);
+        algoSubMenu.addItem (15, "6. Modulated Space", true, curAlgo == 5);
+        algoSubMenu.addItem (16, "7. Vintage Digital", true, curAlgo == 6);
+        algoSubMenu.addItem (17, "8. Gated / Nonlinear", true, curAlgo == 7);
+        menu.addSubMenu ("Algorithm Mode", algoSubMenu);
+
+        // Submenu: Tonal Character
+        juce::PopupMenu toneSubMenu;
+        auto* toneParam = audioProcessor.getAPVTS().getRawParameterValue ("toneColor");
+        const int curTone = toneParam != nullptr ? static_cast<int> (toneParam->load()) : 0;
+        toneSubMenu.addItem (20, "Clean (Pristine)", true, curTone == 0);
+        toneSubMenu.addItem (21, "Classic Bright (80s Sheen)", true, curTone == 1);
+        toneSubMenu.addItem (22, "Classic Dark (Warm Vintage)", true, curTone == 2);
+        menu.addSubMenu ("Tonal Character", toneSubMenu);
+
+        // Submenu: Pre-Delay Tempo Sync
+        juce::PopupMenu syncSubMenu;
+        auto* syncParam = audioProcessor.getAPVTS().getRawParameterValue ("predelaySync");
+        const int curSync = syncParam != nullptr ? static_cast<int> (syncParam->load()) : 0;
+        syncSubMenu.addItem (30, "Free (ms)", true, curSync == 0);
+        syncSubMenu.addItem (31, "1/64", true, curSync == 1);
+        syncSubMenu.addItem (32, "1/32", true, curSync == 2);
+        syncSubMenu.addItem (33, "1/16T", true, curSync == 3);
+        syncSubMenu.addItem (34, "1/16", true, curSync == 4);
+        syncSubMenu.addItem (35, "1/16D", true, curSync == 5);
+        syncSubMenu.addItem (36, "1/8T", true, curSync == 6);
+        syncSubMenu.addItem (37, "1/8", true, curSync == 7);
+        syncSubMenu.addItem (38, "1/8D", true, curSync == 8);
+        syncSubMenu.addItem (39, "1/4T", true, curSync == 9);
+        syncSubMenu.addItem (40, "1/4", true, curSync == 10);
+        menu.addSubMenu ("Pre-Delay Tempo Sync", syncSubMenu);
+
+        menu.addSeparator();
         menu.addItem (1, "GUI Scale: 100% (Standard)", true, currentScaleFactor == 1.0f);
         menu.addItem (2, "GUI Scale: 125% (Medium)", true, currentScaleFactor == 1.25f);
         menu.addItem (3, "GUI Scale: 150% (Large)", true, currentScaleFactor == 1.5f);
         menu.addSeparator();
         menu.addItem (4, "License Status & Activation...", true, false);
+
         juce::Component::SafePointer<ProVerbAudioProcessorEditor> safeThis (this);
         menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&settingsButton),
             [safeThis](int r)
@@ -211,6 +254,33 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
                 else if (r == 2) safeThis->setGuiScale (1.25f);
                 else if (r == 3) safeThis->setGuiScale (1.5f);
                 else if (r == 4) safeThis->showLicensePanel();
+                else if (r >= 10 && r <= 17)
+                {
+                    if (auto* p = safeThis->audioProcessor.getAPVTS().getParameter ("algoMode"))
+                    {
+                        p->beginChangeGesture();
+                        p->setValueNotifyingHost (p->convertTo0to1 (static_cast<float> (r - 10)));
+                        p->endChangeGesture();
+                    }
+                }
+                else if (r >= 20 && r <= 22)
+                {
+                    if (auto* p = safeThis->audioProcessor.getAPVTS().getParameter ("toneColor"))
+                    {
+                        p->beginChangeGesture();
+                        p->setValueNotifyingHost (p->convertTo0to1 (static_cast<float> (r - 20)));
+                        p->endChangeGesture();
+                    }
+                }
+                else if (r >= 30 && r <= 40)
+                {
+                    if (auto* p = safeThis->audioProcessor.getAPVTS().getParameter ("predelaySync"))
+                    {
+                        p->beginChangeGesture();
+                        p->setValueNotifyingHost (p->convertTo0to1 (static_cast<float> (r - 30)));
+                        p->endChangeGesture();
+                    }
+                }
             });
     };
 
@@ -471,6 +541,57 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
         }
     };
 
+    visualizer.onAlgoModeClicked = [this]()
+    {
+        juce::PopupMenu menu;
+        auto* algoParam = audioProcessor.getAPVTS().getRawParameterValue ("algoMode");
+        const int curAlgo = algoParam != nullptr ? static_cast<int> (algoParam->load()) : 0;
+        menu.addItem (1, "1. Neutral Room (Natural Studio Space)", true, curAlgo == 0);
+        menu.addItem (2, "2. Dense Room (High Initial Echo Buildup)", true, curAlgo == 1);
+        menu.addItem (3, "3. Wide Hall (Expansive Decorrelated Bloom)", true, curAlgo == 2);
+        menu.addItem (4, "4. Plate Character (Ultra-Dense Iron Sheen)", true, curAlgo == 3);
+        menu.addItem (5, "5. Smooth Chamber (Low-Coloration Decay)", true, curAlgo == 4);
+        menu.addItem (6, "6. Modulated Space (Lush Celestial Drift)", true, curAlgo == 5);
+        menu.addItem (7, "7. Vintage Digital (Warm 12-Bit 10.5kHz Rolloff)", true, curAlgo == 6);
+        menu.addItem (8, "8. Gated / Nonlinear (80s Rhythmic Gated Tail)", true, curAlgo == 7);
+
+        juce::Component::SafePointer<ProVerbAudioProcessorEditor> safeThis (this);
+        menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&visualizer),
+            [safeThis](int r)
+            {
+                if (safeThis == nullptr || r == 0) return;
+                if (auto* p = safeThis->audioProcessor.getAPVTS().getParameter ("algoMode"))
+                {
+                    p->beginChangeGesture();
+                    p->setValueNotifyingHost (p->convertTo0to1 (static_cast<float> (r - 1)));
+                    p->endChangeGesture();
+                }
+            });
+    };
+
+    visualizer.onToneColorClicked = [this]()
+    {
+        juce::PopupMenu menu;
+        auto* toneParam = audioProcessor.getAPVTS().getRawParameterValue ("toneColor");
+        const int curTone = toneParam != nullptr ? static_cast<int> (toneParam->load()) : 0;
+        menu.addItem (1, "Clean (Pristine High-Fidelity)", true, curTone == 0);
+        menu.addItem (2, "Classic Bright (80s High Sheen)", true, curTone == 1);
+        menu.addItem (3, "Classic Dark (Warm Vintage Rolloff)", true, curTone == 2);
+
+        juce::Component::SafePointer<ProVerbAudioProcessorEditor> safeThis (this);
+        menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&visualizer),
+            [safeThis](int r)
+            {
+                if (safeThis == nullptr || r == 0) return;
+                if (auto* p = safeThis->audioProcessor.getAPVTS().getParameter ("toneColor"))
+                {
+                    p->beginChangeGesture();
+                    p->setValueNotifyingHost (p->convertTo0to1 (static_cast<float> (r - 1)));
+                    p->endChangeGesture();
+                }
+            });
+    };
+
     // Expanded Plugin Dimensions for Widescreen Cinematic Reverb Dashboard
     setSize (ProVerbTokens::Metrics::defaultWindowWidth, ProVerbTokens::Metrics::defaultWindowHeight);
     setResizable (true, true);
@@ -649,6 +770,20 @@ void ProVerbAudioProcessorEditor::timerCallback()
                                     (float) hCutSlider.getValue(),
                                     (float) duckSlider.getValue(),
                                     (float) widthSlider.getValue());
+
+    auto* algoParam = audioProcessor.getAPVTS().getRawParameterValue ("algoMode");
+    const int curAlgo = algoParam != nullptr ? static_cast<int> (algoParam->load()) : 0;
+    const char* algoNames[] = { "Neutral Room", "Dense Room", "Wide Hall", "Plate Character",
+                                "Smooth Chamber", "Modulated Space", "Vintage Digital", "Gated / Nonlin" };
+    if (curAlgo >= 0 && curAlgo < 8)
+        visualizer.setAlgorithmModeName (algoNames[curAlgo]);
+
+    auto* toneParam = audioProcessor.getAPVTS().getRawParameterValue ("toneColor");
+    const int curTone = toneParam != nullptr ? static_cast<int> (toneParam->load()) : 0;
+    const char* toneNames[] = { "Clean", "Bright", "Dark" };
+    if (curTone >= 0 && curTone < 3)
+        visualizer.setTonalColorName (toneNames[curTone]);
+
     visualizer.advanceAnimation (0.025f);
 
     const float curLowShFreq  = audioProcessor.getAPVTS().getRawParameterValue ("eqLowShelfFreq") != nullptr ? audioProcessor.getAPVTS().getRawParameterValue ("eqLowShelfFreq")->load() : 250.0f;

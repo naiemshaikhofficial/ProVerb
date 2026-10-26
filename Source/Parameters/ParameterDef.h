@@ -39,6 +39,18 @@ namespace ProVerbIDs
     static const juce::ParameterID eqMidQ            { "eqMidQ", 1 };
     static const juce::ParameterID eqHighShelfFreq   { "eqHighShelfFreq", 1 };
     static const juce::ParameterID eqHighShelfGain   { "eqHighShelfGain", 1 };
+
+    // Professional Algorithmic Reverb Extension Parameters
+    static const juce::ParameterID algoMode          { "algoMode", 1 };
+    static const juce::ParameterID toneColor         { "toneColor", 1 };
+    static const juce::ParameterID modRate           { "modRate", 1 };
+    static const juce::ParameterID modDepth          { "modDepth", 1 };
+    static const juce::ParameterID bassDecay         { "bassDecay", 1 };
+    static const juce::ParameterID bassCrossover     { "bassCrossover", 1 };
+    static const juce::ParameterID earlySize         { "earlySize", 1 };
+    static const juce::ParameterID earlyCross        { "earlyCross", 1 };
+    static const juce::ParameterID earlySend         { "earlySend", 1 };
+    static const juce::ParameterID predelaySync      { "predelaySync", 1 };
 }
 
 inline juce::AudioProcessorValueTreeState::ParameterLayout createProVerbParameterLayout()
@@ -234,6 +246,89 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createProVerbParamete
         ProVerbIDs::eqHighShelfGain, "EQ High Shelf Gain",
         juce::NormalisableRange<float> (-12.0f, 12.0f, 0.1f), 0.0f,
         juce::AudioParameterFloatAttributes().withLabel ("dB")));
+
+    // =========================================================================
+    // Professional Algorithmic Reverb Extension Parameters
+    // =========================================================================
+
+    // Algorithm Mode (8 Distinct Original Architectures)
+    juce::StringArray algoChoices;
+    algoChoices.add ("Neutral Room");
+    algoChoices.add ("Dense Room");
+    algoChoices.add ("Wide Hall");
+    algoChoices.add ("Plate Character");
+    algoChoices.add ("Smooth Chamber");
+    algoChoices.add ("Modulated Space");
+    algoChoices.add ("Vintage Digital");
+    algoChoices.add ("Gated / Nonlinear");
+    layout.add (std::make_unique<juce::AudioParameterChoice> (
+        ProVerbIDs::algoMode, "Algorithm Mode", algoChoices, 0));
+
+    // Vintage Tonal Character / Color
+    juce::StringArray toneChoices;
+    toneChoices.add ("Clean (Pristine)");
+    toneChoices.add ("Classic Bright (80s Sheen)");
+    toneChoices.add ("Classic Dark (Warm Vintage)");
+    layout.add (std::make_unique<juce::AudioParameterChoice> (
+        ProVerbIDs::toneColor, "Tonal Character", toneChoices, 0));
+
+    // Modulation Rate (0.05 Hz to 5.0 Hz, Default 1.0 Hz)
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        ProVerbIDs::modRate, "Modulation Rate",
+        juce::NormalisableRange<float> (0.05f, 5.0f, 0.01f, 0.4f), 1.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("Hz")));
+
+    // Modulation Depth (0% to 100%, Default 40%)
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        ProVerbIDs::modDepth, "Modulation Depth",
+        juce::NormalisableRange<float> (0.0f, 100.0f, 0.5f), 40.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("%")));
+
+    // Bass Multiplier / Low Decay Scale (0.2x to 3.0x, Default 1.0x)
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        ProVerbIDs::bassDecay, "Bass Decay Multiplier",
+        juce::NormalisableRange<float> (0.2f, 3.0f, 0.05f, 0.5f), 1.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("x")));
+
+    // Bass Crossover Frequency (100 Hz to 1500 Hz, Default 350 Hz)
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        ProVerbIDs::bassCrossover, "Bass Crossover Freq",
+        juce::NormalisableRange<float> (100.0f, 1500.0f, 1.0f, 0.4f), 350.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("Hz")));
+
+    // Early Reflection Field Size (10% to 100%, Default 70%)
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        ProVerbIDs::earlySize, "Early Reflection Size",
+        juce::NormalisableRange<float> (10.0f, 100.0f, 0.5f), 70.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("%")));
+
+    // Early Reflection Stereo Crossfeed (0% to 100%, Default 50%)
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        ProVerbIDs::earlyCross, "Early Stereo Cross",
+        juce::NormalisableRange<float> (0.0f, 100.0f, 0.5f), 50.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("%")));
+
+    // Early Reflection to Late Tank Send (0% to 100%, Default 20%)
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        ProVerbIDs::earlySend, "Early to Late Send",
+        juce::NormalisableRange<float> (0.0f, 100.0f, 0.5f), 20.0f,
+        juce::AudioParameterFloatAttributes().withLabel ("%")));
+
+    // Pre-Delay Tempo Sync (Free ms, or 1/64 to 1/4 subdivisions)
+    juce::StringArray syncChoices;
+    syncChoices.add ("Free (ms)");
+    syncChoices.add ("1/64");
+    syncChoices.add ("1/32");
+    syncChoices.add ("1/16T");
+    syncChoices.add ("1/16");
+    syncChoices.add ("1/16D");
+    syncChoices.add ("1/8T");
+    syncChoices.add ("1/8");
+    syncChoices.add ("1/8D");
+    syncChoices.add ("1/4T");
+    syncChoices.add ("1/4");
+    layout.add (std::make_unique<juce::AudioParameterChoice> (
+        ProVerbIDs::predelaySync, "Pre-Delay Sync", syncChoices, 0));
 
     return layout;
 }

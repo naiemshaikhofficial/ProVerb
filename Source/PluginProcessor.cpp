@@ -149,6 +149,16 @@ void ProVerbAudioProcessor::loadPreset (int index)
     setParam ("eqMidQ",          p.eqMidQ);
     setParam ("eqHighShelfFreq", p.eqHighShelfFreq);
     setParam ("eqHighShelfGain", p.eqHighShelfGain);
+    setParam ("algoMode",        p.algoMode);
+    setParam ("toneColor",       p.toneColor);
+    setParam ("modRate",         p.modRate);
+    setParam ("modDepth",        p.modDepth);
+    setParam ("bassDecay",       p.bassDecay);
+    setParam ("bassCrossover",   p.bassCrossover);
+    setParam ("earlySize",       p.earlySize);
+    setParam ("earlyCross",      p.earlyCross);
+    setParam ("earlySend",       p.earlySend);
+    setParam ("predelaySync",    p.predelaySync);
 
     updateHostDisplay (juce::AudioProcessor::ChangeDetails().withProgramChanged (true));
 
@@ -759,6 +769,18 @@ void ProVerbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     const float eqHighShFreq  = apvts.getRawParameterValue ("eqHighShelfFreq") != nullptr ? apvts.getRawParameterValue ("eqHighShelfFreq")->load() : 5000.0f;
     const float eqHighShGain  = apvts.getRawParameterValue ("eqHighShelfGain") != nullptr ? apvts.getRawParameterValue ("eqHighShelfGain")->load() : 0.0f;
 
+    // Read Professional Reverb Extension Parameters
+    const int algoModeIdx     = apvts.getRawParameterValue ("algoMode") != nullptr ? static_cast<int> (apvts.getRawParameterValue ("algoMode")->load()) : 0;
+    const int toneColorIdx    = apvts.getRawParameterValue ("toneColor") != nullptr ? static_cast<int> (apvts.getRawParameterValue ("toneColor")->load()) : 0;
+    const float modRateVal    = apvts.getRawParameterValue ("modRate") != nullptr ? apvts.getRawParameterValue ("modRate")->load() : 1.0f;
+    const float modDepthVal   = apvts.getRawParameterValue ("modDepth") != nullptr ? apvts.getRawParameterValue ("modDepth")->load() : 40.0f;
+    const float bassDecayVal  = apvts.getRawParameterValue ("bassDecay") != nullptr ? apvts.getRawParameterValue ("bassDecay")->load() : 1.0f;
+    const float bassCrossVal  = apvts.getRawParameterValue ("bassCrossover") != nullptr ? apvts.getRawParameterValue ("bassCrossover")->load() : 350.0f;
+    const float earlySizeVal  = apvts.getRawParameterValue ("earlySize") != nullptr ? apvts.getRawParameterValue ("earlySize")->load() : 70.0f;
+    const float earlyCrossVal = apvts.getRawParameterValue ("earlyCross") != nullptr ? apvts.getRawParameterValue ("earlyCross")->load() : 50.0f;
+    const float earlySendVal  = apvts.getRawParameterValue ("earlySend") != nullptr ? apvts.getRawParameterValue ("earlySend")->load() : 20.0f;
+    const int predelaySyncIdx = apvts.getRawParameterValue ("predelaySync") != nullptr ? static_cast<int> (apvts.getRawParameterValue ("predelaySync")->load()) : 0;
+
     // Zero-allocation, zero-lock real-time audio thread license read
     const bool isUnlocked  = isLicensedAtomic.load (std::memory_order_relaxed);
     const bool isFrozen    = isUnlocked && (apvts.getRawParameterValue ("freeze")->load() > 0.5f);
@@ -814,7 +836,44 @@ void ProVerbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
 
     const float effDecaySec = juce::jlimit (0.1f, 30.0f, decaySec * decayScale);
     const float effSizePct  = juce::jlimit (10.0f, 100.0f, sizePct * sizeScale);
-    const float effPreDelay = juce::jlimit (0.0f, 300.0f, preDelayMs * predelayScale + predelayOffset);
+
+    // Calculate effective Pre-Delay (Free ms or Tempo-Synchronized)
+    float effectivePreDelayMs = preDelayMs * predelayScale + predelayOffset;
+    if (predelaySyncIdx > 0)
+    {
+        double bpm = 120.0;
+        if (auto* ph = getPlayHead())
+        {
+            if (auto posOpt = ph->getPosition())
+            {
+                if (posOpt->getBpm().hasValue() && *posOpt->getBpm() > 20.0)
+                    bpm = *posOpt->getBpm();
+            }
+        }
+
+        const double quarterMs = 60000.0 / bpm;
+        double syncMs = quarterMs;
+
+        // syncChoices: 0: Free, 1: 1/64, 2: 1/32, 3: 1/16T, 4: 1/16, 5: 1/16D,
+        //               6: 1/8T, 7: 1/8, 8: 1/8D, 9: 1/4T, 10: 1/4
+        switch (predelaySyncIdx)
+        {
+            case 1:  syncMs = quarterMs / 16.0; break;          // 1/64
+            case 2:  syncMs = quarterMs / 8.0; break;           // 1/32
+            case 3:  syncMs = (quarterMs / 4.0) * (2.0 / 3.0); break; // 1/16T
+            case 4:  syncMs = quarterMs / 4.0; break;           // 1/16
+            case 5:  syncMs = (quarterMs / 4.0) * 1.5; break;   // 1/16D
+            case 6:  syncMs = (quarterMs / 2.0) * (2.0 / 3.0); break; // 1/8T
+            case 7:  syncMs = quarterMs / 2.0; break;           // 1/8
+            case 8:  syncMs = (quarterMs / 2.0) * 1.5; break;   // 1/8D
+            case 9:  syncMs = quarterMs * (2.0 / 3.0); break;   // 1/4T
+            case 10: syncMs = quarterMs; break;                 // 1/4
+            default: break;
+        }
+        effectivePreDelayMs = static_cast<float> (syncMs);
+    }
+
+    const float effPreDelay = juce::jlimit (0.0f, 300.0f, effectivePreDelayMs);
     smoothedPreDelay.setTargetValue (static_cast<float> (getSampleRate() * (effPreDelay / 1000.0f)));
 
     // 2. AI Clarity & Anti-Mud: Progressively engages Abbey Road 240Hz HPF & 11kHz air smoothing
@@ -928,7 +987,9 @@ void ProVerbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
 
         const float erBalance = juce::jlimit (0.35f, 0.65f, 0.60f - (effSizePct / 100.0f) * 0.20f);
         fdnReverb.process (immL, immR, wetL, wetR, curChunk, effSizePct, effDecaySec, effDamp, diffPct, isFrozen,
-                           erBalance, 1.0f, lateL, lateR);
+                           erBalance, bassDecayVal, lateL, lateR,
+                           algoModeIdx, toneColorIdx, modRateVal, modDepthVal, bassCrossVal,
+                           earlySizeVal, earlyCrossVal, earlySendVal);
 
         // 7. Celestial Shimmer Pitch Feedback (+1 Octave)
         shimmerEngine.process (wetL, wetR, curChunk, shimPct);

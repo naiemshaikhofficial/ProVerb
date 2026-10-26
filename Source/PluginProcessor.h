@@ -63,6 +63,16 @@ public:
         float eqMidQ = 0.70f;
         float eqHighShelfFreq = 5000.0f;
         float eqHighShelfGain = 0.0f;
+        float algoMode = 0.0f;
+        float toneColor = 0.0f;
+        float modRate = 1.0f;
+        float modDepth = 40.0f;
+        float bassDecay = 1.0f;
+        float bassCrossover = 350.0f;
+        float earlySize = 70.0f;
+        float earlyCross = 50.0f;
+        float earlySend = 20.0f;
+        float predelaySync = 0.0f;
         juce::String aliases = {};
         juce::String description = {};
     };

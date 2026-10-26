@@ -30,6 +30,8 @@ public:
         {
             baseDelayLengths[i] = primeDelays[i];
             filterStates[i] = 0.0f;
+            bassFilterStates[i] = 0.0f;
+            vintageLpStates[i] = 0.0f;
             lfoPhases[i] = (float) i * 0.785398f;
             writePointers[i] = 0;
             smoothedFeedbackGains[i] = 0.5f;
@@ -101,6 +103,7 @@ public:
 
         reset();
         smoothedSizeScale = (initialSizePercent / 100.0f) * sampleRateRatio;
+        smoothedEarlyScale = (initialSizePercent / 100.0f) * sampleRateRatio;
     }
 
     void reset()
@@ -110,6 +113,8 @@ public:
             std::fill (delayBuffers[i].begin(), delayBuffers[i].end(), 0.0f);
             writePointers[i] = 0;
             filterStates[i] = 0.0f;
+            bassFilterStates[i] = 0.0f;
+            vintageLpStates[i] = 0.0f;
             smoothedFeedbackGains[i] = 0.0f;
             smoothedAlphas[i] = 0.0f;
         }
@@ -128,21 +133,100 @@ public:
         }
 
         smoothedSizeScale = 0.7f;
+        smoothedEarlyScale = 0.7f;
+        smoothedEarlyCross = 0.5f;
+        smoothedEarlySend = 0.2f;
         smoothedDiffCoeff = 0.5f;
         freezeFade = 0.0f;
+        gatedCounter = 0;
     }
 
     void process (const float* inL, const float* inR, float* outL, float* outR, int numSamples,
                   float sizePercent, float decaySeconds, float dampingPercent,
                   float diffusionPercent, bool isFrozen,
                   float erLateBalance = 0.50f, float bassDecayScale = 1.0f,
-                  const float* lateInL = nullptr, const float* lateInR = nullptr)
+                  const float* lateInL = nullptr, const float* lateInR = nullptr,
+                  int algoMode = 0, int toneColor = 0,
+                  float modRateHz = 1.0f, float modDepthPercent = 40.0f,
+                  float bassCrossoverHz = 350.0f,
+                  float earlySizePercent = 70.0f, float earlyCrossPercent = 50.0f, float earlySendPercent = 20.0f)
     {
-        // Keep delay times consistent across sample rates, and hold the current geometry during Freeze.
         const float sampleRateRatio = static_cast<float> (currentSampleRate / 44100.0);
+
+        // Algorithm Mode Characteristics:
+        // 0: Neutral Room    (balanced prime scale, natural early reflections, moderate diffusion)
+        // 1: Dense Room      (compact delay scale 0.82x, higher diffusion smearing)
+        // 2: Wide Hall       (expanded prime scale 1.25x, asymmetric stereo taps, slow bloom)
+        // 3: Plate Character (fast initial diffusion 0.82x, bright high end, iron plate saturation)
+        // 4: Smooth Chamber  (golden ratio prime delays, minimum flutter, warm even decay)
+        // 5: Modulated Space (expanded dual LFO drift 1.8x, cosmic ambient movement)
+        // 6: Vintage Digital (10.5 kHz feedback bandwidth limiter, warm 12-bit tank saturation)
+        // 7: Gated/Nonlinear (envelope shaper: sustained energy then fast clean musical cutoff)
+        float modeDelayScale = 1.0f;
+        float modeDiffMax = 0.72f;
+        float modeSatAmount = 0.22f;
+        float modeModMult = 1.0f;
+
+        switch (juce::jlimit (0, 7, algoMode))
+        {
+            case 1: // Dense Room
+                modeDelayScale = 0.82f;
+                modeDiffMax = 0.80f;
+                modeSatAmount = 0.24f;
+                break;
+            case 2: // Wide Hall
+                modeDelayScale = 1.25f;
+                modeDiffMax = 0.65f;
+                modeSatAmount = 0.20f;
+                break;
+            case 3: // Plate Character
+                modeDelayScale = 0.94f;
+                modeDiffMax = 0.84f;
+                modeSatAmount = 0.28f;
+                break;
+            case 4: // Smooth Chamber
+                modeDelayScale = 1.08f;
+                modeDiffMax = 0.70f;
+                modeSatAmount = 0.20f;
+                break;
+            case 5: // Modulated Space
+                modeDelayScale = 1.15f;
+                modeDiffMax = 0.70f;
+                modeModMult = 1.75f;
+                modeSatAmount = 0.18f;
+                break;
+            case 6: // Vintage Digital
+                modeDelayScale = 1.0f;
+                modeDiffMax = 0.68f;
+                modeSatAmount = 0.35f;
+                break;
+            case 7: // Gated / Nonlinear
+                modeDelayScale = 0.88f;
+                modeDiffMax = 0.76f;
+                modeSatAmount = 0.25f;
+                break;
+            case 0: // Neutral Room
+            default:
+                modeDelayScale = 1.0f;
+                modeDiffMax = 0.72f;
+                modeSatAmount = 0.22f;
+                break;
+        }
+
+        // Tonal Character adjustments
+        if (toneColor == 1) // Classic Bright (80s Sheen)
+            modeSatAmount *= 0.90f;
+        else if (toneColor == 2) // Classic Dark (Warm Vintage)
+            modeSatAmount *= 1.45f;
+
+        // Keep delay times consistent across sample rates and hold geometry during Freeze
         const float targetSizeScale = isFrozen
             ? smoothedSizeScale
-            : (juce::jlimit (10.0f, 100.0f, sizePercent) / 100.0f) * sampleRateRatio;
+            : (juce::jlimit (10.0f, 100.0f, sizePercent * modeDelayScale) / 100.0f) * sampleRateRatio;
+
+        const float targetEarlyScale = isFrozen
+            ? smoothedEarlyScale
+            : (juce::jlimit (10.0f, 100.0f, earlySizePercent) / 100.0f) * sampleRateRatio;
 
         // Precompute per-line target feedback gains and Jot absorption filter coefficients
         float targetFeedbackGains[NUM_DELAYS];
@@ -150,14 +234,14 @@ public:
         const float safeDecay = juce::jmax (0.1f, decaySeconds);
         const float dampNorm  = juce::jlimit (0.0f, 1.0f, dampingPercent / 100.0f);
 
-        // High-frequency decay target: 0% damping = flat decay across all bands;
-        // 100% damping = highs decay steep (~7x faster) for warm vintage plate / chamber damping.
-        const float highDecayRatio = juce::jlimit (0.12f, 1.0f, 1.0f - 0.88f * dampNorm);
+        // High-frequency decay target:
+        float highDecayBase = (algoMode == 3 || toneColor == 1) ? 0.78f : 0.88f;
+        const float highDecayRatio = juce::jlimit (0.10f, 1.0f, 1.0f - highDecayBase * dampNorm);
         const float safeDecayHigh  = safeDecay * highDecayRatio;
 
         // Bass decay scaling (Jot frequency-dependent decay)
-        const float safeBassScale  = juce::jlimit (0.4f, 2.5f, bassDecayScale);
-        const float safeDecayBass  = safeDecay * safeBassScale;
+        const float safeBassScale  = juce::jlimit (0.2f, 3.0f, bassDecayScale);
+        juce::ignoreUnused (safeDecay);
 
         for (int i = 0; i < NUM_DELAYS; ++i)
         {
@@ -173,21 +257,32 @@ public:
                 const float gMid  = std::pow (10.0f, -3.0f * (delaySecondsActual / safeDecay));
                 // g_high = 10^(-3 * tau_i / T60_high)
                 const float gHigh = std::pow (10.0f, -3.0f * (delaySecondsActual / safeDecayHigh));
-                // g_bass = 10^(-3 * tau_i / T60_bass)
-                const float gBass = std::pow (10.0f, -3.0f * (delaySecondsActual / safeDecayBass));
 
-                const float lineGain = (safeBassScale >= 1.0f)
-                    ? gMid
-                    : (gMid * 0.75f + gBass * 0.25f);
-
-                targetFeedbackGains[i] = juce::jlimit (0.0f, 0.999f, lineGain);
+                targetFeedbackGains[i] = juce::jlimit (0.0f, 0.999f, gMid);
 
                 // Jot's absorption filter: rho = g_high / g_mid <= 1.0
-                const float rho = juce::jlimit (0.01f, 1.0f, gHigh / juce::jmax (1.0e-6f, gMid));
+                float rho = juce::jlimit (0.01f, 1.0f, gHigh / juce::jmax (1.0e-6f, gMid));
+                if (toneColor == 1) // Classic Bright Sheen
+                    rho = juce::jmin (1.0f, rho * 1.15f);
+
                 // alpha = (1 - rho) / (1 + rho)
-                targetAlphas[i] = juce::jlimit (0.0f, 0.90f, (1.0f - rho) / (1.0f + rho));
+                float alpha = (1.0f - rho) / (1.0f + rho);
+                if (toneColor == 2) // Classic Dark
+                    alpha = juce::jlimit (0.10f, 0.92f, alpha * 1.30f + 0.05f);
+
+                targetAlphas[i] = juce::jlimit (0.0f, 0.92f, alpha);
             }
         }
+
+        // Bass Crossover filter coefficient
+        const float safeCrossoverHz = juce::jlimit (100.0f, 1500.0f, bassCrossoverHz);
+        const float betaBass = std::exp (-juce::MathConstants<float>::twoPi * safeCrossoverHz / static_cast<float> (currentSampleRate));
+        const float bassDelta = (safeBassScale - 1.0f) * 0.65f;
+
+        // Vintage Digital low-pass filter coefficient (~10.5 kHz feedback roll-off)
+        const float vintageLpCoeff = (toneColor == 2 || algoMode == 6)
+            ? std::exp (-juce::MathConstants<float>::twoPi * 10500.0f / static_cast<float> (currentSampleRate))
+            : 0.0f;
 
         // Householder matrix factor for N=8: 2/N = 0.25
         constexpr float householderFactor = 2.0f / static_cast<float>(NUM_DELAYS);
@@ -197,14 +292,42 @@ public:
         const float slewCoeff  = static_cast<float> (1.0 - std::exp (-1.0 / (0.025 * currentSampleRate)));
         const float slewFreeze = static_cast<float> (1.0 - std::exp (-1.0 / (0.015 * currentSampleRate)));
         const float targetFreeze = isFrozen ? 1.0f : 0.0f;
-        const float targetDiffCoeff = juce::jlimit (0.0f, 0.72f, (diffusionPercent / 100.0f) * 0.72f);
+        const float targetDiffCoeff = juce::jlimit (0.0f, modeDiffMax, (diffusionPercent / 100.0f) * modeDiffMax);
+        const float targetEarlyCross = juce::jlimit (0.0f, 1.0f, earlyCrossPercent / 100.0f);
+        const float targetEarlySend  = juce::jlimit (0.0f, 1.0f, earlySendPercent / 100.0f);
+
+        // Modulation scales
+        const float safeModRate  = juce::jlimit (0.05f, 5.0f, modRateHz) * modeModMult;
+        const float safeModDepth = juce::jlimit (0.0f, 2.5f, (modDepthPercent / 40.0f) * modeModMult);
+
+        // Gated Reverb Detection & Trigger
+        const int gateHoldSamples = static_cast<int> (currentSampleRate * (0.12f + (juce::jlimit (10.0f, 100.0f, sizePercent) / 100.0f) * 0.35f));
+        const int gateReleaseSamples = static_cast<int> (currentSampleRate * 0.035f); // 35ms release
+
+        if (algoMode == 7)
+        {
+            float blockMaxIn = 0.0f;
+            for (int s = 0; s < numSamples; ++s)
+            {
+                blockMaxIn = std::max (blockMaxIn, std::abs (inL[s]));
+                blockMaxIn = std::max (blockMaxIn, std::abs (inR[s]));
+            }
+            if (blockMaxIn > 0.0056f) // -45 dBFS trigger threshold
+            {
+                gatedCounter = 0;
+            }
+        }
 
         for (int s = 0; s < numSamples; ++s)
         {
             // Smooth parameters sample-by-sample
-            smoothedSizeScale += slewSize   * (targetSizeScale - smoothedSizeScale);
-            smoothedDiffCoeff += slewCoeff  * (targetDiffCoeff - smoothedDiffCoeff);
-            freezeFade        += slewFreeze * (targetFreeze    - freezeFade);
+            smoothedSizeScale  += slewSize   * (targetSizeScale  - smoothedSizeScale);
+            smoothedEarlyScale += slewSize   * (targetEarlyScale - smoothedEarlyScale);
+            smoothedDiffCoeff  += slewCoeff  * (targetDiffCoeff  - smoothedDiffCoeff);
+            smoothedEarlyCross += slewCoeff  * (targetEarlyCross - smoothedEarlyCross);
+            smoothedEarlySend  += slewCoeff  * (targetEarlySend  - smoothedEarlySend);
+            freezeFade         += slewFreeze * (targetFreeze     - freezeFade);
+
             if (isFrozen && freezeFade >= 0.999f)
                 freezeFade = 1.0f;
             else if (!isFrozen && freezeFade <= 0.001f)
@@ -220,12 +343,12 @@ public:
             const float sampleInR = inR[s];
             const float inputGate = 1.0f - freezeFade;
 
-            // Late input stream (pre-delayed). If not provided, fallback to direct input for backwards compatibility.
+            // Late input stream (pre-delayed)
             const float lateSampleL = lateInL != nullptr ? lateInL[s] : sampleInL;
             const float lateSampleR = lateInR != nullptr ? lateInR[s] : sampleInR;
 
             // -----------------------------------------------------------------
-            // STEP 1: Early Reflections Diffusion Network (Immediate undelayed dry feed)
+            // STEP 1: Early Reflections Diffusion Network (ValhallaRoom Early Size & Cross)
             // -----------------------------------------------------------------
             float diffL = sampleInL * inputGate;
             float diffR = sampleInR * inputGate;
@@ -234,20 +357,28 @@ public:
 
             for (int d = 0; d < NUM_DIFFUSERS; ++d)
             {
+                // Early diffuser lengths scale with earlySize
+                const int earlyLenL = juce::jmax (1, static_cast<int> (leftDiffLengths[d] * (smoothedEarlyScale / sampleRateRatio)));
+                const int earlyLenR = juce::jmax (1, static_cast<int> (rightDiffLengths[d] * (smoothedEarlyScale / sampleRateRatio)));
+
                 diffL = processAllpass (leftDiffBuffers[d].data(), leftDiffWritePos[d],
-                                        leftDiffLengths[d], smoothedDiffCoeff, diffL);
+                                        earlyLenL, smoothedDiffCoeff, diffL);
                 diffR = processAllpass (rightDiffBuffers[d].data(), rightDiffWritePos[d],
-                                        rightDiffLengths[d], smoothedDiffCoeff, diffR);
+                                        earlyLenR, smoothedDiffCoeff, diffR);
                 stL[d] = diffL;
                 stR[d] = diffR;
             }
 
-            // Moorer / Gardner-style natural spatial early reflection cluster with stereo cross-bounces
-            const float earlyReflectL = (stL[0] * 0.28f - stR[1] * 0.22f + stL[2] * 0.18f - stR[3] * 0.14f) * inputGate;
-            const float earlyReflectR = (stR[0] * 0.28f - stL[1] * 0.22f + stR[2] * 0.18f - stL[3] * 0.14f) * inputGate;
+            // Early Reflection Cluster with controllable Early Cross (stereo bleed)
+            const float cross = smoothedEarlyCross * 0.40f;
+            const float earlyReflectL = (((stL[0] * (1.0f - cross) - stR[1] * cross) * 0.28f)
+                                       + ((stL[2] * (1.0f - cross) - stR[3] * cross) * 0.18f)) * inputGate;
+
+            const float earlyReflectR = (((stR[0] * (1.0f - cross) - stL[1] * cross) * 0.28f)
+                                       + ((stR[2] * (1.0f - cross) - stL[3] * cross) * 0.18f)) * inputGate;
 
             // -----------------------------------------------------------------
-            // STEP 2: Late Tank Diffusion Network (Pre-delayed stream)
+            // STEP 2: Late Tank Diffusion Network (Pre-delayed stream + Early Send)
             // -----------------------------------------------------------------
             float tankDiffL = lateSampleL * inputGate;
             float tankDiffR = lateSampleR * inputGate;
@@ -260,31 +391,32 @@ public:
                                             rightTankDiffLengths[d], smoothedDiffCoeff, tankDiffR);
             }
 
-            // ER to Late Send: seamlessly injects early diffuse energy into the reverberant tank
-            const float injL = (tankDiffL + earlyReflectL * 0.18f) * inputGate;
-            const float injR = (tankDiffR + earlyReflectR * 0.18f) * inputGate;
+            // ER to Late Send: variable injection of early diffuse energy into late tank
+            const float sendFactor = smoothedEarlySend * 0.45f;
+            const float injL = (tankDiffL + earlyReflectL * sendFactor) * inputGate;
+            const float injR = (tankDiffR + earlyReflectR * sendFactor) * inputGate;
 
             // -----------------------------------------------------------------
-            // STEP 3: Read FDN Delay Lines with Spin (Fast LFO) & Wander (Slow organic drift)
+            // STEP 3: Read FDN Delay Lines with Mod Rate & Mod Depth
             // -----------------------------------------------------------------
             float delayOutputs[NUM_DELAYS];
             for (int i = 0; i < NUM_DELAYS; ++i)
             {
-                // Spin LFO: periodic flutter prevention (0.12Hz to 0.45Hz)
-                const float modRateHz = 0.12f + (0.045f * (float) i);
-                lfoPhases[i] += juce::MathConstants<float>::twoPi * modRateHz / static_cast<float>(currentSampleRate);
+                // Spin LFO: periodic flutter prevention (scaled by modRate)
+                const float modRateHzActual = (0.12f + (0.045f * (float) i)) * safeModRate;
+                lfoPhases[i] += juce::MathConstants<float>::twoPi * modRateHzActual / static_cast<float>(currentSampleRate);
                 if (lfoPhases[i] >= juce::MathConstants<float>::twoPi)
                     lfoPhases[i] -= juce::MathConstants<float>::twoPi;
 
-                // Wander LFO: ultra-slow organic spatial drift (0.031Hz to 0.067Hz)
-                const float wanderRateHz = 0.031f + (0.005f * (float) i);
-                wanderPhases[i] += juce::MathConstants<float>::twoPi * wanderRateHz / static_cast<float>(currentSampleRate);
+                // Wander LFO: ultra-slow organic spatial drift (scaled by modRate)
+                const float wanderRateHzActual = (0.031f + (0.005f * (float) i)) * safeModRate;
+                wanderPhases[i] += juce::MathConstants<float>::twoPi * wanderRateHzActual / static_cast<float>(currentSampleRate);
                 if (wanderPhases[i] >= juce::MathConstants<float>::twoPi)
                     wanderPhases[i] -= juce::MathConstants<float>::twoPi;
 
-                // Both Spin and Wander fade smoothly to 0 during Freeze to maintain perfect lossless hold
-                const float spinDepth   = 2.2f * sampleRateRatio * (1.0f - freezeFade);
-                const float wanderDepth = 0.9f * sampleRateRatio * (1.0f - freezeFade);
+                // Depths scaled by modDepth and sample rate ratio, zero during Freeze
+                const float spinDepth   = 2.2f * safeModDepth * sampleRateRatio * (1.0f - freezeFade);
+                const float wanderDepth = 0.9f * safeModDepth * sampleRateRatio * (1.0f - freezeFade);
                 const float modOffset   = (std::sin (lfoPhases[i]) * spinDepth) + (std::sin (wanderPhases[i]) * wanderDepth);
                 const float currentDelay = (static_cast<float>(baseDelayLengths[i]) * smoothedSizeScale) + modOffset;
 
@@ -299,7 +431,7 @@ public:
                 sumOutputs += delayOutputs[i];
 
             // -----------------------------------------------------------------
-            // STEP 5: Input Injection Matrix B, Damping, Line Gains
+            // STEP 5: Input Injection, Frequency-Dependent Damping, Line Gains
             // -----------------------------------------------------------------
             const float inputVector[NUM_DELAYS] = {
                 ( injL * 0.70f + injR * 0.30f),
@@ -317,20 +449,36 @@ public:
                 // Householder orthogonal reflection: y = x - (2/N)*sum
                 const float matrixOut = delayOutputs[i] - (householderFactor * sumOutputs);
 
-                // Jot's frequency-dependent absorption filter
+                // 5A: Frequency-dependent low-frequency shelf (Bass Decay Multiplier)
+                bassFilterStates[i] = ((1.0f - betaBass) * matrixOut) + (betaBass * bassFilterStates[i]);
+                if (std::abs (bassFilterStates[i]) < 1.0e-18f)
+                    bassFilterStates[i] = 0.0f;
+
+                const float lowShaped = matrixOut + (bassDelta * bassFilterStates[i]);
+
+                // 5B: Jot's frequency-dependent absorption filter for High-Frequency Damping
                 const float effectiveAlpha = smoothedAlphas[i] * (1.0f - freezeFade);
-                filterStates[i] = ((1.0f - effectiveAlpha) * matrixOut) + (effectiveAlpha * filterStates[i]);
+                filterStates[i] = ((1.0f - effectiveAlpha) * lowShaped) + (effectiveAlpha * filterStates[i]);
 
                 // Anti-denormal protection
                 if (std::abs (filterStates[i]) < 1.0e-18f)
                     filterStates[i] = 0.0f;
 
-                // Feedback signal: absorption-filtered output * line gain + stereo injection
+                float loopSignal = filterStates[i];
+
+                // 5C: Optional Vintage Digital 10.5 kHz feedback roll-off
+                if (vintageLpCoeff > 0.0f)
+                {
+                    vintageLpStates[i] = ((1.0f - vintageLpCoeff) * loopSignal) + (vintageLpCoeff * vintageLpStates[i]);
+                    loopSignal = vintageLpStates[i];
+                }
+
+                // Feedback signal: filtered output * line gain + stereo injection
                 const float curLineGain = juce::jmap (freezeFade, smoothedFeedbackGains[i], 1.0f);
-                float feedbackSignal = (filterStates[i] * curLineGain) + inputVector[i];
+                float feedbackSignal = (loopSignal * curLineGain) + inputVector[i];
 
                 // Continuous smooth rational soft-saturator
-                const float satAmount = (1.0f - freezeFade) * 0.22f;
+                const float satAmount = (1.0f - freezeFade) * modeSatAmount;
                 if (satAmount > 1.0e-5f)
                 {
                     const float x2 = feedbackSignal * feedbackSignal;
@@ -344,11 +492,42 @@ public:
             // STEP 6: Mathematically Orthonormal Stereo Output Decoding Matrix C
             // -----------------------------------------------------------------
             constexpr float normFactor = 0.35355339f; // 1 / sqrt(8)
-            const float lateL = ( delayOutputs[0] + delayOutputs[1] + delayOutputs[2] + delayOutputs[3]
-                                - delayOutputs[4] - delayOutputs[5] - delayOutputs[6] - delayOutputs[7]) * normFactor;
+            float lateL = ( delayOutputs[0] + delayOutputs[1] + delayOutputs[2] + delayOutputs[3]
+                          - delayOutputs[4] - delayOutputs[5] - delayOutputs[6] - delayOutputs[7]) * normFactor;
 
-            const float lateR = ( delayOutputs[0] - delayOutputs[1] + delayOutputs[2] - delayOutputs[3]
-                                + delayOutputs[4] - delayOutputs[5] + delayOutputs[6] - delayOutputs[7]) * normFactor;
+            float lateR = ( delayOutputs[0] - delayOutputs[1] + delayOutputs[2] - delayOutputs[3]
+                          + delayOutputs[4] - delayOutputs[5] + delayOutputs[6] - delayOutputs[7]) * normFactor;
+
+            // In Wide Hall (Mode 2), enhance stereo width decorrelation
+            if (algoMode == 2)
+            {
+                const float hallDiff = (lateR - lateL) * 0.25f;
+                lateL -= hallDiff;
+                lateR += hallDiff;
+            }
+
+            // In Gated Mode (Mode 7), apply nonlinear gate envelope
+            if (algoMode == 7)
+            {
+                gatedCounter++;
+                float gateGain = 1.0f;
+                if (gatedCounter > gateHoldSamples)
+                {
+                    const int relProgress = gatedCounter - gateHoldSamples;
+                    if (relProgress < gateReleaseSamples)
+                    {
+                        const float rFrac = static_cast<float> (relProgress) / static_cast<float> (gateReleaseSamples);
+                        gateGain = 0.5f * (1.0f + std::cos (juce::MathConstants<float>::pi * rFrac));
+                        gateGain = juce::jlimit (0.01f, 1.0f, gateGain);
+                    }
+                    else
+                    {
+                        gateGain = 0.01f; // -40 dB cutoff
+                    }
+                }
+                lateL *= gateGain;
+                lateR *= gateGain;
+            }
 
             // Configurable Early Reflections vs Late Reverb balance
             const float erNorm    = juce::jlimit (0.0f, 1.0f, erLateBalance);
@@ -371,6 +550,8 @@ private:
     std::vector<float> delayBuffers[NUM_DELAYS];
     int writePointers[NUM_DELAYS];
     float filterStates[NUM_DELAYS];
+    float bassFilterStates[NUM_DELAYS];
+    float vintageLpStates[NUM_DELAYS];
     float lfoPhases[NUM_DELAYS];
     float wanderPhases[NUM_DELAYS];
     float smoothedFeedbackGains[NUM_DELAYS];
@@ -397,9 +578,13 @@ private:
     int rightTankDiffWritePos[NUM_DIFFUSERS];
 
     // Parameter smoothing targets
-    float smoothedSizeScale { 0.70f };
-    float smoothedDiffCoeff { 0.50f };
-    float freezeFade        { 0.0f };
+    float smoothedSizeScale  { 0.70f };
+    float smoothedEarlyScale { 0.70f };
+    float smoothedEarlyCross { 0.50f };
+    float smoothedEarlySend  { 0.20f };
+    float smoothedDiffCoeff  { 0.50f };
+    float freezeFade         { 0.0f };
+    int gatedCounter         { 0 };
 
     static int nextPowerOfTwo (int value) noexcept
     {

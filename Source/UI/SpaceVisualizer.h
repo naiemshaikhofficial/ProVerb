@@ -54,6 +54,27 @@ public:
         repaint();
     }
 
+    std::function<void()> onAlgoModeClicked;
+    std::function<void()> onToneColorClicked;
+
+    void setAlgorithmModeName (const juce::String& name)
+    {
+        if (currentAlgoName != name)
+        {
+            currentAlgoName = name;
+            repaint();
+        }
+    }
+
+    void setTonalColorName (const juce::String& name)
+    {
+        if (currentToneName != name)
+        {
+            currentToneName = name;
+            repaint();
+        }
+    }
+
     // Comprehensive audio telemetry & DSP parameter ingestion
     void updateAudioTelemetry (float newRmsIn, float newPeakIn, float newRmsOut, float newRmsWet,
                                float newBass, float newMid, float newTreble,
@@ -413,7 +434,37 @@ public:
         // Section Title
         g.setFont (ProVerbTokens::Typography::makeHeaderFont (10.0f, true));
         g.setColour (juce::Colour (0xfff2f6fc));
-        g.drawText ("ACOUSTIC SPACE", (int) (headX + 8.0f), (int) headY, 130, 15, juce::Justification::centredLeft);
+        g.drawText ("ACOUSTIC SPACE", (int) (headX + 8.0f), (int) headY, 120, 15, juce::Justification::centredLeft);
+
+        // Tonal Color Pill
+        auto toneRect = getToneColorBounds (bounds);
+        g.setColour (juce::Colour (0xff101b29));
+        g.fillRoundedRectangle (toneRect, 4.0f);
+        g.setColour (juce::Colour (0xff243246));
+        g.drawRoundedRectangle (toneRect, 4.0f, 1.0f);
+        g.setFont (ProVerbTokens::Typography::makeLabelFont (8.5f, false));
+        g.setColour (juce::Colour (0xff8b9ab0));
+        g.drawText (currentToneName, toneRect.toNearestInt(), juce::Justification::centred, false);
+
+        // Algorithm Mode Pill
+        auto algoRect = getAlgoModeBounds (bounds);
+        g.setColour (juce::Colour (0xff101b29));
+        g.fillRoundedRectangle (algoRect, 4.0f);
+        g.setColour (juce::Colour (0xff243246));
+        g.drawRoundedRectangle (algoRect, 4.0f, 1.0f);
+        g.setFont (ProVerbTokens::Typography::makeLabelFont (8.5f, true));
+        g.setColour (juce::Colour (0xff38bdf8));
+        g.drawText (currentAlgoName + juce::String (juce::CharPointer_UTF8 (" \xe2\x96\xbe")), algoRect.toNearestInt(), juce::Justification::centred, false);
+
+        // 3D/2D View Toggle Pill
+        auto viewRect = get2DViewButtonBounds (bounds);
+        g.setColour (juce::Colour (0xff101b29));
+        g.fillRoundedRectangle (viewRect, 4.0f);
+        g.setColour (juce::Colour (0xff243246));
+        g.drawRoundedRectangle (viewRect, 4.0f, 1.0f);
+        g.setFont (ProVerbTokens::Typography::makeLabelFont (8.5f, false));
+        g.setColour (is3DMode ? juce::Colour (0xff35e6b5) : juce::Colour (0xff8b9ab0));
+        g.drawText (is3DMode ? "3D" : "2D", viewRect.toNearestInt(), juce::Justification::centred, false);
     }
 
     juce::Point<float> getVertexPosition (juce::Point<float> centre, float radius, float scaleY, int vertexIndex) const
@@ -1118,14 +1169,45 @@ public:
         return juce::Rectangle<float> (bounds.getRight() - 100.0f, bounds.getY() + 8.0f, 48.0f, 18.0f);
     }
 
+    juce::Rectangle<float> getAlgoModeBounds (juce::Rectangle<float> bounds) const
+    {
+        return juce::Rectangle<float> (bounds.getRight() - 176.0f, bounds.getY() + 8.0f, 126.0f, 18.0f);
+    }
+
+    juce::Rectangle<float> getToneColorBounds (juce::Rectangle<float> bounds) const
+    {
+        return juce::Rectangle<float> (bounds.getRight() - 246.0f, bounds.getY() + 8.0f, 64.0f, 18.0f);
+    }
+
     juce::Rectangle<float> get2DViewButtonBounds (juce::Rectangle<float> bounds) const
     {
-        return juce::Rectangle<float> (bounds.getRight() - 48.0f, bounds.getY() + 8.0f, 44.0f, 18.0f);
+        return juce::Rectangle<float> (bounds.getRight() - 46.0f, bounds.getY() + 8.0f, 38.0f, 18.0f);
     }
 
     void mouseDown (const juce::MouseEvent& e) override
     {
         auto bounds = getLocalBounds().toFloat();
+
+        // 0. Check Header Pills (Algorithm Mode, Tonal Color, 3D/2D View)
+        if (getAlgoModeBounds (bounds).contains (e.position))
+        {
+            if (onAlgoModeClicked)
+                onAlgoModeClicked();
+            return;
+        }
+
+        if (getToneColorBounds (bounds).contains (e.position))
+        {
+            if (onToneColorClicked)
+                onToneColorClicked();
+            return;
+        }
+
+        if (get2DViewButtonBounds (bounds).contains (e.position))
+        {
+            set3DView (! is3DMode);
+            return;
+        }
 
         // 1. Check Bottom Space Slider Bar Click / Drag
         auto sliderBarRect = getSpaceSliderBarBounds (bounds);
@@ -1231,6 +1313,9 @@ public:
     }
 
 private:
+    juce::String currentAlgoName { "Neutral Room" };
+    juce::String currentToneName { "Clean" };
+
     // Audio telemetry measurements
     float rmsIn { 0.0f };
     float peakIn { 0.0f };

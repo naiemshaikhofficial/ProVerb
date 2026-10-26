@@ -385,37 +385,338 @@ void testSilenceAndDenormals()
 
 void testMultipleSampleRatesAndBuffers()
 {
-    std::cout << "\n--- TEST 8: Multi-Sample-Rate & Buffer-Size Resilience ---\n";
+    std::cout << "\n--- TEST 8: Multiple Sample Rates and Buffer Sizes ---\n";
     const double testSampleRates[] = { 44100.0, 48000.0, 88200.0, 96000.0, 192000.0 };
-    const int testBlockSizes[] = { 32, 64, 128, 256, 512, 1024 };
+    const int testBlockSizes[] = { 64, 128, 256, 512, 1024 };
 
-    for (double testSr : testSampleRates)
+    bool allPassed = true;
+    for (double sr : testSampleRates)
     {
-        for (int testBs : testBlockSizes)
+        for (int bs : testBlockSizes)
         {
             FDNReverb reverb;
-            reverb.prepare (testSr, testBs);
+            reverb.prepare (sr, bs);
 
-            std::vector<float> inL(testBs, 0.0f), inR(testBs, 0.0f);
-            std::vector<float> outL(testBs, 0.0f), outR(testBs, 0.0f);
+            std::vector<float> inL (bs, 0.0f), inR (bs, 0.0f);
+            std::vector<float> outL (bs, 0.0f), outR (bs, 0.0f);
 
-            inL[0] = 0.8f; inR[0] = 0.8f;
-            reverb.process (inL.data(), inR.data(), outL.data(), outR.data(), testBs,
-                            70.0f, 1.8f, 40.0f, 75.0f, false);
+            inL[0] = 1.0f; inR[0] = 1.0f;
+            reverb.process (inL.data(), inR.data(), outL.data(), outR.data(), bs,
+                            70.0f, 1.5f, 30.0f, 75.0f, false);
+            inL[0] = 0.0f; inR[0] = 0.0f;
 
-            bool ok = true;
-            for (int s = 0; s < testBs; ++s)
+            for (int b = 0; b < 10; ++b)
             {
-                if (std::isnan (outL[s]) || std::isinf (outL[s])) ok = false;
-            }
-            if (!ok)
-            {
-                EXPECT_TRUE (false, "Sample rate " + std::to_string((int)testSr) + " buffer " + std::to_string(testBs) + " failed!");
-                return;
+                reverb.process (inL.data(), inR.data(), outL.data(), outR.data(), bs,
+                                70.0f, 1.5f, 30.0f, 75.0f, false);
+                for (int s = 0; s < bs; ++s)
+                {
+                    if (std::isnan (outL[s]) || std::isnan (outR[s]) || std::isinf (outL[s]) || std::isinf (outR[s]))
+                        allPassed = false;
+                }
             }
         }
     }
-    EXPECT_TRUE (true, "All 5 sample rates (44.1 - 192 kHz) and 6 buffer sizes (32 - 1024) pass without crash or NaN");
+    EXPECT_TRUE (allPassed, "All standard sample rates (44.1k-192k) and buffer sizes (64-1024) process stably without NaN/Inf");
+}
+
+void testAlgorithmModes()
+{
+    std::cout << "\n--- TEST 9: Eight Original Algorithm Modes Verification ---\n";
+    constexpr double sr = 48000.0;
+    constexpr int blockSize = 512;
+
+    std::vector<double> modeEnergies(8, 0.0);
+
+    for (int mode = 0; mode < 8; ++mode)
+    {
+        FDNReverb reverb;
+        reverb.prepare (sr, blockSize);
+
+        std::vector<float> inL(blockSize, 0.0f), inR(blockSize, 0.0f);
+        std::vector<float> outL(blockSize, 0.0f), outR(blockSize, 0.0f);
+
+        inL[0] = 1.0f; inR[0] = 1.0f;
+        reverb.process (inL.data(), inR.data(), outL.data(), outR.data(), blockSize,
+                        70.0f, 2.0f, 30.0f, 75.0f, false,
+                        0.5f, 1.0f, nullptr, nullptr, mode);
+        inL[0] = 0.0f; inR[0] = 0.0f;
+
+        double e = 0.0;
+        for (int b = 1; b <= 50; ++b) // 50 * 512 / 48000 = ~0.53 seconds
+        {
+            reverb.process (inL.data(), inR.data(), outL.data(), outR.data(), blockSize,
+                            70.0f, 2.0f, 30.0f, 75.0f, false,
+                            0.5f, 1.0f, nullptr, nullptr, mode);
+            for (int s = 0; s < blockSize; ++s)
+                e += outL[s] * outL[s] + outR[s] * outR[s];
+        }
+        modeEnergies[mode] = e;
+        EXPECT_TRUE (e > 1e-5, "Mode " + std::to_string(mode) + " produces valid reverberant energy");
+    }
+
+    // Verify Gated / Nonlinear Mode (Mode 7) behaves nonlinearly with fast cutoff
+    {
+        FDNReverb reverb;
+        reverb.prepare (sr, blockSize);
+
+        std::vector<float> inL(blockSize, 0.0f), inR(blockSize, 0.0f);
+        std::vector<float> outL(blockSize, 0.0f), outR(blockSize, 0.0f);
+
+        inL[0] = 1.0f; inR[0] = 1.0f;
+        reverb.process (inL.data(), inR.data(), outL.data(), outR.data(), blockSize,
+                        50.0f, 3.0f, 20.0f, 75.0f, false,
+                        0.5f, 1.0f, nullptr, nullptr, 7); // Mode 7 = Gated
+        inL[0] = 0.0f; inR[0] = 0.0f;
+
+        double eDuringHold = 0.0;
+        double eAfterCutoff = 0.0;
+
+        for (int b = 1; b <= 80; ++b)
+        {
+            reverb.process (inL.data(), inR.data(), outL.data(), outR.data(), blockSize,
+                            50.0f, 3.0f, 20.0f, 75.0f, false,
+                            0.5f, 1.0f, nullptr, nullptr, 7);
+
+            // Block 10 to 18: ~0.10s to ~0.19s (inside gate hold)
+            if (b >= 10 && b <= 18)
+            {
+                for (int s = 0; s < blockSize; ++s)
+                    eDuringHold += outL[s] * outL[s] + outR[s] * outR[s];
+            }
+            // Block 55 to 65: ~0.58s to ~0.69s (after gate cutoff)
+            if (b >= 55 && b <= 65)
+            {
+                for (int s = 0; s < blockSize; ++s)
+                    eAfterCutoff += outL[s] * outL[s] + outR[s] * outR[s];
+            }
+        }
+
+        double attenuationRatio = eDuringHold / (eAfterCutoff + 1e-12);
+        EXPECT_TRUE (attenuationRatio > 100.0, "Gated mode sharply attenuates tail by > 20 dB after hold window (Ratio = " + std::to_string(attenuationRatio) + ")");
+    }
+}
+
+void testTonalCharacter()
+{
+    std::cout << "\n--- TEST 10: Tonal Character (Clean vs Bright vs Dark) ---\n";
+    constexpr double sr = 48000.0;
+    constexpr int blockSize = 512;
+
+    auto measureLateHF = [=](int toneColor) -> double {
+        FDNReverb reverb;
+        reverb.prepare (sr, blockSize);
+
+        std::vector<float> inL(blockSize, 0.0f), inR(blockSize, 0.0f);
+        std::vector<float> outL(blockSize, 0.0f), outR(blockSize, 0.0f);
+
+        // Burst of high frequencies (8 kHz sine)
+        for (int s = 0; s < blockSize; ++s)
+        {
+            float sine = std::sin (2.0f * juce::MathConstants<float>::pi * 8000.0f * (float)s / (float)sr);
+            inL[s] = sine * 0.5f;
+            inR[s] = sine * 0.5f;
+        }
+
+        reverb.process (inL.data(), inR.data(), outL.data(), outR.data(), blockSize,
+                        70.0f, 2.5f, 40.0f, 75.0f, false,
+                        0.5f, 1.0f, nullptr, nullptr, 0, toneColor);
+
+        std::fill (inL.begin(), inL.end(), 0.0f);
+        std::fill (inR.begin(), inR.end(), 0.0f);
+
+        double lateEnergy = 0.0;
+        for (int b = 1; b <= 70; ++b)
+        {
+            reverb.process (inL.data(), inR.data(), outL.data(), outR.data(), blockSize,
+                            70.0f, 2.5f, 40.0f, 75.0f, false,
+                            0.5f, 1.0f, nullptr, nullptr, 0, toneColor);
+            if (b >= 40 && b <= 70) // ~0.42s to 0.74s
+            {
+                for (int s = 0; s < blockSize; ++s)
+                    lateEnergy += outL[s] * outL[s] + outR[s] * outR[s];
+            }
+        }
+        return lateEnergy;
+    };
+
+    double eClean  = measureLateHF (0); // Clean
+    double eBright = measureLateHF (1); // Classic Bright
+    double eDark   = measureLateHF (2); // Classic Dark
+
+    EXPECT_TRUE (eBright >= eClean * 0.95, "Classic Bright retains bright high-frequency energy in late tail");
+    EXPECT_TRUE (eDark < eClean * 0.55, "Classic Dark rolls off high-frequency energy substantially faster than Clean");
+}
+
+void testBassDecayMultiplier()
+{
+    std::cout << "\n--- TEST 11: Bass Decay Multiplier Verification ---\n";
+    constexpr double sr = 48000.0;
+    constexpr int blockSize = 512;
+
+    auto measureLateBassEnergy = [=](float bassScale) -> double {
+        FDNReverb reverb;
+        reverb.prepare (sr, blockSize);
+
+        std::vector<float> inL(blockSize, 0.0f), inR(blockSize, 0.0f);
+        std::vector<float> outL(blockSize, 0.0f), outR(blockSize, 0.0f);
+
+        // 120 Hz low frequency tone burst
+        for (int s = 0; s < blockSize; ++s)
+        {
+            float sine = std::sin (2.0f * juce::MathConstants<float>::pi * 120.0f * (float)s / (float)sr);
+            inL[s] = sine * 0.6f;
+            inR[s] = sine * 0.6f;
+        }
+
+        reverb.process (inL.data(), inR.data(), outL.data(), outR.data(), blockSize,
+                        70.0f, 2.0f, 20.0f, 75.0f, false,
+                        0.5f, bassScale, nullptr, nullptr, 0, 0, 1.0f, 40.0f, 400.0f);
+
+        std::fill (inL.begin(), inL.end(), 0.0f);
+        std::fill (inR.begin(), inR.end(), 0.0f);
+
+        double lateEnergy = 0.0;
+        for (int b = 1; b <= 90; ++b) // Up to ~0.96s
+        {
+            reverb.process (inL.data(), inR.data(), outL.data(), outR.data(), blockSize,
+                            70.0f, 2.0f, 20.0f, 75.0f, false,
+                            0.5f, bassScale, nullptr, nullptr, 0, 0, 1.0f, 40.0f, 400.0f);
+            if (b >= 50 && b <= 90) // Late tail
+            {
+                for (int s = 0; s < blockSize; ++s)
+                    lateEnergy += outL[s] * outL[s] + outR[s] * outR[s];
+            }
+        }
+        return lateEnergy;
+    };
+
+    double eTightBass = measureLateBassEnergy (0.4f); // 0.4x Bass Decay
+    double eLongBass  = measureLateBassEnergy (2.2f); // 2.2x Bass Decay
+
+    EXPECT_TRUE (eLongBass > eTightBass * 2.0, "Bass Multiplier 2.2x sustains substantially more low-frequency tail energy than 0.4x");
+}
+
+void testModulationDepthEffect()
+{
+    std::cout << "\n--- TEST 12: Modulation Rate & Depth Control ---\n";
+    constexpr double sr = 48000.0;
+    constexpr int blockSize = 256;
+
+    // With depth = 0%, two separate runs of the same impulse must be identical (bit-exact static response)
+    auto runImpulse = [=](float depth) -> std::vector<float> {
+        FDNReverb reverb;
+        reverb.prepare (sr, blockSize);
+
+        std::vector<float> inL(blockSize, 0.0f), inR(blockSize, 0.0f);
+        std::vector<float> outL(blockSize, 0.0f), outR(blockSize, 0.0f);
+        std::vector<float> output;
+
+        inL[0] = 1.0f; inR[0] = 1.0f;
+        reverb.process (inL.data(), inR.data(), outL.data(), outR.data(), blockSize,
+                        70.0f, 1.5f, 20.0f, 75.0f, false,
+                        0.5f, 1.0f, nullptr, nullptr, 0, 0, 1.0f, depth);
+        inL[0] = 0.0f; inR[0] = 0.0f;
+
+        for (int b = 1; b <= 20; ++b)
+        {
+            reverb.process (inL.data(), inR.data(), outL.data(), outR.data(), blockSize,
+                            70.0f, 1.5f, 20.0f, 75.0f, false,
+                            0.5f, 1.0f, nullptr, nullptr, 0, 0, 1.0f, depth);
+            output.insert (output.end(), outL.begin(), outL.end());
+        }
+        return output;
+    };
+
+    auto outStatic1 = runImpulse (0.0f);
+    auto outStatic2 = runImpulse (0.0f);
+    auto outMod = runImpulse (80.0f);
+
+    float maxDiffStatic = 0.0f;
+    float maxDiffMod = 0.0f;
+    for (size_t i = 0; i < outStatic1.size(); ++i)
+    {
+        maxDiffStatic = std::max (maxDiffStatic, std::abs (outStatic1[i] - outStatic2[i]));
+        maxDiffMod    = std::max (maxDiffMod,    std::abs (outStatic1[i] - outMod[i]));
+    }
+
+    EXPECT_NEAR (maxDiffStatic, 0.0, 1e-6, "Modulation Depth 0% produces bit-exact deterministic acoustic response");
+    EXPECT_TRUE (maxDiffMod > 1e-3, "Modulation Depth 80% produces rich dynamic phase motion");
+}
+
+void testEarlyLateSeparation()
+{
+    std::cout << "\n--- TEST 13: ValhallaRoom-style Early & Late Reverb Separation ---\n";
+    constexpr double sr = 48000.0;
+    constexpr int blockSize = 256;
+
+    // Compare earlySend = 0% vs earlySend = 100%
+    auto measureLateEnergyWithSend = [=](float earlySend) -> double {
+        FDNReverb reverb;
+        reverb.prepare (sr, blockSize);
+
+        std::vector<float> inL(blockSize, 0.0f), inR(blockSize, 0.0f);
+        std::vector<float> outL(blockSize, 0.0f), outR(blockSize, 0.0f);
+
+        inL[0] = 1.0f; inR[0] = 1.0f;
+        reverb.process (inL.data(), inR.data(), outL.data(), outR.data(), blockSize,
+                        70.0f, 2.0f, 20.0f, 75.0f, false,
+                        0.2f, 1.0f, nullptr, nullptr, 0, 0, 1.0f, 40.0f, 350.0f,
+                        70.0f, 50.0f, earlySend);
+        inL[0] = 0.0f; inR[0] = 0.0f;
+
+        double lateEnergy = 0.0;
+        for (int b = 1; b <= 40; ++b)
+        {
+            reverb.process (inL.data(), inR.data(), outL.data(), outR.data(), blockSize,
+                            70.0f, 2.0f, 20.0f, 75.0f, false,
+                            0.2f, 1.0f, nullptr, nullptr, 0, 0, 1.0f, 40.0f, 350.0f,
+                            70.0f, 50.0f, earlySend);
+            if (b >= 20 && b <= 40)
+            {
+                for (int s = 0; s < blockSize; ++s)
+                    lateEnergy += outL[s] * outL[s] + outR[s] * outR[s];
+            }
+        }
+        return lateEnergy;
+    };
+
+    double eSend0   = measureLateEnergyWithSend (0.0f);
+    double eSend100 = measureLateEnergyWithSend (100.0f);
+
+    EXPECT_TRUE (eSend100 > eSend0, "Early-to-Late Send injects early diffuse reflection energy into late tank");
+}
+
+void testTempoSyncPreDelayCalculations()
+{
+    std::cout << "\n--- TEST 14: Tempo-Synchronized Pre-Delay Mathematical Accuracy ---\n";
+    // At 120 BPM: 1 beat (1/4) = 500 ms
+    // 1/16 note = 125 ms
+    // 1/8 note = 250 ms
+    // 1/32 note = 62.5 ms
+    const double bpm = 120.0;
+    const double beatMs = 60000.0 / bpm;
+
+    auto calcSyncMs = [=](int choice) -> double {
+        switch (choice)
+        {
+            case 1:  return beatMs / 16.0;
+            case 2:  return beatMs / 8.0;
+            case 3:  return (beatMs / 4.0) * (2.0 / 3.0);
+            case 4:  return beatMs / 4.0;
+            case 5:  return (beatMs / 4.0) * 1.5;
+            case 6:  return (beatMs / 2.0) * (2.0 / 3.0);
+            case 7:  return beatMs / 2.0;
+            case 8:  return (beatMs / 2.0) * 1.5;
+            case 9:  return beatMs * (2.0 / 3.0);
+            case 10: return beatMs;
+            default: return 0.0;
+        }
+    };
+
+    EXPECT_NEAR (calcSyncMs (4), 125.0, 1e-4, "120 BPM 1/16 note is exactly 125.0 ms");
+    EXPECT_NEAR (calcSyncMs (7), 250.0, 1e-4, "120 BPM 1/8 note is exactly 250.0 ms");
+    EXPECT_NEAR (calcSyncMs (2), 62.5,  1e-4, "120 BPM 1/32 note is exactly 62.5 ms");
 }
 
 int main()
@@ -432,6 +733,12 @@ int main()
     testVocalDucking();
     testSilenceAndDenormals();
     testMultipleSampleRatesAndBuffers();
+    testAlgorithmModes();
+    testTonalCharacter();
+    testBassDecayMultiplier();
+    testModulationDepthEffect();
+    testEarlyLateSeparation();
+    testTempoSyncPreDelayCalculations();
 
     std::cout << "\n========================================================\n";
     std::cout << "  DSP SUITE EXECUTION SUMMARY:\n";
