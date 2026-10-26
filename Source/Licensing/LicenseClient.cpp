@@ -91,6 +91,29 @@ namespace ProducerToy::Licensing
             for (size_t i = 0; i < outputLength; ++i)
                 output[i] = static_cast<uint8_t>((nibble(hex[i * 2]) << 4) | nibble(hex[i * 2 + 1]));
         }
+
+        juce::String extractErrorMessage(const juce::var& jsonVar, const juce::String& fallback)
+        {
+            if (auto* obj = jsonVar.getDynamicObject())
+            {
+                if (obj->hasProperty("error"))
+                {
+                    const auto errVar = obj->getProperty("error");
+                    if (errVar.isString())
+                        return errVar.toString();
+                    if (auto* errObj = errVar.getDynamicObject())
+                    {
+                        if (errObj->hasProperty("message") && errObj->getProperty("message").isString())
+                            return errObj->getProperty("message").toString();
+                        if (errObj->hasProperty("code") && errObj->getProperty("code").isString())
+                            return errObj->getProperty("code").toString();
+                    }
+                }
+                if (obj->hasProperty("message") && obj->getProperty("message").isString())
+                    return obj->getProperty("message").toString();
+            }
+            return fallback;
+        }
     }
 
     LicenseClient& LicenseClient::getInstance()
@@ -373,9 +396,14 @@ namespace ProducerToy::Licensing
             auto* obj = parsed.getDynamicObject();
             if (statusCode != 200 || obj == nullptr || !obj->getProperty("success"))
             {
-                juce::String err = obj ? obj->getProperty("error").toString() : "";
+                juce::String err = extractErrorMessage(parsed, "");
                 if (err.isEmpty())
-                    err = "Dedicated licensing server unreachable. Check connection or use Serial / Offline File.";
+                {
+                    if (statusCode > 0 && statusCode != 200)
+                        err = "Licensing server returned HTTP " + juce::String(statusCode) + ". Check internet or use Serial / Offline File.";
+                    else
+                        err = "Licensing server unreachable. Check connection or use Serial / Offline File.";
+                }
 
                 juce::MessageManager::callAsync([cb = onReady, err]()
                 {
@@ -513,9 +541,14 @@ namespace ProducerToy::Licensing
             auto* obj = parsed.getDynamicObject();
             if (statusCode != 200 || obj == nullptr || !obj->getProperty("success"))
             {
-                juce::String errMsg = obj ? obj->getProperty("error").toString() : "";
+                juce::String errMsg = extractErrorMessage(parsed, "");
                 if (errMsg.isEmpty())
-                    errMsg = "Could not reach the dedicated licensing server. Please check connection or use Offline License File.";
+                {
+                    if (statusCode > 0 && statusCode != 200)
+                        errMsg = "Licensing server returned HTTP " + juce::String(statusCode) + ". Please check connection or use Offline License File.";
+                    else
+                        errMsg = "Could not reach the dedicated licensing server. Please check connection or use Offline License File.";
+                }
 
                 juce::MessageManager::callAsync([callback, errMsg]()
                 {
