@@ -82,10 +82,10 @@ namespace ProducerToy::UI
 
         // Window & General controls
         juce::TextButton closeButton;
-        juce::TextButton continueButton { "Continue to Plugin" };
+        juce::TextButton continueButton { "Done" };
         juce::TextButton buyButton { "Buy ProVerb ($9.99)" };
-        juce::TextButton deactivateButton { "Remove / Deactivate" };
-        juce::TextButton supportButton { "Licensing Support" };
+        juce::TextButton deactivateButton { "Deactivate" };
+        juce::TextButton supportButton { "Support" };
 
         // Tab selection buttons
         juce::TextButton tabSerialButton { "SERIAL KEY" };

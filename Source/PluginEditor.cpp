@@ -243,7 +243,7 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
         menu.addItem (2, "GUI Scale: 125% (Medium)", true, currentScaleFactor == 1.25f);
         menu.addItem (3, "GUI Scale: 150% (Large)", true, currentScaleFactor == 1.5f);
         menu.addSeparator();
-        menu.addItem (4, "License Status & Activation...", true, false);
+        menu.addItem (4, "About ProVerb...", true, false);
 
         juce::Component::SafePointer<ProVerbAudioProcessorEditor> safeThis (this);
         menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&settingsButton),

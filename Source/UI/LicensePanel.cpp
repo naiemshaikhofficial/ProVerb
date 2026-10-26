@@ -172,7 +172,7 @@ namespace ProducerToy::UI
 
     juce::Rectangle<int> LicensePanel::getCardBounds() const
     {
-        return getLocalBounds().withSizeKeepingCentre(630, 420);
+        return getLocalBounds().withSizeKeepingCentre(state.isActivated ? 480 : 630, state.isActivated ? 290 : 420);
     }
 
     void LicensePanel::mouseDown(const juce::MouseEvent& event)
@@ -212,7 +212,7 @@ namespace ProducerToy::UI
             return;
 
         state = newState;
-        statusMessage = "License verified! ProVerb DSP unlocked.";
+        statusMessage = "License verified.";
         isError = false;
         resized();
         repaint();
@@ -325,7 +325,7 @@ namespace ProducerToy::UI
                     }
 
                     panel->refreshState();
-                    panel->statusMessage = "License verified! ProVerb DSP unlocked.";
+                    panel->statusMessage = "License verified.";
                     panel->isError = false;
                     panel->repaint();
 
@@ -403,7 +403,7 @@ namespace ProducerToy::UI
     {
         Licensing::LicenseClient::getInstance().deactivate();
         refreshState();
-        statusMessage = "Local license removed. DSP engine is now locked.";
+        statusMessage = "License deactivated.";
         isError = false;
         repaint();
 
@@ -423,54 +423,50 @@ namespace ProducerToy::UI
         g.setColour(juce::Colour(0xff1f242e));
         g.drawRoundedRectangle(card, 12.0f, 1.0f);
 
-        // Top decorative neon cyber-strip
-        auto strip = card.removeFromTop(3.0f);
-        g.setColour(state.isActivated ? juce::Colour(0xff10b981) : juce::Colour(0xff00f0ff));
-        g.fillRoundedRectangle(strip.reduced(12.0f, 0.0f), 1.5f);
+        // Subtle top accent line
+        auto strip = card.removeFromTop(2.0f);
+        g.setColour(juce::Colour(0xff22d3ee).withAlpha(0.70f));
+        g.fillRoundedRectangle(strip.reduced(24.0f, 0.0f), 1.0f);
 
         // Logo
         if (proverbLogoImage.isValid())
         {
-            const float logoWidth = 120.0f;
+            const float logoWidth = 110.0f;
             const float logoHeight = logoWidth * static_cast<float>(proverbLogoImage.getHeight())
                                                     / static_cast<float>(proverbLogoImage.getWidth());
             const float logoX = card.getCentreX() - logoWidth * 0.5f;
-            const float logoY = card.getY() + 18.0f;
+            const float logoY = card.getY() + (state.isActivated ? 22.0f : 18.0f);
             g.drawImage(proverbLogoImage, static_cast<int>(logoX), static_cast<int>(logoY),
                         static_cast<int>(logoWidth), static_cast<int>(logoHeight),
                         0, 0, proverbLogoImage.getWidth(), proverbLogoImage.getHeight());
         }
 
-        const float contentX = card.getX() + 36.0f;
-        const float contentW = card.getWidth() - 72.0f;
+        const float contentX = card.getX() + 32.0f;
+        const float contentW = card.getWidth() - 64.0f;
 
         if (state.isActivated)
         {
-            float y = card.getY() + 90.0f;
+            float y = card.getY() + 74.0f;
 
-            g.setFont(getPanelFont(14.0f, juce::Font::bold));
-            g.setColour(juce::Colour(0xff10b981));
-            g.drawText("PROVERB IS ACTIVE & UNLOCKED", juce::roundToInt(contentX), juce::roundToInt(y), juce::roundToInt(contentW), 20, juce::Justification::centred);
-            y += 28.0f;
+            g.setFont(getPanelFont(11.0f));
+            g.setColour(juce::Colour(0xff94a3b8));
+            g.drawText("Smart Algorithmic Reverb", juce::roundToInt(contentX), juce::roundToInt(y), juce::roundToInt(contentW), 18, juce::Justification::centred);
+            y += 24.0f;
 
-            g.setColour(juce::Colour(0xff141822));
-            g.fillRoundedRectangle(contentX, y, contentW, 110.0f, 8.0f);
-            g.setColour(juce::Colour(0xff222a38));
-            g.drawRoundedRectangle(contentX, y, contentW, 110.0f, 8.0f, 1.0f);
+            g.setColour(juce::Colour(0xff12141a));
+            g.fillRoundedRectangle(contentX, y, contentW, 76.0f, 6.0f);
+            g.setColour(juce::Colour(0xff1e222d));
+            g.drawRoundedRectangle(contentX, y, contentW, 76.0f, 6.0f, 1.0f);
 
             float infoY = y + 14.0f;
-            g.setFont(getPanelFont(14.0f, juce::Font::bold));
+            g.setFont(getPanelFont(13.0f, juce::Font::bold));
             g.setColour(juce::Colours::white);
-            g.drawText("Licensed to: " + state.registeredName, juce::roundToInt(contentX + 18.0f), juce::roundToInt(infoY), juce::roundToInt(contentW - 36.0f), 20, juce::Justification::centredLeft);
+            g.drawText("Licensed to: " + state.registeredName, juce::roundToInt(contentX + 16.0f), juce::roundToInt(infoY), juce::roundToInt(contentW - 32.0f), 20, juce::Justification::centredLeft);
             infoY += 24.0f;
 
-            g.setFont(getPanelFont(12.0f));
-            g.setColour(juce::Colour(0xff94a3b8));
-            g.drawText("Account: " + state.maskedEmail, juce::roundToInt(contentX + 18.0f), juce::roundToInt(infoY), juce::roundToInt(contentW - 36.0f), 18, juce::Justification::centredLeft);
-            infoY += 20.0f;
-
-            const auto devShort = state.deviceHash.substring(0, juce::jmin(24, state.deviceHash.length())) + "...";
-            g.drawText("Device: " + devShort + "   |   Tier: " + state.licenseTier, juce::roundToInt(contentX + 18.0f), juce::roundToInt(infoY), juce::roundToInt(contentW - 36.0f), 18, juce::Justification::centredLeft);
+            g.setFont(getPanelFont(11.5f));
+            g.setColour(juce::Colour(0xff8b949e));
+            g.drawText("Account: " + state.maskedEmail, juce::roundToInt(contentX + 16.0f), juce::roundToInt(infoY), juce::roundToInt(contentW - 32.0f), 18, juce::Justification::centredLeft);
         }
         else
         {
@@ -552,25 +548,25 @@ namespace ProducerToy::UI
         }
 
         // Bottom divider
-        const float dividerY = card.getBottom() - 66.0f;
-        g.setColour(juce::Colour(0xff1f242e));
-        g.drawHorizontalLine(static_cast<int>(dividerY), contentX, card.getRight() - 36.0f);
+        const float dividerY = card.getBottom() - (state.isActivated ? 50.0f : 66.0f);
+        g.setColour(juce::Colour(0xff1a1e27));
+        g.drawHorizontalLine(static_cast<int>(dividerY), contentX, card.getRight() - 32.0f);
 
         // Footer info
         g.setFont(getPanelFont(9.5f));
         g.setColour(juce::Colour(0xff64748b));
-        g.drawText("Ed25519 Cryptographic Signatures   |   Zero Vercel/Supabase Traffic   |   Dedicated VPS Backend",
-                   juce::roundToInt(contentX), juce::roundToInt(dividerY + 6.0f), juce::roundToInt(contentW), 14, juce::Justification::centredLeft);
+        g.drawText(juce::CharPointer_UTF8 ("\xc2\xa9 2026 ProducerToy. All rights reserved."),
+                   juce::roundToInt(contentX), juce::roundToInt(dividerY + 6.0f), juce::roundToInt(contentW), 14, juce::Justification::centred);
     }
 
     void LicensePanel::resized()
     {
         const auto card = getCardBounds();
-        const int contentX = card.getX() + 36;
-        const int contentW = card.getWidth() - 72;
-        const int bottomBarY = card.getBottom() - 44;
+        const int contentX = card.getX() + (state.isActivated ? 32 : 36);
+        const int contentW = card.getWidth() - (state.isActivated ? 64 : 72);
+        const int bottomBarY = card.getBottom() - (state.isActivated ? 42 : 44);
 
-        closeButton.setBounds(card.getRight() - 32, card.getY() + 10, 22, 22);
+        closeButton.setBounds(card.getRight() - 30, card.getY() + 10, 20, 20);
 
         if (state.isActivated)
         {
@@ -591,12 +587,12 @@ namespace ProducerToy::UI
             cancelPairingButton.setVisible(false);
             buyButton.setVisible(false);
 
-            auto bArea = juce::Rectangle<int>(contentX, bottomBarY, contentW, 30);
-            continueButton.setBounds(bArea.removeFromLeft(150));
-            bArea.removeFromLeft(10);
-            deactivateButton.setBounds(bArea.removeFromLeft(160));
-            bArea.removeFromLeft(10);
-            supportButton.setBounds(bArea.removeFromLeft(140));
+            auto bArea = juce::Rectangle<int>(contentX, bottomBarY, contentW, 26);
+            continueButton.setBounds(bArea.removeFromLeft(100));
+            bArea.removeFromLeft(12);
+            deactivateButton.setBounds(bArea.removeFromLeft(110));
+            bArea.removeFromLeft(12);
+            supportButton.setBounds(bArea.removeFromLeft(100));
         }
         else
         {
