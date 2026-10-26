@@ -197,6 +197,19 @@ public:
                 rec.confidence = std::max (rec.confidence, 0.90f);
             }
         }
+        // 5. VOCAL FORMANTS & SINGING VOICE DISAMBIGUATION:
+        // Human singing voice is heavily concentrated in the vocal core and presence formants
+        // (coreRatio + presRatio >= 0.65), with dynamic crest inflections (crest >= 3.5),
+        // and low sub-bass (subRatio < 0.15).
+        // NEVER misclassify human singing vocals as Synth/Pad!
+        else if ((coreRatio + presRatio) >= 0.65f && subRatio < 0.15f && crest >= 3.5f)
+        {
+            if (topClass != ProVerbAI::ClassVocals && topClass != ProVerbAI::ClassGuitar)
+            {
+                topClass = ProVerbAI::ClassVocals;
+                rec.confidence = std::max (rec.confidence, 0.88f);
+            }
+        }
 
         // ---------------------------------------------------------------------
         // DYNAMIC STUDIO PARAMETER SYNTHESIS (Grammy-Level Acoustic Tailoring)

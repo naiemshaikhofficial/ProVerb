@@ -18,25 +18,25 @@ import soundfile as sf
 
 NUM_CLASSES = 7
 CLASS_NAMES = [
-    "Bass",              # 0
-    "Drums",             # 1
+    "Drums",             # 0
+    "Vocals",            # 1
     "Guitar",            # 2
     "Piano / Keys",      # 3
-    "Synth / Pad",       # 4
-    "Vocals",            # 5
+    "Bass",              # 4
+    "Synth / Pad",       # 5
     "Other / Uncertain", # 6
 ]
 
 def classify_sample_path(full_path: str):
     pl = full_path.lower().replace('\\', '/')
     
-    # 0: Bass (808s, basslines, subs)
+    # 4: Bass (808s, basslines, subs)
     if any(k in pl for k in ['/808', '808s', '808_', '808-', 'bass', 'sub bass', '808 kit', 'sub_']):
-        return 0, 'Bass', "808/Bass element detected in path"
+        return 4, 'Bass', "808/Bass element detected in path"
     
-    # 5: Vocals (chants, chops, acapellas, vox)
+    # 1: Vocals (chants, chops, acapellas, vox, voice)
     if any(k in pl for k in ['vocal', 'chant', 'chop', 'acapella', 'vox', 'singing', 'voice']):
-        return 5, 'Vocals', "Vocal chop/chant detected in path"
+        return 1, 'Vocals', "Vocal chop/chant/stem detected in path"
 
     # 2: Guitar & Stringed Instruments
     if any(k in pl for k in ['guitar', 'gtr', 'acoustic guitar', 'electric guitar', 'tumbi', 'sitar', 'sarod']):
@@ -46,24 +46,24 @@ def classify_sample_path(full_path: str):
     if any(k in pl for k in ['piano', 'keys', 'rhodes', 'organ', 'harmonium']):
         return 3, 'Piano / Keys', "Keyboard/Harmonium element detected in path"
 
-    # 4: Synth, Pads & Ambient Melodies
+    # 5: Synth, Pads & Ambient Melodies
     if any(k in pl for k in ['synth', 'pad', 'lead', 'pluck', 'melody loop', 'arp', 'drop loop', 'flute', 'bansuri']):
-        return 4, 'Synth / Pad', "Melody loop/Synth/Flute detected in path"
+        return 5, 'Synth / Pad', "Melody loop/Synth/Flute detected in path"
 
     # 6: Other / Uncertain / FX
     if any(k in pl for k in ['/fx/', 'fx_', 'fx -', 'riser', 'downlifter', 'sweep', 'impact', 'various', 'transition']):
         return 6, 'Other / Uncertain', "Sound FX / Transition detected in path"
 
-    # 1: Drums & Percussion (Default for rhythm libraries)
+    # 0: Drums & Percussion (Default for rhythm libraries)
     if any(k in pl for k in [
         'drum', 'kick', 'snare', 'clap', 'cymbal', 'hihat', 'hi hat', 'hi-hat', 
         'percussion', 'perc', 'crash', 'ride', 'fill', 'top loop', 'rhythm', 
         'rythm', 'tabla', 'dholak', 'dhol', 'sambalpur', 'sambhalpur', 
         'south drums', 'india street', 'punjab', 'drill'
     ]):
-        return 1, 'Drums', "Drums/Percussion element detected in path"
+        return 0, 'Drums', "Drums/Percussion element detected in path"
 
-    return 1, 'Drums', "Studio rhythm/percussion loop detected"
+    return 0, 'Drums', "Studio rhythm/percussion loop detected"
 
 
 def sha256_file(filepath: str) -> str:
@@ -136,7 +136,7 @@ def main():
         
         recordings.append({
             "recording_id": rec_id,
-            "parent_track_id": p.parent.name,
+            "parent_track_id": f"{top_folder}_{p.stem}",
             "dataset_name": dataset_name,
             "file_path": str(p),
             "file_sha256": sha256_file(str(p)),

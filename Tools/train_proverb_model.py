@@ -353,6 +353,24 @@ def load_dataset_from_manifest(manifest_path: str, slice_duration: float = 2.5,
 
     manifest_dir = os.path.dirname(os.path.abspath(manifest_path))
     project_root = os.path.abspath(os.path.join(manifest_dir, ".."))
+    cache_path = os.path.join(manifest_dir, "manifest_features_cache.npz")
+    manifest_mtime = os.path.getmtime(manifest_path)
+    manifest_size = os.path.getsize(manifest_path)
+
+    if os.path.exists(cache_path):
+        try:
+            cached = np.load(cache_path, allow_pickle=True)
+            if (cached.get("manifest_mtime") == manifest_mtime and
+                cached.get("manifest_size") == manifest_size and
+                cached.get("slice_duration") == slice_duration):
+                print(f"    [CACHE HIT] Loaded {len(cached['X'])} pre-extracted audio chunks from {os.path.basename(cache_path)}", flush=True)
+                X = cached["X"]
+                y = cached["y"]
+                source_ids = list(cached["source_ids"])
+                provenance = cached["provenance"].item()
+                return X, y, source_ids, provenance
+        except Exception as e:
+            print(f"    [!] Warning: Failed reading feature cache ({e}), re-extracting...", flush=True)
 
     X_list, y_list, source_ids = [], [], []
     class_counts = {c: 0 for c in range(NUM_CLASSES)}
@@ -451,7 +469,25 @@ def load_dataset_from_manifest(manifest_path: str, slice_duration: float = 2.5,
         "unsupported_classes": unsupported_classes
     }
 
-    return np.array(X_list, dtype=np.float32), np.array(y_list, dtype=np.int64), source_ids, provenance
+    X_arr = np.array(X_list, dtype=np.float32)
+    y_arr = np.array(y_list, dtype=np.int64)
+
+    try:
+        np.savez_compressed(
+            cache_path,
+            X=X_arr,
+            y=y_arr,
+            source_ids=np.array(source_ids, dtype=object),
+            provenance=provenance,
+            manifest_mtime=manifest_mtime,
+            manifest_size=manifest_size,
+            slice_duration=slice_duration
+        )
+        print(f"    [CACHE SAVED] Pre-extracted {len(X_arr)} chunks saved to {os.path.basename(cache_path)}", flush=True)
+    except Exception as e:
+        print(f"    [!] Warning: Failed saving feature cache: {e}", flush=True)
+
+    return X_arr, y_arr, source_ids, provenance
 
 
 
