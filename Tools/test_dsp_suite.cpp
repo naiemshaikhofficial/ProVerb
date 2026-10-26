@@ -1015,58 +1015,138 @@ void testRoomSizeAudibleEffectiveness()
 
 void testAlgorithmModeTransitionsClickResistance()
 {
-    std::cout << "\n--- TEST 16: Live Algorithm Mode Transition Click-Resistance ---\n";
+    std::cout << "\n--- TEST 16: Live Algorithm Mode Transition Click-Resistance & Transient Residuals ---\n";
     constexpr double sr = 48000.0;
     constexpr int blockSize = 256;
 
-    FDNReverb reverb;
-    reverb.prepare (sr, blockSize, 70.0f);
+    // Synthetic harmonic test signal (220 Hz + 550 Hz + 1100 Hz composite)
+    auto generateHarmonicBlock = [sr](int blockIndex, int size, std::vector<float>& bufL, std::vector<float>& bufR) {
+        for (int s = 0; s < size; ++s)
+        {
+            double t = (double)(blockIndex * size + s) / sr;
+            float sig = 0.20f * std::sin (2.0 * juce::MathConstants<double>::pi * 220.0 * t)
+                      + 0.10f * std::sin (2.0 * juce::MathConstants<double>::pi * 550.0 * t)
+                      + 0.05f * std::sin (2.0 * juce::MathConstants<double>::pi * 1100.0 * t);
+            bufL[s] = sig;
+            bufR[s] = sig;
+        }
+    };
 
+    // Step 1: Render unswitched baseline (Mode 0 steady-state) to establish normal waveform derivatives
+    FDNReverb baselineReverb;
+    baselineReverb.prepare (sr, blockSize, 70.0f);
     std::vector<float> inL (blockSize, 0.0f), inR (blockSize, 0.0f);
     std::vector<float> outL (blockSize, 0.0f), outR (blockSize, 0.0f);
 
-    float lastOutL = 0.0f;
-    float maxSampleStep = 0.0f;
+    float baseLastY = 0.0f, basePrevLastY = 0.0f;
+    float baseMaxDy = 0.0f, baseMaxD2y = 0.0f;
+
+    for (int b = 0; b < 20; ++b)
+    {
+        generateHarmonicBlock (b, blockSize, inL, inR);
+        baselineReverb.process (inL.data(), inR.data(), outL.data(), outR.data(), blockSize,
+                                70.0f, 2.0f, 20.0f, 75.0f, false,
+                                0.5f, 1.0f, nullptr, nullptr, 0);
+
+        for (int s = 0; s < blockSize; ++s)
+        {
+            float dy = std::abs (outL[s] - baseLastY);
+            float d2y = std::abs (outL[s] - 2.0f * baseLastY + basePrevLastY);
+            if (b > 5) // steady state
+            {
+                baseMaxDy = std::max (baseMaxDy, dy);
+                baseMaxD2y = std::max (baseMaxD2y, d2y);
+            }
+            basePrevLastY = baseLastY;
+            baseLastY = outL[s];
+        }
+    }
+
+    // Step 2: Render live switched engine through all 8 modes in sequence
+    FDNReverb switchedReverb;
+    switchedReverb.prepare (sr, blockSize, 70.0f);
+
+    float lastY = 0.0f, prevLastY = 0.0f;
+    float maxSwitchedDy = 0.0f, maxSwitchedD2y = 0.0f;
     bool hasNanOrInf = false;
 
-    // Continuous sine tone input while switching through all 8 modes in sequence
-    const int modes[] = { 0, 1, 2, 3, 4, 5, 6, 7, 0, 2, 6, 7, 1 };
-    for (int mode : modes)
+    const int modeSequence[] = { 0, 1, 2, 3, 4, 5, 6, 7, 0 };
+    const int numTransitions = sizeof(modeSequence) / sizeof(modeSequence[0]) - 1;
+
+    for (int m = 0; m <= numTransitions; ++m)
     {
-        // Run 8 blocks per mode (~42ms per mode, triggering mode slewing)
+        int mode = modeSequence[m];
+        // Run 8 blocks (~42ms) per mode, capturing cross-mode slew transitions
         for (int b = 0; b < 8; ++b)
         {
-            for (int s = 0; s < blockSize; ++s)
-            {
-                double t = (double)(b * blockSize + s) / sr;
-                float sig = 0.35f * std::sin (2.0 * juce::MathConstants<double>::pi * 330.0 * t);
-                inL[s] = sig; inR[s] = sig;
-            }
-
-            reverb.process (inL.data(), inR.data(), outL.data(), outR.data(), blockSize,
-                            70.0f, 2.0f, 20.0f, 75.0f, false,
-                            0.5f, 1.0f, nullptr, nullptr, mode);
+            int globalBlock = m * 8 + b;
+            generateHarmonicBlock (globalBlock, blockSize, inL, inR);
+            switchedReverb.process (inL.data(), inR.data(), outL.data(), outR.data(), blockSize,
+                                    70.0f, 2.0f, 20.0f, 75.0f, false,
+                                    0.5f, 1.0f, nullptr, nullptr, mode);
 
             for (int s = 0; s < blockSize; ++s)
             {
                 if (std::isnan (outL[s]) || std::isnan (outR[s]) || std::isinf (outL[s]) || std::isinf (outR[s]))
                     hasNanOrInf = true;
 
-                float diff = std::abs (outL[s] - lastOutL);
-                if (diff > maxSampleStep)
-                    maxSampleStep = diff;
-                lastOutL = outL[s];
+                float dy = std::abs (outL[s] - lastY);
+                float d2y = std::abs (outL[s] - 2.0f * lastY + prevLastY);
+                if (globalBlock > 2)
+                {
+                    maxSwitchedDy = std::max (maxSwitchedDy, dy);
+                    maxSwitchedD2y = std::max (maxSwitchedD2y, d2y);
+                }
+                prevLastY = lastY;
+                lastY = outL[s];
             }
         }
     }
 
+    // Step 3: Rapid switching stress test across all 8 modes (sub-block rapid switching every 64 samples)
+    constexpr int rapidSubBlock = 64;
+    std::vector<float> rapidInL (rapidSubBlock, 0.0f), rapidInR (rapidSubBlock, 0.0f);
+    std::vector<float> rapidOutL (rapidSubBlock, 0.0f), rapidOutR (rapidSubBlock, 0.0f);
+
+    const int rapidModes[] = { 0, 7, 2, 5, 6, 3, 1, 4, 0, 5, 2, 7 };
+    float rapidMaxDy = 0.0f;
+    float rapidLastY = lastY;
+
+    for (int rMode : rapidModes)
+    {
+        for (int rep = 0; rep < 4; ++rep)
+        {
+            generateHarmonicBlock (rep, rapidSubBlock, rapidInL, rapidInR);
+            switchedReverb.process (rapidInL.data(), rapidInR.data(), rapidOutL.data(), rapidOutR.data(), rapidSubBlock,
+                                    70.0f, 2.0f, 20.0f, 75.0f, false,
+                                    0.5f, 1.0f, nullptr, nullptr, rMode);
+
+            for (int s = 0; s < rapidSubBlock; ++s)
+            {
+                if (std::isnan (rapidOutL[s]) || std::isnan (rapidOutR[s]) || std::isinf (rapidOutL[s]) || std::isinf (rapidOutR[s]))
+                    hasNanOrInf = true;
+
+                float dy = std::abs (rapidOutL[s] - rapidLastY);
+                rapidMaxDy = std::max (rapidMaxDy, dy);
+                rapidLastY = rapidOutL[s];
+            }
+        }
+    }
+
+    std::cout << "  Baseline unswitched: max |dy| = " << baseMaxDy << ", max |d2y| = " << baseMaxD2y << "\n";
+    std::cout << "  Switched sequence:   max |dy| = " << maxSwitchedDy << ", max |d2y| = " << maxSwitchedD2y << "\n";
+    std::cout << "  Rapid hop stress:    max |dy| = " << rapidMaxDy << "\n";
+    std::cout << "  [NOTE] Mathematical sample continuity confirmed. True perceptual transparency must still be validated via listening tests in DAW across diverse sources.\n";
+
     EXPECT_TRUE (!hasNanOrInf, "Live algorithm mode transitions produce NO NaN or infinite values");
-    EXPECT_TRUE (maxSampleStep < 0.65f, "Live algorithm mode transitions exhibit click-resistant parameter slewing (maxStep < 0.65)");
+    EXPECT_TRUE (maxSwitchedDy < 0.15f, "Live mode transitions exhibit click-resistant sample continuity (max |dy| < 0.15)");
+    EXPECT_TRUE (maxSwitchedD2y < 0.10f, "Live mode transitions exhibit smooth transient acceleration (max |d2y| < 0.10)");
+    EXPECT_TRUE (rapidMaxDy < 0.20f, "Rapid sub-block mode hops maintain sample continuity (rapid max |dy| < 0.20)");
 }
 
 void testFiveBandEQContinuousParameterSweeps()
 {
-    std::cout << "\n--- TEST 17: Five-Band EQ Continuous Parameter Sweeps & Stability ---\n";
+    std::cout << "\n--- TEST 17: Five-Band EQ Parameter Limits & Automation Sweeps ---\n";
     constexpr double sr = 48000.0;
     constexpr int blockSize = 512;
 
@@ -1079,34 +1159,77 @@ void testFiveBandEQContinuousParameterSweeps()
 
     juce::AudioBuffer<float> buffer (2, blockSize);
     bool hasNanOrInf = false;
-    float maxAbsVal = 0.0f;
 
-    // Rapid sweeps across 100 blocks (~1.0s)
-    for (int b = 0; b < 100; ++b)
+    // Part 1: Verify exact registered parameter limits, explicitly including Q = 0.2, 0.707, 5.0, 8.0
+    const float testQs[] = { 0.20f, 0.707f, 5.0f, 8.0f };
+    const float testGains[] = { -12.0f, 0.0f, 12.0f };
+    float limitMaxAbs = 0.0f;
+
+    for (float qVal : testQs)
+    {
+        for (float gainVal : testGains)
+        {
+            for (int s = 0; s < blockSize; ++s)
+            {
+                double t = (double)s / sr;
+                float sig = 0.35f * std::sin (2.0 * juce::MathConstants<double>::pi * 1000.0 * t);
+                buffer.setSample (0, s, sig);
+                buffer.setSample (1, s, sig);
+            }
+
+            eq.process (buffer, blockSize,
+                        20.0f, 20000.0f,            // Low Cut 20Hz, High Cut 20kHz
+                        40.0f, gainVal,             // Low Shelf 40Hz
+                        1200.0f, gainVal, qVal,     // Mid Bell 1200Hz with tested Q
+                        16000.0f, gainVal);         // High Shelf 16kHz
+
+            for (int ch = 0; ch < 2; ++ch)
+            {
+                const float* d = buffer.getReadPointer (ch);
+                for (int s = 0; s < blockSize; ++s)
+                {
+                    if (std::isnan (d[s]) || std::isinf (d[s])) hasNanOrInf = true;
+                    limitMaxAbs = std::max (limitMaxAbs, std::abs (d[s]));
+                }
+            }
+        }
+    }
+
+    EXPECT_TRUE (!hasNanOrInf, "Five-band EQ maintains stability at parameter limits (including Q = 5.0 and Q = 8.0)");
+    EXPECT_TRUE (limitMaxAbs < 5.0f, "Five-band EQ output is bounded under maximum boost (+12 dB) at Q = 5.0 and 8.0");
+
+    // Part 2: Dynamic simultaneous parameter sweeps across 120 blocks (~1.3s)
+    float sweepMaxAbs = 0.0f;
+    float maxSweepDy = 0.0f;
+    float lastEq[2] = { 0.0f, 0.0f };
+
+    for (int b = 0; b < 120; ++b)
     {
         for (int s = 0; s < blockSize; ++s)
         {
             double t = (double)(b * blockSize + s) / sr;
-            float sig = 0.3f * std::sin (2.0 * juce::MathConstants<double>::pi * 440.0 * t);
+            float sig = 0.25f * std::sin (2.0 * juce::MathConstants<double>::pi * 440.0 * t)
+                      + 0.10f * std::sin (2.0 * juce::MathConstants<double>::pi * 2500.0 * t);
             buffer.setSample (0, s, sig);
             buffer.setSample (1, s, sig);
         }
 
-        // Sweep frequencies logarithmically in pitch space
-        float lowCutSweep   = 20.0f + 500.0f * (0.5f + 0.5f * std::sin ((double)b * 0.2));
-        float highCutSweep  = 2000.0f + 16000.0f * (0.5f + 0.5f * std::cos ((double)b * 0.15));
-        float lowShelfSweep = 50.0f + 400.0f * (0.5f + 0.5f * std::sin ((double)b * 0.25));
-        float lowShelfGain  = 12.0f * std::sin ((double)b * 0.3);
-        float midFreqSweep  = 200.0f + 6000.0f * (0.5f + 0.5f * std::cos ((double)b * 0.35));
-        float midGainSweep  = 12.0f * std::cos ((double)b * 0.2);
-        float midQSweep     = 0.5f + 7.5f * (0.5f + 0.5f * std::sin ((double)b * 0.4)); // Extreme high-Q
-        float highShFreq    = 2000.0f + 12000.0f * (0.5f + 0.5f * std::sin ((double)b * 0.1));
-        float highShGain    = 12.0f * std::sin ((double)b * 0.25);
+        // Full registered range sweeps
+        float lowCutSweep   = 20.0f + 980.0f * (0.5f + 0.5f * std::sin ((double)b * 0.15));
+        float highCutSweep  = 1000.0f + 19000.0f * (0.5f + 0.5f * std::cos ((double)b * 0.12));
+        float lowShelfFreq  = 40.0f + 760.0f * (0.5f + 0.5f * std::sin ((double)b * 0.20));
+        float lowShelfGain  = 12.0f * std::sin ((double)b * 0.25);
+        float midFreqSweep  = 100.0f + 7900.0f * (0.5f + 0.5f * std::cos ((double)b * 0.18));
+        float midGainSweep  = 12.0f * std::cos ((double)b * 0.22);
+        // Continuous Q sweep covering registered range 0.2 to 8.0 (crossing Q = 5.0 repeatedly)
+        float midQSweep     = 0.20f + 7.80f * (0.5f + 0.5f * std::sin ((double)b * 0.30));
+        float highShelfFreq = 1500.0f + 14500.0f * (0.5f + 0.5f * std::sin ((double)b * 0.14));
+        float highShelfGain = 12.0f * std::sin ((double)b * 0.20);
 
         eq.process (buffer, blockSize, lowCutSweep, highCutSweep,
-                    lowShelfSweep, lowShelfGain,
+                    lowShelfFreq, lowShelfGain,
                     midFreqSweep, midGainSweep, midQSweep,
-                    highShFreq, highShGain);
+                    highShelfFreq, highShelfGain);
 
         for (int ch = 0; ch < 2; ++ch)
         {
@@ -1114,13 +1237,18 @@ void testFiveBandEQContinuousParameterSweeps()
             for (int s = 0; s < blockSize; ++s)
             {
                 if (std::isnan (d[s]) || std::isinf (d[s])) hasNanOrInf = true;
-                maxAbsVal = std::max (maxAbsVal, std::abs (d[s]));
+                sweepMaxAbs = std::max (sweepMaxAbs, std::abs (d[s]));
+                float dy = std::abs (d[s] - lastEq[ch]);
+                maxSweepDy = std::max (maxSweepDy, dy);
+                lastEq[ch] = d[s];
             }
         }
     }
 
-    EXPECT_TRUE (!hasNanOrInf, "Five-band EQ continuous automated sweeps produce NO NaN or infinite values");
-    EXPECT_TRUE (maxAbsVal < 5.0f, "Five-band EQ maintains unconditional stability during extreme high-Q sweeps");
+    std::cout << "  EQ sweep max magnitude: " << sweepMaxAbs << ", max |dy|: " << maxSweepDy << "\n";
+    EXPECT_TRUE (!hasNanOrInf, "Five-band EQ sweeps produce NO NaN or infinite values across full parameter ranges");
+    EXPECT_TRUE (sweepMaxAbs < 5.0f, "Five-band EQ maintains unconditional stability during extreme high-Q sweeps");
+    EXPECT_TRUE (maxSweepDy < 0.25f, "Five-band EQ sub-block smoothing prevents zipper discontinuities (max |dy| < 0.25)");
 }
 
 void testInstallerPackagingCanonicalLocation()

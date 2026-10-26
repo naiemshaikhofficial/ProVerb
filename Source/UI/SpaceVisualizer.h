@@ -216,6 +216,9 @@ public:
         if (waterPhase > juce::MathConstants<float>::twoPi * 100.0f)
             waterPhase -= juce::MathConstants<float>::twoPi * 100.0f;
 
+        // Smoothly animate 3D acoustic room size with physical easing (like FL Studio Fruity Reeverb 2)
+        smoothedVisualSize += (spaceSize - smoothedVisualSize) * 0.18f;
+
         // --- REAL ELASTIC SPRING-MASS PHYSICS SIMULATION ---
         const float dt = juce::jlimit (0.01f, 0.05f, deltaPhase);
         const float stiffness = 160.0f; // Spring restitution constant k
@@ -302,7 +305,11 @@ public:
         geom.centre = juce::Point<float> (bounds.getCentreX() + shakeX, bounds.getY() + bounds.getHeight() * 0.46f + shakeY);
 
         float minDim = juce::jmin (bounds.getWidth(), bounds.getHeight());
-        geom.radius = minDim * 0.38f;
+
+        // Dynamically scale the acoustic space prism from small intimate room (0%) to vast hall (100%)
+        const float sizeNorm = juce::jlimit (0.0f, 1.0f, smoothedVisualSize / 100.0f);
+        const float sizeScaleFactor = 0.60f + 0.58f * sizeNorm;
+        geom.radius = minDim * 0.38f * sizeScaleFactor;
 
         auto baseV0 = getVertexPosition (geom.centre, geom.radius, geom.scaleY, 0);
         auto baseV1 = getVertexPosition (geom.centre, geom.radius, geom.scaleY, 1);
@@ -362,14 +369,14 @@ public:
     {
         auto bounds = getLocalBounds().toFloat();
 
-        // 1. Panel Background
-        juce::ColourGradient bgGrad (juce::Colour (0xff0d1521), bounds.getX(), bounds.getY(),
-                                     juce::Colour (0xff0a111b), bounds.getX(), bounds.getBottom(), false);
+        // 1. Panel Background (ToyTune Luxury Charcoal Palette)
+        juce::ColourGradient bgGrad (ProVerbTokens::Colors::panelElevated, bounds.getX(), bounds.getY(),
+                                     ProVerbTokens::Colors::panelBackground, bounds.getX(), bounds.getBottom(), false);
         g.setGradientFill (bgGrad);
         g.fillRoundedRectangle (bounds, 8.0f);
 
-        // Fine cool-gray border
-        g.setColour (juce::Colour (0xff243246));
+        // Fine metallic graphite rim
+        g.setColour (ProVerbTokens::Colors::border);
         g.drawRoundedRectangle (bounds, 8.0f, 1.0f);
 
         // 2. Panel Header: "| ACOUSTIC SPACE" (Pills removed per user request)
@@ -383,7 +390,7 @@ public:
         auto colAmber    = getLiveColorAmber();
 
         // 3. Ambient Volumetric Atmospheric Glows & Glass Body Fill (Original ProVerb Prism Core with Soft Colors)
-        drawAtmosphericNebula (g, geom.centre, geom.radius, geom.vBright, geom.vWarm, geom.vSpacious, geom.puckPos,
+        drawAtmosphericNebula (g, bounds, geom.centre, geom.radius, geom.vBright, geom.vWarm, geom.vSpacious, geom.puckPos,
                                colBright, colWarm, colSpacious, colAmber);
 
         // 4. Concentric Layered Ghost Echo Hulls (Audio-Reactive Fluid Side Waves)
@@ -438,19 +445,19 @@ public:
 
         // Tonal Color Pill
         auto toneRect = getToneColorBounds (bounds);
-        g.setColour (juce::Colour (0xff101b29));
+        g.setColour (ProVerbTokens::Colors::panelElevated);
         g.fillRoundedRectangle (toneRect, 4.0f);
-        g.setColour (juce::Colour (0xff243246));
+        g.setColour (ProVerbTokens::Colors::border);
         g.drawRoundedRectangle (toneRect, 4.0f, 1.0f);
         g.setFont (ProVerbTokens::Typography::makeLabelFont (8.5f, false));
-        g.setColour (juce::Colour (0xff8b9ab0));
+        g.setColour (ProVerbTokens::Colors::textSecondary);
         g.drawText (currentToneName, toneRect.toNearestInt(), juce::Justification::centred, false);
 
         // Algorithm Mode Pill
         auto algoRect = getAlgoModeBounds (bounds);
-        g.setColour (juce::Colour (0xff101b29));
+        g.setColour (ProVerbTokens::Colors::panelElevated);
         g.fillRoundedRectangle (algoRect, 4.0f);
-        g.setColour (juce::Colour (0xff243246));
+        g.setColour (ProVerbTokens::Colors::border);
         g.drawRoundedRectangle (algoRect, 4.0f, 1.0f);
         g.setFont (ProVerbTokens::Typography::makeLabelFont (8.5f, true));
         g.setColour (juce::Colour (0xff38bdf8));
@@ -458,12 +465,12 @@ public:
 
         // 3D/2D View Toggle Pill
         auto viewRect = get2DViewButtonBounds (bounds);
-        g.setColour (juce::Colour (0xff101b29));
+        g.setColour (ProVerbTokens::Colors::panelElevated);
         g.fillRoundedRectangle (viewRect, 4.0f);
-        g.setColour (juce::Colour (0xff243246));
+        g.setColour (ProVerbTokens::Colors::border);
         g.drawRoundedRectangle (viewRect, 4.0f, 1.0f);
         g.setFont (ProVerbTokens::Typography::makeLabelFont (8.5f, false));
-        g.setColour (is3DMode ? juce::Colour (0xff35e6b5) : juce::Colour (0xff8b9ab0));
+        g.setColour (is3DMode ? juce::Colour (0xff35e6b5) : ProVerbTokens::Colors::textSecondary);
         g.drawText (is3DMode ? "3D" : "2D", viewRect.toNearestInt(), juce::Justification::centred, false);
     }
 
@@ -521,95 +528,135 @@ public:
         repaint();
     }
 
-    // Soft Volumetric Glass Body & Atmospheric Nebula
-    void drawAtmosphericNebula (juce::Graphics& g, juce::Point<float> centre, float radius,
+    // Soft Living, Dissolving, Audio-Reactive Atmospheric Aurora & Volumetric Glass Body
+    void drawAtmosphericNebula (juce::Graphics& g, juce::Rectangle<float> bounds,
+                                juce::Point<float> centre, float radius,
                                 juce::Point<float> v0, juce::Point<float> v1, juce::Point<float> v2,
                                 juce::Point<float> puckPos,
                                 juce::Colour colBright, juce::Colour colWarm,
                                 juce::Colour colSpacious, juce::Colour colAmber)
     {
-        juce::ignoreUnused (puckPos);
-        const float audioPulse = (prismMode != PrismMode::Freeze) ? (rmsOut * 0.25f + smoothBass * 0.20f) : 0.0f;
-        const float r = radius * (1.0f + audioPulse * 0.05f);
+        juce::ignoreUnused (puckPos, centre);
+        const float isLive = (prismMode != PrismMode::Freeze) ? 1.0f : 0.0f;
+        const float audioBassPulse   = (smoothBass * 0.45f + smoothTransient * 0.35f) * isLive;
+        const float audioTreblePulse = (smoothTreble * 0.45f + strobeIntensity * 0.35f) * isLive;
+        const float audioWetPulse    = (smoothWet * 0.45f + rmsOut * 0.30f) * isLive;
 
+        const float r = radius * (1.0f + audioWetPulse * 0.08f + audioBassPulse * 0.06f);
         auto midBottom = (v1 + v2) * 0.5f;
         auto midLeft   = (v0 + v1) * 0.5f;
 
-        const float driftX = (prismMode != PrismMode::Freeze) ? (std::sin (colorMorphPhase) * (r * 0.02f)) : 0.0f;
-        const float driftY = (prismMode != PrismMode::Freeze) ? (std::cos (colorMorphPhase * 0.85f) * (r * 0.02f)) : 0.0f;
+        // Animated Harmonic Drift (Fluid Lissajous floating motion - zero static blobs)
+        const float tAnim = waterPhase * 0.7f;
 
-        // Exterior soft diffused atmospheric glows
-        float leftGlowX = centre.x - r * 0.85f + driftX;
-        float leftGlowY = centre.y - r * 0.05f + driftY;
-        juce::ColourGradient sideLeftGlow (colWarm.withAlpha (0.24f), leftGlowX, leftGlowY,
-                                           colWarm.withAlpha (0.0f), leftGlowX - r * 0.90f, leftGlowY, true);
-        g.setGradientFill (sideLeftGlow);
-        g.fillEllipse (leftGlowX - r * 0.90f, leftGlowY - r * 0.90f, r * 1.80f, r * 1.80f);
+        // ---------------------------------------------------------------------
+        // PART 1: EXTERIOR LIVING ATMOSPHERIC AURORA (Broad, seamlessly dissolving washes)
+        // ---------------------------------------------------------------------
+        juce::Graphics::ScopedSaveState panelState (g);
+        g.reduceClipRegion (bounds.reduced (1.0f).toNearestInt());
 
-        float rightGlowX = centre.x + r * 0.85f - driftX;
-        float rightGlowY = centre.y - r * 0.05f + driftY;
-        juce::ColourGradient sideRightGlow (colSpacious.withAlpha (0.24f), rightGlowX, rightGlowY,
-                                            colSpacious.withAlpha (0.0f), rightGlowX + r * 0.90f, rightGlowY, true);
-        g.setGradientFill (sideRightGlow);
-        g.fillEllipse (rightGlowX - r * 0.90f, rightGlowY - r * 0.90f, r * 1.80f, r * 1.80f);
+        const float extRadius = r * (1.85f + audioWetPulse * 0.45f);
 
-        float topGlowX = centre.x + driftX * 0.5f;
-        float topGlowY = v0.y - r * 0.08f + driftY * 0.5f;
-        juce::ColourGradient topGlow (colBright.withAlpha (0.26f), topGlowX, topGlowY,
-                                      colBright.withAlpha (0.0f), topGlowX, topGlowY + r * 0.85f, true);
-        g.setGradientFill (topGlow);
-        g.fillEllipse (topGlowX - r * 0.85f, topGlowY - r * 0.60f, r * 1.70f, r * 1.40f);
+        // Helper lambda to draw a truly dissolving aura with cubic soft falloff (NO circular contours!)
+        auto drawSoftDissolvingAura = [&g, bounds, extRadius](juce::Point<float> pos, juce::Colour col, float peakAlpha)
+        {
+            if (peakAlpha <= 0.005f) return;
+            juce::ColourGradient grad (col.withAlpha (peakAlpha), pos.x, pos.y,
+                                       col.withAlpha (0.0f), pos.x, pos.y + extRadius, true);
+            grad.addColour (0.22, col.withAlpha (peakAlpha * 0.60f));
+            grad.addColour (0.45, col.withAlpha (peakAlpha * 0.24f));
+            grad.addColour (0.70, col.withAlpha (peakAlpha * 0.06f));
+            grad.addColour (0.88, col.withAlpha (peakAlpha * 0.01f));
+            grad.addColour (1.00, col.withAlpha (0.0f));
+            g.setGradientFill (grad);
+            g.fillRect (bounds);
+        };
 
-        // Rounded Triangle Path
+        // 1. Top Ethereal Cyan Air (drifts with air/treble, flares on high-frequency reverb energy)
+        float topX = v0.x + (std::sin (tAnim * 1.15f) * 14.0f + std::sin (colorMorphPhase * 0.7f) * 8.0f) * isLive;
+        float topY = v0.y - 12.0f + (std::cos (tAnim * 0.95f) * 10.0f - audioTreblePulse * 16.0f) * isLive;
+        float topAlpha = juce::jlimit (0.06f, 0.42f, (0.16f + weightBright * 0.10f + audioTreblePulse * 0.30f) * (1.0f - silenceFactor * 0.5f));
+        drawSoftDissolvingAura ({ topX, topY }, colBright, topAlpha);
+
+        // 2. Bottom-Left Blossom Rose (pulses warmly with kick & bass hits, expands and dissolves)
+        float leftX = v1.x + (std::cos (tAnim * 0.85f + 1.8f) * 16.0f - audioBassPulse * 18.0f) * isLive;
+        float leftY = v1.y + 6.0f + (std::sin (tAnim * 0.95f + 1.2f) * 12.0f + audioBassPulse * 14.0f) * isLive;
+        float warmAlpha = juce::jlimit (0.06f, 0.42f, (0.15f + weightWarm * 0.10f + audioBassPulse * 0.32f) * (1.0f - silenceFactor * 0.5f));
+        drawSoftDissolvingAura ({ leftX, leftY }, colWarm, warmAlpha);
+
+        // 3. Bottom-Right Seafoam Mint (blooms with stereo width and wet reverb tail)
+        float rightX = v2.x + (std::sin (tAnim * 0.90f + 3.4f) * 16.0f + audioWetPulse * 18.0f) * isLive;
+        float rightY = v2.y + 6.0f + (std::cos (tAnim * 0.80f + 2.8f) * 12.0f + audioWetPulse * 14.0f) * isLive;
+        float spaceAlpha = juce::jlimit (0.06f, 0.42f, (0.15f + weightSpace * 0.10f + audioWetPulse * 0.32f) * (1.0f - silenceFactor * 0.5f));
+        drawSoftDissolvingAura ({ rightX, rightY }, colSpacious, spaceAlpha);
+
+        // 4. Bottom-Center Amber Warmth (deep sub-acoustic warmth, pulses on low-end decay)
+        float amberX = midBottom.x + (std::sin (tAnim * 0.75f + 4.9f) * 12.0f) * isLive;
+        float amberY = midBottom.y + 12.0f + (std::cos (tAnim * 0.65f + 4.1f) * 8.0f + audioBassPulse * 10.0f) * isLive;
+        float amberAlpha = juce::jlimit (0.04f, 0.35f, (0.12f + (weightWarm + weightSpace) * 0.06f + audioBassPulse * 0.25f) * (1.0f - silenceFactor * 0.5f));
+        drawSoftDissolvingAura ({ amberX, amberY }, colAmber, amberAlpha);
+
+        // ---------------------------------------------------------------------
+        // PART 2: INTERIOR VOLUMETRIC GLASS PRISM BODY (Multi-gradient fluid wash)
+        // ---------------------------------------------------------------------
         juce::Path trianglePath;
         buildRoundedTrianglePath (trianglePath, v0, v1, v2, 24.0f);
 
-        // Soft frosted translucent dark glass fill
-        g.setColour (juce::Colour (0xc8070b12));
+        // Deep luxury tinted glass fill
+        juce::ColourGradient glassGrad (juce::Colour (0xd40a0f18), bounds.getX(), v0.y - 10.0f,
+                                         juce::Colour (0xdd06090e), bounds.getX(), midBottom.y + 20.0f, false);
+        g.setGradientFill (glassGrad);
         g.fillPath (trianglePath);
 
-        juce::Graphics::ScopedSaveState state (g);
+        juce::Graphics::ScopedSaveState glassState (g);
         g.reduceClipRegion (trianglePath);
 
         const float duckFactor = juce::jlimit (0.35f, 1.0f, (1.0f - (ducking / 100.0f) * (rmsIn * 2.5f)) * duckingFactor);
         const float warmGain = juce::jlimit (0.25f, 1.15f, 1.05f - ((lowCut - 20.0f) / 980.0f) * 0.45f);
         const float brightGain = juce::jlimit (0.30f, 1.25f, 0.4f + ((highCut - 1000.0f) / 19000.0f) * 0.85f);
 
-        // Top Apex Soft Ethereal Sky Cyan
-        float cyanAlpha = juce::jlimit (0.18f, 0.44f, (0.32f + weightBright * 0.12f + smoothTreble * 0.12f) * brightGain * duckFactor);
-        juce::ColourGradient gradCyan (colBright.withAlpha (cyanAlpha), v0.x + driftX, v0.y + driftY,
-                                       colBright.withAlpha (0.0f), v0.x, centre.y + r * 0.28f, true);
-        g.setGradientFill (gradCyan);
-        g.fillEllipse (v0.x - r * 0.90f, v0.y - r * 0.45f, r * 1.80f, r * 1.50f);
+        // Inside the glass body, each node projects a soft volumetric wash towards the center (seamlessly blending!)
+        const float innerRadius = r * 1.55f;
 
-        // Bottom-Left Soft Blossom Rose / Magenta
-        float warmAlpha = juce::jlimit (0.18f, 0.42f, (0.30f + weightWarm * 0.12f + smoothBass * 0.12f) * warmGain * duckFactor);
-        juce::ColourGradient gradWarm (colWarm.withAlpha (warmAlpha), v1.x - driftX, v1.y + driftY,
-                                       colWarm.withAlpha (0.0f), centre.x + r * 0.18f, centre.y - r * 0.18f, true);
-        g.setGradientFill (gradWarm);
-        g.fillEllipse (v1.x - r * 0.90f, v1.y - r * 0.80f, r * 1.80f, r * 1.60f);
+        auto drawInteriorSoftWash = [&g, bounds, innerRadius](juce::Point<float> origin, juce::Colour col, float peakAlpha)
+        {
+            if (peakAlpha <= 0.005f) return;
+            juce::ColourGradient grad (col.withAlpha (peakAlpha), origin.x, origin.y,
+                                       col.withAlpha (0.0f), origin.x, origin.y + innerRadius, true);
+            grad.addColour (0.25, col.withAlpha (peakAlpha * 0.62f));
+            grad.addColour (0.50, col.withAlpha (peakAlpha * 0.25f));
+            grad.addColour (0.78, col.withAlpha (peakAlpha * 0.05f));
+            grad.addColour (1.00, col.withAlpha (0.0f));
+            g.setGradientFill (grad);
+            g.fillRect (bounds);
+        };
 
-        // Bottom-Right Soft Seafoam Mint
-        float spaceAlpha = juce::jlimit (0.18f, 0.42f, (0.30f + weightSpace * 0.12f + smoothWet * 0.14f) * duckFactor);
-        juce::ColourGradient gradSpace (colSpacious.withAlpha (spaceAlpha), v2.x + driftX, v2.y - driftY,
-                                        colSpacious.withAlpha (0.0f), centre.x - r * 0.18f, centre.y - r * 0.18f, true);
-        g.setGradientFill (gradSpace);
-        g.fillEllipse (v2.x - r * 0.90f, v2.y - r * 0.80f, r * 1.80f, r * 1.60f);
+        // Top Apex Ethereal Sky Cyan (projects down inside glass)
+        float inCyanAlpha = juce::jlimit (0.16f, 0.48f, (0.30f + weightBright * 0.12f + audioTreblePulse * 0.35f) * brightGain * duckFactor);
+        drawInteriorSoftWash ({ topX, topY + 4.0f }, colBright, inCyanAlpha);
+
+        // Bottom-Left Blossom Rose (projects inwards inside glass)
+        float inWarmAlpha = juce::jlimit (0.16f, 0.46f, (0.28f + weightWarm * 0.12f + audioBassPulse * 0.35f) * warmGain * duckFactor);
+        drawInteriorSoftWash ({ leftX, leftY - 4.0f }, colWarm, inWarmAlpha);
+
+        // Bottom-Right Seafoam Mint (projects inwards inside glass)
+        float inSpaceAlpha = juce::jlimit (0.16f, 0.46f, (0.28f + weightSpace * 0.12f + audioWetPulse * 0.35f) * duckFactor);
+        drawInteriorSoftWash ({ rightX, rightY - 4.0f }, colSpacious, inSpaceAlpha);
 
         // Left Slope Soft Lavender Violet
         auto colViolet = juce::Colour (0xffa78bfa);
-        float violetAlpha = (0.24f + (weightBright + weightWarm) * 0.10f) * duckFactor;
-        juce::ColourGradient gradViolet (colViolet.withAlpha (violetAlpha), midLeft.x, midLeft.y,
-                                         colViolet.withAlpha (0.0f), centre.x, centre.y, true);
-        g.setGradientFill (gradViolet);
-        g.fillEllipse (midLeft.x - r * 0.60f, midLeft.y - r * 0.60f, r * 1.20f, r * 1.20f);
+        float inVioletAlpha = (0.22f + (weightBright + weightWarm) * 0.08f + audioWetPulse * 0.15f) * duckFactor;
+        drawInteriorSoftWash ({ midLeft.x, midLeft.y }, colViolet, inVioletAlpha);
 
         // Bottom Center Soft Peach Amber
-        float amberAlpha = (0.26f + (weightWarm + weightSpace) * 0.08f) * duckFactor;
-        juce::ColourGradient bottomAmber (colAmber.withAlpha (amberAlpha), midBottom.x, midBottom.y + 4.0f,
-                                          colAmber.withAlpha (0.0f), midBottom.x, midBottom.y - r * 0.45f, true);
-        g.setGradientFill (bottomAmber);
-        g.fillEllipse (midBottom.x - r * 0.70f, midBottom.y - r * 0.35f, r * 1.40f, r * 0.80f);
+        float inAmberAlpha = (0.24f + (weightWarm + weightSpace) * 0.08f + audioBassPulse * 0.22f) * duckFactor;
+        drawInteriorSoftWash ({ amberX, amberY - 6.0f }, colAmber, inAmberAlpha);
+
+        // Interactive Opal Center Core: glows dynamically at puckPos, blending with whatever acoustic balance is set
+        juce::Colour puckGlowCol = colBright.interpolatedWith (colWarm, weightWarm / (weightBright + weightWarm + 0.001f));
+        puckGlowCol = puckGlowCol.interpolatedWith (colSpacious, weightSpace);
+        float puckCoreAlpha = juce::jlimit (0.08f, 0.35f, (0.14f + audioWetPulse * 0.25f + smoothTransient * 0.20f) * duckFactor);
+        drawInteriorSoftWash (puckPos, puckGlowCol, puckCoreAlpha);
     }
 
     // Audio-Reactive Fluid Ghost Hulls / Side Waves
@@ -1009,7 +1056,7 @@ public:
         g.setColour (col.withAlpha (0.35f + weight * 0.35f));
         g.fillEllipse (pt.x - 14.0f, pt.y - 14.0f, 28.0f, 28.0f);
 
-        g.setColour (juce::Colour (0xff070b12));
+        g.setColour (ProVerbTokens::Colors::backgroundMain);
         g.fillEllipse (pt.x - nodeR, pt.y - nodeR, nodeR * 2.0f, nodeR * 2.0f);
 
         g.setColour (col);
@@ -1048,7 +1095,7 @@ public:
 
         // 2. Translucent Frosted Glass Body that blends with underlying colors
         juce::ColourGradient lensGrad (localTint.withAlpha (0.42f), pos.x - puckR * 0.5f, pos.y - puckR * 0.5f,
-                                       juce::Colour (0x12070b12), pos.x + puckR, pos.y + puckR, false);
+                                       juce::Colour (0x120d0e11), pos.x + puckR, pos.y + puckR, false);
         g.setGradientFill (lensGrad);
         g.fillEllipse (pos.x - puckR, pos.y - puckR, puckR * 2.0f, puckR * 2.0f);
 
@@ -1079,7 +1126,7 @@ public:
 
         // Rainbow Gradient Slider Bar
         auto barRect = getSpaceSliderBarBounds (bounds);
-        g.setColour (juce::Colour (0xff0a111b));
+        g.setColour (ProVerbTokens::Colors::panelDarkSlot);
         g.fillRoundedRectangle (barRect, 2.5f);
 
         juce::ColourGradient rainbowGrad (juce::Colour (0xff38d9f5), barRect.getX(), barRect.getY(),
@@ -1106,9 +1153,9 @@ public:
         const int meterX = (int) bounds.getRight() - meterW - 14;
         const int meterY = (int) bounds.getBottom() - 17;
 
-        g.setColour (juce::Colour (0xff0a111b));
+        g.setColour (ProVerbTokens::Colors::panelDarkSlot);
         g.fillRoundedRectangle ((float) meterX, (float) meterY, (float) meterW, (float) meterH, 2.0f);
-        g.setColour (juce::Colour (0xff243246));
+        g.setColour (ProVerbTokens::Colors::border);
         g.drawRoundedRectangle ((float) meterX, (float) meterY, (float) meterW, (float) meterH, 2.0f, 0.8f);
 
         g.setColour (juce::Colour (0x66ffffff));
@@ -1351,6 +1398,7 @@ private:
 
     // DSP Parameters
     float spaceSize { 70.0f };
+    float smoothedVisualSize { 70.0f };
     float decayTime { 2.8f };
     float diffusion { 75.0f };
     float damping { 45.0f };

@@ -120,8 +120,8 @@ namespace ProducerToy::UI
         // 1. Pure Deep Obsidian / Charcoal Canvas (NO BLUE TINT)
         g.fillAll (juce::Colour (0xff090a0d));
 
-        // Subtle outer border highlight
-        g.setColour (juce::Colour (0xff181a22));
+        // Subtle outer border highlight (ToyTune metallic rim)
+        g.setColour (juce::Colour (0xff1e2027));
         g.drawRect (getLocalBounds(), 1);
 
         // 2. Header Title (Left-aligned, crisp modern typography)
@@ -140,9 +140,9 @@ namespace ProducerToy::UI
 
         // Close Button (✕) in top right
         auto closeRect = getCloseButtonBounds();
-        g.setColour (juce::Colour (0xff14161f));
+        g.setColour (juce::Colour (0xff141418));
         g.fillEllipse (closeRect);
-        g.setColour (juce::Colour (0xff262a38));
+        g.setColour (juce::Colour (0xff242429));
         g.drawEllipse (closeRect, 1.0f);
 
         g.setFont (juce::FontOptions ("Segoe UI", 14.0f, juce::Font::bold));
@@ -236,7 +236,7 @@ namespace ProducerToy::UI
                 float badgeW = juce::jmin (520.0f, bounds.getWidth() - 80.0f);
                 auto badgeRect = juce::Rectangle<float> (centre.x - badgeW * 0.5f, bounds.getBottom() - 106.0f, badgeW, 36.0f);
 
-                g.setColour (juce::Colour (0xff121620));
+                g.setColour (juce::Colour (0xff101115));
                 g.fillRoundedRectangle (badgeRect, 8.0f);
                 g.setColour (juce::Colour (0xff38bdf8).withAlpha (0.8f));
                 g.drawRoundedRectangle (badgeRect, 8.0f, 1.2f);
@@ -253,9 +253,9 @@ namespace ProducerToy::UI
                 float badgeW = juce::jmin (280.0f, bounds.getWidth() - 80.0f);
                 auto badgeRect = juce::Rectangle<float> (centre.x - badgeW * 0.5f, bounds.getBottom() - 106.0f, badgeW, 34.0f);
 
-                g.setColour (juce::Colour (0xff121620));
+                g.setColour (juce::Colour (0xff101115));
                 g.fillRoundedRectangle (badgeRect, 8.0f);
-                g.setColour (juce::Colour (0xff252936));
+                g.setColour (juce::Colour (0xff242429));
                 g.drawRoundedRectangle (badgeRect, 8.0f, 1.0f);
 
                 g.setFont (juce::FontOptions ("Segoe UI", 13.0f, juce::Font::plain));

@@ -315,7 +315,7 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
     // A/B Comparison Buttons
     addAndMakeVisible (abButton);
     abButton.setButtonText ("A / B");
-    abButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xff1e293b));
+    abButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xff18181c));
     abButton.setColour (juce::TextButton::textColourOffId, juce::Colour (0xff38bdf8));
     abButton.setTooltip ("A/B Comparison: Toggle between Reverb State A and State B");
     captureSnapshot (snapshotA);
@@ -328,7 +328,7 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
             captureSnapshot (snapshotB);
             applySnapshot (snapshotA);
             isStateBActive = false;
-            abButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xff1e293b));
+            abButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xff18181c));
             abButton.setColour (juce::TextButton::textColourOffId, juce::Colour (0xff38bdf8));
             copyABButton.setButtonText ("A->B");
         }
@@ -808,14 +808,17 @@ void ProVerbAudioProcessorEditor::paint (juce::Graphics& g)
 {
     using namespace ProVerbTokens::Colors;
 
-    // 1. Deep Blue-Black Canvas (#070B12)
-    g.fillAll (backgroundMain);
+    // 1. Overall Dark Luxury Matte Black Background (ToyTune Aesthetic)
+    juce::ColourGradient bgGrad (backgroundMain, (float) getWidth() * 0.5f, 0.0f,
+                                 backgroundSecondary, (float) getWidth() * 0.5f, (float) getHeight(), false);
+    g.setGradientFill (bgGrad);
+    g.fillRect (getLocalBounds());
 
-    // Outer Precision Border
+    // Outer Precision Metallic Rim
     g.setColour (border);
     g.drawRect (getLocalBounds(), 1);
 
-    // 2. Header Bar (#080D16, 56px height)
+    // 2. Header Bar (ToyTune Luxury Matte Black, 56px height)
     auto headerBounds = getLocalBounds().removeFromTop (56);
     g.setColour (headerBackground);
     g.fillRect (headerBounds);
@@ -947,7 +950,7 @@ void ProVerbAudioProcessorEditor::paint (juce::Graphics& g)
 
         // Input Meter (Cyan #24D7FF)
         float meterInX = (float) inGainFader.getX() + 3.0f;
-        g.setColour (juce::Colour (0xff060a10));
+        g.setColour (panelDarkSlot);
         g.fillRoundedRectangle (meterInX, (float) trackTopY, 2.5f, (float) trackH, 1.0f);
 
         if (inRms > 0.005f)
@@ -959,7 +962,7 @@ void ProVerbAudioProcessorEditor::paint (juce::Graphics& g)
 
         // Output Meter (Mint Green #35E6B5)
         float meterOutX = (float) outGainFader.getRight() - 5.5f;
-        g.setColour (juce::Colour (0xff060a10));
+        g.setColour (panelDarkSlot);
         g.fillRoundedRectangle (meterOutX, (float) trackTopY, 2.5f, (float) trackH, 1.0f);
 
         if (outRms > 0.005f)

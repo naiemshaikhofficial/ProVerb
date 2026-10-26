@@ -129,27 +129,27 @@ public:
         auto bounds = getLocalBounds().toFloat();
         const float cornerR = 5.0f;
 
-        // 1. Futuristic Studio Chassis Background & Cyber Border
-        juce::Colour bgTop (0xff14161f);
-        juce::Colour bgBot (0xff0c0d12);
-        juce::Colour borderCol (0xff252936);
+        // 1. Futuristic Studio Chassis Background & Cyber Border (ToyTune Black Palette)
+        juce::Colour bgTop (0xff141418);
+        juce::Colour bgBot (0xff0a0b0e);
+        juce::Colour borderCol (0xff1e2027);
 
         if (isAnalyzing)
         {
-            bgTop = juce::Colour (0xff0e1320);
-            bgBot = juce::Colour (0xff080b14);
+            bgTop = juce::Colour (0xff101116);
+            bgBot = juce::Colour (0xff07080a);
             borderCol = juce::Colour (0xff00f0ff).withAlpha (isMouseOver ? 0.95f : 0.70f);
         }
         else if (hasStickyResult)
         {
-            bgTop = juce::Colour (0xff121520);
-            bgBot = juce::Colour (0xff0b0d14);
-            borderCol = juce::Colour (0xff32384a);
+            bgTop = juce::Colour (0xff14151a);
+            bgBot = juce::Colour (0xff0d0e12);
+            borderCol = juce::Colour (0xff242429);
         }
         else if (isMouseOver)
         {
-            bgTop = juce::Colour (0xff1c202c);
-            bgBot = juce::Colour (0xff11131a);
+            bgTop = juce::Colour (0xff1c1d24);
+            bgBot = juce::Colour (0xff101115);
             borderCol = juce::Colour (0xff00f0ff).withAlpha (0.75f);
         }
 
@@ -321,7 +321,7 @@ private:
         float badgeW = std::min (availBadgeW, static_cast<float> (badgeFont.getStringWidth (cleanInst)) + 18.0f);
 
         auto badgeRect = juce::Rectangle<float> (badgeX, badgeY, badgeW, badgeH);
-        g.setColour (juce::Colour (0xff20242f));
+        g.setColour (juce::Colour (0xff1c1c22));
         g.fillRoundedRectangle (badgeRect, 4.0f);
 
         // High-tech Cyan/Ice accent dot & border
@@ -339,8 +339,8 @@ private:
                     juce::Justification::centredLeft, true);
 
         // 2. Dedicated Re-Scan Button (Right)
-        juce::Colour reBtnBg = isOverReanalyze ? juce::Colour (0xff2d3240) : juce::Colour (0xff1e212b);
-        juce::Colour reBtnBorder = isOverReanalyze ? juce::Colour (0xff525c6e) : juce::Colour (0xff333846);
+        juce::Colour reBtnBg = isOverReanalyze ? juce::Colour (0xff2a2a32) : juce::Colour (0xff16171b);
+        juce::Colour reBtnBorder = isOverReanalyze ? juce::Colour (0xff40404c) : juce::Colour (0xff242429);
 
         g.setColour (reBtnBg);
         g.fillRoundedRectangle (reanalyzeRect, 4.0f);

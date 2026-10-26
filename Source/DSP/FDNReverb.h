@@ -145,6 +145,7 @@ public:
         smoothedHallCrossfeed = 0.0f;
         smoothedVintageLpCoeff = 0.0f;
         smoothedSatAmount = 0.22f;
+        smoothedModMult = 1.0f;
         activeGateGain = 1.0f;
         gatedCounter = 0;
     }
@@ -314,8 +315,9 @@ public:
         const float targetEarlySend  = juce::jlimit (0.0f, 1.0f, earlySendPercent / 100.0f);
 
         // Modulation scales
-        const float safeModRate  = juce::jlimit (0.05f, 5.0f, modRateHz) * modeModMult;
-        const float safeModDepth = juce::jlimit (0.0f, 2.5f, (modDepthPercent / 40.0f) * modeModMult);
+        const float targetModMult = modeModMult;
+        const float baseModRate   = juce::jlimit (0.05f, 5.0f, modRateHz);
+        const float baseModDepth  = juce::jlimit (0.0f, 2.5f, modDepthPercent / 40.0f);
 
         // Gated Reverb Detection & Trigger
         const int gateHoldSamples = static_cast<int> (currentSampleRate * (0.12f + (juce::jlimit (10.0f, 100.0f, sizePercent) / 100.0f) * 0.35f));
@@ -348,6 +350,7 @@ public:
             smoothedHallCrossfeed  += slewCoeff * (targetHallCrossfeed  - smoothedHallCrossfeed);
             smoothedVintageLpCoeff += slewCoeff * (targetVintageLpCoeff - smoothedVintageLpCoeff);
             smoothedSatAmount      += slewCoeff * (targetSatAmount      - smoothedSatAmount);
+            smoothedModMult        += slewCoeff * (targetModMult        - smoothedModMult);
 
             if (isFrozen && freezeFade >= 0.999f)
                 freezeFade = 1.0f;
@@ -425,6 +428,8 @@ public:
             // -----------------------------------------------------------------
             // STEP 3: Read FDN Delay Lines with Mod Rate & Mod Depth
             // -----------------------------------------------------------------
+            const float safeModRate  = baseModRate * smoothedModMult;
+            const float safeModDepth = baseModDepth * smoothedModMult;
             float delayOutputs[NUM_DELAYS];
             for (int i = 0; i < NUM_DELAYS; ++i)
             {
@@ -619,6 +624,7 @@ private:
     float smoothedHallCrossfeed  { 0.0f };
     float smoothedVintageLpCoeff { 0.0f };
     float smoothedSatAmount      { 0.22f };
+    float smoothedModMult        { 1.0f };
     float activeGateGain         { 1.0f };
     int gatedCounter         { 0 };
 

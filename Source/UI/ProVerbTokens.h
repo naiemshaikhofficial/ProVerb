@@ -20,24 +20,24 @@ namespace ProVerbTokens
     // =========================================================================
     namespace Colors
     {
-        // Core Chassis & Backgrounds
-        static const juce::Colour backgroundMain       { 0xff070b12 }; // Deep blue-black #070B12
-        static const juce::Colour backgroundSecondary  { 0xff0a111b }; // Secondary background #0A111B
-        static const juce::Colour panelBackground      { 0xff0d1521 }; // Main panel graphite/navy #0D1521
-        static const juce::Colour panelElevated        { 0xff101b29 }; // Elevated panel #101B29
-        static const juce::Colour panelDarkSlot        { 0xff080c14 }; // Dark recessed well / slot
-        static const juce::Colour headerBackground     { 0xff080d16 }; // Top header bar
+        // Core Chassis & Backgrounds (ToyTune Pure Luxury Charcoal / Matte Black Palette)
+        static const juce::Colour backgroundMain       { 0xff0d0e11 }; // Top Luxury Matte Black (ToyTune)
+        static const juce::Colour backgroundSecondary  { 0xff07080a }; // Bottom Deep Luxury Black (ToyTune)
+        static const juce::Colour panelBackground      { 0xff101115 }; // Deep Charcoal Card Fill #101115 (ToyTune style)
+        static const juce::Colour panelElevated        { 0xff16171d }; // Elevated Card Header/Gradient #16171D
+        static const juce::Colour panelDarkSlot        { 0xff0a0a0d }; // Dark recessed well / slot (ToyTune style)
+        static const juce::Colour headerBackground     { 0xff0d0e12 }; // Top header bar matte black (ToyTune style)
 
         // Structural Borders & Dividers
-        static const juce::Colour border               { 0xff243246 }; // Fine cool-gray border #243246
-        static const juce::Colour borderSubtle         { 0x333b4d66 }; // Hairline divider #3B4D66 (20% alpha)
+        static const juce::Colour border               { 0xff1e2027 }; // Metallic graphite rim #1E2027 (ToyTune)
+        static const juce::Colour borderSubtle         { 0x25ffffff }; // Hairline divider (clean neutral light catch)
         static const juce::Colour borderHighlight      { 0x1affffff }; // Subtle top-edge light catch (10% white)
 
         // Typography
-        static const juce::Colour textPrimary          { 0xfff2f6fc }; // Pure clear white #F2F6FC
-        static const juce::Colour textSecondary        { 0xff8b9ab0 }; // Muted blue-gray #8B9AB0
-        static const juce::Colour textMuted            { 0xff65748a }; // Deep muted label #65748A
-        static const juce::Colour textDim              { 0xff475569 }; // Inactive / disabled text
+        static const juce::Colour textPrimary          { 0xfff2f4f8 }; // Pure clear white
+        static const juce::Colour textSecondary        { 0xff8e919d }; // Neutral studio silver-slate (ToyTune)
+        static const juce::Colour textMuted            { 0xff6a6d78 }; // Deep muted label (ToyTune)
+        static const juce::Colour textDim              { 0xff484a54 }; // Inactive / disabled text
 
         // Controlled Chromatic Neons (Parameter Groups & Spectral Points)
         static const juce::Colour neonCyan             { 0xff24d7ff }; // Cyan #24D7FF (High Cut, Input, Bright)

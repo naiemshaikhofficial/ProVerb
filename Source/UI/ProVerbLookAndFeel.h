@@ -31,7 +31,7 @@ public:
         setColour (juce::ComboBox::textColourId, textPrimary);
         setColour (juce::PopupMenu::backgroundColourId, panelElevated);
         setColour (juce::PopupMenu::textColourId, textPrimary);
-        setColour (juce::PopupMenu::highlightedBackgroundColourId, juce::Colour (0xff1a2b40));
+        setColour (juce::PopupMenu::highlightedBackgroundColourId, juce::Colour (0xff222228));
         setColour (juce::PopupMenu::highlightedTextColourId, neonCyan);
     }
 
@@ -88,7 +88,7 @@ public:
         juce::Path bgArc;
         bgArc.addCentredArc (centre.x, centre.y, arcRadius, arcRadius, 0.0f,
                              rotaryStartAngle, rotaryEndAngle, true);
-        g.setColour (juce::Colour (0xff131c28));
+        g.setColour (juce::Colour (0xff18181c));
         g.strokePath (bgArc, juce::PathStrokeType (2.6f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
         // 3. Active Luminous Value Arc with Custom Accent Color
@@ -151,9 +151,9 @@ public:
         g.setColour (juce::Colour (0x99000000));
         g.fillEllipse (dialBounds.translated (0.0f, 1.8f));
 
-        // Precision Graphite Rotor Face (Dark Navy / Graphite with top highlight)
-        juce::Colour rotorTop = isHovered ? juce::Colour (0xff1c2838) : juce::Colour (0xff141d2a);
-        juce::Colour rotorBot = isDown ? juce::Colour (0xff090f17) : juce::Colour (0xff0b111a);
+        // Precision Graphite Rotor Face (ToyTune Luxury Charcoal Rotor)
+        juce::Colour rotorTop = isHovered ? juce::Colour (0xff222228) : juce::Colour (0xff18181c);
+        juce::Colour rotorBot = isDown ? juce::Colour (0xff0a0a0d) : juce::Colour (0xff121215);
         juce::ColourGradient dialGrad (rotorTop, centre.x, dialBounds.getY(),
                                        rotorBot, centre.x, dialBounds.getBottom(), false);
         g.setGradientFill (dialGrad);
@@ -262,7 +262,7 @@ public:
 
         // Sleek Capsule Background
         juce::Colour bgTop = isToggled ? activeColour.withMultipliedBrightness (0.25f).overlaidWith (panelElevated)
-                                       : (shouldDrawButtonAsHighlighted ? juce::Colour (0xff182232) : panelElevated);
+                                       : (shouldDrawButtonAsHighlighted ? juce::Colour (0xff222228) : panelElevated);
         juce::Colour bgBot = isToggled ? activeColour.withMultipliedBrightness (0.10f).overlaidWith (panelBackground)
                                        : panelBackground;
         juce::Colour borderCol = isToggled ? activeColour.withAlpha (0.90f)
@@ -350,8 +350,8 @@ public:
             g.fillRoundedRectangle (thumbRect.translated (0, 2.0f), 4.0f);
 
             // Graphite Cap Body
-            juce::Colour capTop = isHovered ? juce::Colour (0xff253347) : juce::Colour (0xff1a2636);
-            juce::Colour capBot = juce::Colour (0xff0d1521);
+            juce::Colour capTop = isHovered ? juce::Colour (0xff282830) : juce::Colour (0xff1c1c22);
+            juce::Colour capBot = panelBackground;
             juce::ColourGradient thumbGrad (capTop, thumbRect.getX(), thumbRect.getY(),
                                             capBot, thumbRect.getX(), thumbRect.getBottom(), false);
             g.setGradientFill (thumbGrad);
@@ -387,7 +387,7 @@ public:
         const float cornerR = bounds.getHeight() * 0.48f;
 
         // Recessed Dark Glass Capsule
-        juce::Colour bgTop = isButtonDown ? panelDarkSlot : (box.isMouseOver() ? juce::Colour (0xff162232) : panelElevated);
+        juce::Colour bgTop = isButtonDown ? panelDarkSlot : (box.isMouseOver() ? juce::Colour (0xff222228) : panelElevated);
         juce::Colour bgBot = panelBackground;
         juce::Colour borderCol = box.isMouseOver() ? neonCyan.withAlpha (0.80f) : border;
 
@@ -433,7 +433,7 @@ public:
         {
             const bool isFav = button.getToggleState();
             juce::Colour bgTop = shouldDrawButtonAsDown ? panelDarkSlot
-                               : (shouldDrawButtonAsHighlighted ? juce::Colour (0xff1b2638) : panelElevated);
+                               : (shouldDrawButtonAsHighlighted ? juce::Colour (0xff222228) : panelElevated);
             juce::Colour bgBot = panelBackground;
             juce::ColourGradient grad (bgTop, 0.0f, bounds.getY(), bgBot, 0.0f, bounds.getBottom(), false);
             g.setGradientFill (grad);
@@ -455,7 +455,7 @@ public:
         if (button.getComponentID() == "prevPresetBtn" || button.getComponentID() == "nextPresetBtn")
         {
             juce::Colour bgTop = shouldDrawButtonAsDown ? panelDarkSlot
-                               : (shouldDrawButtonAsHighlighted ? juce::Colour (0xff1b2638) : panelElevated);
+                               : (shouldDrawButtonAsHighlighted ? juce::Colour (0xff222228) : panelElevated);
             juce::Colour bgBot = panelBackground;
             juce::ColourGradient grad (bgTop, 0.0f, bounds.getY(), bgBot, 0.0f, bounds.getBottom(), false);
             g.setGradientFill (grad);
