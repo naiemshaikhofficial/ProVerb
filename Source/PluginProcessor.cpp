@@ -835,7 +835,7 @@ void ProVerbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     }
 
     const float effDecaySec = juce::jlimit (0.1f, 30.0f, decaySec * decayScale);
-    const float effSizePct  = juce::jlimit (10.0f, 100.0f, sizePct * sizeScale);
+    const float effSizePct  = juce::jlimit (0.0f, 100.0f, sizePct * sizeScale);
 
     // Calculate effective Pre-Delay (Free ms or Tempo-Synchronized)
     float effectivePreDelayMs = preDelayMs * predelayScale + predelayOffset;

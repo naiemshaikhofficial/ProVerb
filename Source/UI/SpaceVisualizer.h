@@ -96,7 +96,7 @@ public:
         phaseCorr = newPhaseCorr;
         duckingGainReductionDb = newDuckingDb;
 
-        spaceSize = juce::jlimit (10.0f, 100.0f, sizePercent);
+        spaceSize = juce::jlimit (0.0f, 100.0f, sizePercent);
         decayTime = juce::jlimit (0.1f, 30.0f, decaySec);
         diffusion = juce::jlimit (0.0f, 100.0f, diffusionPercent);
         damping = juce::jlimit (0.0f, 100.0f, dampingPercent);

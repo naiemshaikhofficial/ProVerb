@@ -719,6 +719,167 @@ void testTempoSyncPreDelayCalculations()
     EXPECT_NEAR (calcSyncMs (2), 62.5,  1e-4, "120 BPM 1/32 note is exactly 62.5 ms");
 }
 
+void testRoomSizeAudibleEffectiveness()
+{
+    std::cout << "\n--- TEST 15: Room Size Audible Effectiveness (0%, 25%, 50%, 75%, 100%) ---\n";
+    constexpr double sr = 48000.0;
+    constexpr int blockSize = 512;
+    const float testSizes[] = { 0.0f, 25.0f, 50.0f, 75.0f, 100.0f };
+    std::vector<double> earlyCentroids(5, 0.0);
+    std::vector<double> lateEnergies(5, 0.0);
+
+    // 1. IMPULSE TEST: Measure reflection timing and decay stability across all 5 sizes
+    for (int idx = 0; idx < 5; ++idx)
+    {
+        const float size = testSizes[idx];
+        FDNReverb reverb;
+        reverb.prepare (sr, blockSize, size);
+
+        std::vector<float> inL (blockSize, 0.0f), inR (blockSize, 0.0f);
+        std::vector<float> outL (blockSize, 0.0f), outR (blockSize, 0.0f);
+
+        // Unit impulse
+        inL[0] = 1.0f; inR[0] = 1.0f;
+        reverb.process (inL.data(), inR.data(), outL.data(), outR.data(), blockSize,
+                        size, 2.0f, 30.0f, 75.0f, false);
+        inL[0] = 0.0f; inR[0] = 0.0f;
+
+        double weightedSumEarly = 0.0;
+        double sumEnergyEarly = 0.0;
+        double lateEnergy = 0.0;
+
+        // Process for 2.0 seconds (~188 blocks)
+        for (int b = 1; b <= 188; ++b)
+        {
+            reverb.process (inL.data(), inR.data(), outL.data(), outR.data(), blockSize,
+                            size, 2.0f, 30.0f, 75.0f, false);
+
+            // Blocks 1 to 25: first ~267 ms (early reflections and first diffuse passes)
+            if (b <= 25)
+            {
+                for (int s = 0; s < blockSize; ++s)
+                {
+                    int globalSample = b * blockSize + s;
+                    double e = outL[s] * outL[s] + outR[s] * outR[s];
+                    weightedSumEarly += (double)globalSample * e;
+                    sumEnergyEarly += e;
+                }
+            }
+
+            // Blocks 90 to 140: late reverberant tail (~0.96s to 1.5s)
+            if (b >= 90 && b <= 140)
+            {
+                for (int s = 0; s < blockSize; ++s)
+                    lateEnergy += outL[s] * outL[s] + outR[s] * outR[s];
+            }
+        }
+
+        earlyCentroids[idx] = sumEnergyEarly > 1e-9 ? (weightedSumEarly / sumEnergyEarly) : 0.0;
+        lateEnergies[idx] = lateEnergy;
+
+        std::cout << "  Size " << std::setw(3) << (int)size << "%: Early Centroid = "
+                  << std::fixed << std::setprecision(1) << earlyCentroids[idx] << " samples ("
+                  << (earlyCentroids[idx] / sr * 1000.0) << " ms), Late Energy = "
+                  << std::setprecision(5) << lateEnergies[idx] << "\n";
+    }
+
+    // Centroid must strictly increase as Room Size expands:
+    // Size 0% (tight booth) < Size 25% < Size 50% < Size 75% < Size 100% (vast hall)
+    EXPECT_TRUE (earlyCentroids[0] < earlyCentroids[1], "Size 25% has longer reflection spacing than Size 0%");
+    EXPECT_TRUE (earlyCentroids[1] < earlyCentroids[2], "Size 50% has longer reflection spacing than Size 25%");
+    EXPECT_TRUE (earlyCentroids[2] < earlyCentroids[3], "Size 75% has longer reflection spacing than Size 50%");
+    EXPECT_TRUE (earlyCentroids[3] < earlyCentroids[4], "Size 100% has longer reflection spacing than Size 75%");
+
+    // Overall RT60 decay stability across sizes:
+    // Size changes dimensions/spacing, but does NOT destroy decay time:
+    for (int idx = 0; idx < 5; ++idx)
+    {
+        EXPECT_TRUE (lateEnergies[idx] > 1e-4, "Size " + std::to_string((int)testSizes[idx]) + "% maintains robust late decay energy");
+    }
+
+    // 2. SNARE-LIKE TRANSIENT BURST TEST
+    {
+        auto measureTransientBloom = [=](float sizeVal) -> double {
+            FDNReverb reverb;
+            reverb.prepare (sr, blockSize, sizeVal);
+            std::vector<float> inL(blockSize, 0.0f), inR(blockSize, 0.0f);
+            std::vector<float> outL(blockSize, 0.0f), outR(blockSize, 0.0f);
+
+            // 5ms noise burst (240 samples)
+            for (int s = 0; s < 240; ++s)
+            {
+                float n = ((float)(s % 17) / 8.5f) - 1.0f;
+                inL[s] = n * 0.7f;
+                inR[s] = n * 0.7f;
+            }
+            reverb.process (inL.data(), inR.data(), outL.data(), outR.data(), blockSize,
+                            sizeVal, 2.5f, 25.0f, 75.0f, false);
+            std::fill (inL.begin(), inL.end(), 0.0f);
+            std::fill (inR.begin(), inR.end(), 0.0f);
+
+            // Measure energy in late bloom window (0.15s to 0.40s, blocks 15 to 38)
+            double bloomEnergy = 0.0;
+            for (int b = 1; b <= 40; ++b)
+            {
+                reverb.process (inL.data(), inR.data(), outL.data(), outR.data(), blockSize,
+                                sizeVal, 2.5f, 25.0f, 75.0f, false);
+                if (b >= 15 && b <= 38)
+                {
+                    for (int s = 0; s < blockSize; ++s)
+                        bloomEnergy += outL[s] * outL[s] + outR[s] * outR[s];
+                }
+            }
+            return bloomEnergy;
+        };
+
+        double bloomSmall = measureTransientBloom (0.0f);
+        double bloomHuge  = measureTransientBloom (100.0f);
+        EXPECT_TRUE (bloomHuge > bloomSmall * 1.5, "Snare transient in 100% Size hall develops significantly broader spatial bloom than 0% booth");
+    }
+
+    // 3. VOCAL-LIKE HARMONIC PHRASE TEST
+    {
+        auto measureVocalSpaciousTail = [=](float sizeVal) -> double {
+            FDNReverb reverb;
+            reverb.prepare (sr, blockSize, sizeVal);
+            std::vector<float> inL(blockSize, 0.0f), inR(blockSize, 0.0f);
+            std::vector<float> outL(blockSize, 0.0f), outR(blockSize, 0.0f);
+
+            // Vocal phrase for 40 blocks (~0.43s), then stops
+            for (int b = 0; b < 40; ++b)
+            {
+                for (int s = 0; s < blockSize; ++s)
+                {
+                    double t = (double)(b * blockSize + s) / sr;
+                    float v = static_cast<float> (0.3 * std::sin (2.0 * juce::MathConstants<double>::pi * 220.0 * t)
+                                                + 0.2 * std::sin (2.0 * juce::MathConstants<double>::pi * 440.0 * t)
+                                                + 0.1 * std::sin (2.0 * juce::MathConstants<double>::pi * 880.0 * t));
+                    inL[s] = v; inR[s] = v;
+                }
+                reverb.process (inL.data(), inR.data(), outL.data(), outR.data(), blockSize,
+                                sizeVal, 2.5f, 30.0f, 75.0f, false);
+            }
+
+            // Measure spacious enveloping reverb persistence during the vocal pause (blocks 41 to 70)
+            std::fill (inL.begin(), inL.end(), 0.0f);
+            std::fill (inR.begin(), inR.end(), 0.0f);
+            double tailEnergy = 0.0;
+            for (int b = 41; b <= 70; ++b)
+            {
+                reverb.process (inL.data(), inR.data(), outL.data(), outR.data(), blockSize,
+                                sizeVal, 2.5f, 30.0f, 75.0f, false);
+                for (int s = 0; s < blockSize; ++s)
+                    tailEnergy += outL[s] * outL[s] + outR[s] * outR[s];
+            }
+            return tailEnergy;
+        };
+
+        double tailSmall = measureVocalSpaciousTail (0.0f);
+        double tailLarge = measureVocalSpaciousTail (100.0f);
+        EXPECT_TRUE (tailLarge > tailSmall * 1.5, "Vocal harmonic phrase in 100% Size hall leaves significantly broader, more enveloping reverberant wash than 0% room");
+    }
+}
+
 int main()
 {
     std::cout << "========================================================\n";
@@ -739,6 +900,7 @@ int main()
     testModulationDepthEffect();
     testEarlyLateSeparation();
     testTempoSyncPreDelayCalculations();
+    testRoomSizeAudibleEffectiveness();
 
     std::cout << "\n========================================================\n";
     std::cout << "  DSP SUITE EXECUTION SUMMARY:\n";

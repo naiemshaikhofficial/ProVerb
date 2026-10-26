@@ -70,11 +70,13 @@ public:
         currentSampleRate = sampleRate > 8000.0 ? sampleRate : 44100.0;
         const float sampleRateRatio = static_cast<float> (currentSampleRate / 44100.0);
 
-        // Allocate power-of-two rings for this sample rate and the largest supported size.
+        // Allocate power-of-two rings for this sample rate and the largest supported room size.
+        // Accommodate max roomScale = 1.85, max modeDelayScale = 1.25 (Wide Hall), plus LFO modulation excursion (2.5x total headroom).
         // All memory changes happen in prepare(), never in the audio callback.
+        constexpr float maxScaleTotal = 2.50f;
         const int maxDelaySamples = static_cast<int> (std::ceil (
-            static_cast<float> (baseDelayLengths[NUM_DELAYS - 1]) * sampleRateRatio
-            + 4.0f * sampleRateRatio)) + 2;
+            static_cast<float> (baseDelayLengths[NUM_DELAYS - 1]) * maxScaleTotal * sampleRateRatio
+            + 64.0f * sampleRateRatio)) + 4;
         delayBufferSize = nextPowerOfTwo (maxDelaySamples);
         delayBufferMask = delayBufferSize - 1;
 
@@ -84,7 +86,7 @@ public:
         const int maxDiffSamples = std::max (baseRightDiffLengths[NUM_DIFFUSERS - 1],
                                              baseRightTankDiffLengths[NUM_DIFFUSERS - 1]);
         const int maxDiffusionDelay = static_cast<int> (std::ceil (
-            static_cast<float> (maxDiffSamples) * sampleRateRatio)) + 2;
+            static_cast<float> (maxDiffSamples) * 2.50f * sampleRateRatio)) + 4;
         diffBufferSize = nextPowerOfTwo (maxDiffusionDelay);
         diffBufferMask = diffBufferSize - 1;
 
@@ -102,8 +104,10 @@ public:
         }
 
         reset();
-        smoothedSizeScale = (initialSizePercent / 100.0f) * sampleRateRatio;
-        smoothedEarlyScale = (initialSizePercent / 100.0f) * sampleRateRatio;
+        const float initNorm = juce::jlimit (0.0f, 1.0f, initialSizePercent / 100.0f);
+        const float initRoomScale = 0.28f + std::pow (initNorm, 1.15f) * 1.57f;
+        smoothedSizeScale = initRoomScale * sampleRateRatio;
+        smoothedEarlyScale = (0.32f + std::pow (initNorm, 1.10f) * 1.38f) * sampleRateRatio;
     }
 
     void reset()
@@ -219,14 +223,21 @@ public:
         else if (toneColor == 2) // Classic Dark (Warm Vintage)
             modeSatAmount *= 1.45f;
 
+        // Musical room scaling curve: 0.28x at 0% (intimate booth) to 1.85x at 100% (vast hall/cathedral)
+        const float sizeNorm = juce::jlimit (0.0f, 1.0f, sizePercent / 100.0f);
+        const float roomScale = 0.28f + std::pow (sizeNorm, 1.15f) * 1.57f;
+
+        // Early reflection room scaling: 0.32x at 0% to 1.70x at 100%
+        const float erRoomFactor = 0.32f + std::pow (sizeNorm, 1.10f) * 1.38f;
+
         // Keep delay times consistent across sample rates and hold geometry during Freeze
         const float targetSizeScale = isFrozen
             ? smoothedSizeScale
-            : (juce::jlimit (10.0f, 100.0f, sizePercent * modeDelayScale) / 100.0f) * sampleRateRatio;
+            : (roomScale * modeDelayScale) * sampleRateRatio;
 
         const float targetEarlyScale = isFrozen
             ? smoothedEarlyScale
-            : (juce::jlimit (10.0f, 100.0f, earlySizePercent) / 100.0f) * sampleRateRatio;
+            : ((juce::jlimit (10.0f, 100.0f, earlySizePercent) / 70.0f) * erRoomFactor) * sampleRateRatio;
 
         // Precompute per-line target feedback gains and Jot absorption filter coefficients
         float targetFeedbackGains[NUM_DELAYS];
@@ -369,8 +380,8 @@ public:
                 stR[d] = diffR;
             }
 
-            // Early Reflection Cluster with controllable Early Cross (stereo bleed)
-            const float cross = smoothedEarlyCross * 0.40f;
+            // Early Reflection Cluster with controllable Early Cross (stereo bleed scales with room size)
+            const float cross = smoothedEarlyCross * (0.25f + sizeNorm * 0.35f);
             const float earlyReflectL = (((stL[0] * (1.0f - cross) - stR[1] * cross) * 0.28f)
                                        + ((stL[2] * (1.0f - cross) - stR[3] * cross) * 0.18f)) * inputGate;
 
@@ -383,12 +394,17 @@ public:
             float tankDiffL = lateSampleL * inputGate;
             float tankDiffR = lateSampleR * inputGate;
 
+            // Late tank diffusers scale with room size: tight and dense for small rooms, blooming and spacious for large halls
+            const float tankRoomFactor = 0.38f + std::pow (sizeNorm, 1.15f) * 1.12f;
             for (int d = 0; d < NUM_DIFFUSERS; ++d)
             {
+                const int tankLenL = juce::jmax (1, static_cast<int> (leftTankDiffLengths[d] * tankRoomFactor));
+                const int tankLenR = juce::jmax (1, static_cast<int> (rightTankDiffLengths[d] * tankRoomFactor));
+
                 tankDiffL = processAllpass (leftTankDiffBuffers[d].data(), leftTankDiffWritePos[d],
-                                            leftTankDiffLengths[d], smoothedDiffCoeff, tankDiffL);
+                                            tankLenL, smoothedDiffCoeff, tankDiffL);
                 tankDiffR = processAllpass (rightTankDiffBuffers[d].data(), rightTankDiffWritePos[d],
-                                            rightTankDiffLengths[d], smoothedDiffCoeff, tankDiffR);
+                                            tankLenR, smoothedDiffCoeff, tankDiffR);
             }
 
             // ER to Late Send: variable injection of early diffuse energy into late tank
@@ -600,25 +616,42 @@ private:
         const int iPos = static_cast<int>(std::floor (readPos));
         const float frac = readPos - static_cast<float>(iPos);
 
-        const uint32_t idx0 = static_cast<uint32_t> (iPos) & static_cast<uint32_t> (delayBufferMask);
-        const uint32_t idx1 = (idx0 + 1u) & static_cast<uint32_t> (delayBufferMask);
+        if (freezeFadeAmount >= 0.999f)
+        {
+            // In freeze, use nearest integer sample to eliminate high-frequency interpolation loss
+            const int intPos = static_cast<int>(std::round (readPos));
+            const uint32_t idxInt = static_cast<uint32_t> (intPos) & static_cast<uint32_t> (delayBufferMask);
+            return delayBuffers[channel][idxInt];
+        }
+
+        const uint32_t mask = static_cast<uint32_t> (delayBufferMask);
+        const uint32_t idx0 = static_cast<uint32_t> (iPos - 1) & mask;
+        const uint32_t idx1 = static_cast<uint32_t> (iPos)     & mask;
+        const uint32_t idx2 = static_cast<uint32_t> (iPos + 1) & mask;
+        const uint32_t idx3 = static_cast<uint32_t> (iPos + 2) & mask;
 
         const float* buf = delayBuffers[channel].data();
-        const float yLinear = buf[idx0] + frac * (buf[idx1] - buf[idx0]);
+        const float y0 = buf[idx0];
+        const float y1 = buf[idx1];
+        const float y2 = buf[idx2];
+        const float y3 = buf[idx3];
+
+        // 4-point, 3rd-order Hermite spline interpolation for click-free audiophile delay reads
+        const float c0 = y1;
+        const float c1 = 0.5f * (y2 - y0);
+        const float c2 = y0 - 2.5f * y1 + 2.0f * y2 - 0.5f * y3;
+        const float c3 = 0.5f * (y3 - y0) + 1.5f * (y1 - y2);
+        const float yHermite = ((c3 * frac + c2) * frac + c1) * frac + c0;
 
         if (freezeFadeAmount <= 0.001f)
-            return yLinear;
+            return yHermite;
 
-        // In freeze, use nearest integer sample to eliminate linear interpolation lowpass loss
         const int intPos = static_cast<int>(std::round (readPos));
-        const uint32_t idxInt = static_cast<uint32_t> (intPos) & static_cast<uint32_t> (delayBufferMask);
+        const uint32_t idxInt = static_cast<uint32_t> (intPos) & mask;
         const float yInt = buf[idxInt];
 
-        if (freezeFadeAmount >= 0.999f)
-            return yInt;
-
-        // Smooth continuous crossfade between linear and integer read during freeze transition
-        return yLinear + freezeFadeAmount * (yInt - yLinear);
+        // Smooth continuous crossfade between Hermite and integer read during freeze transition
+        return yHermite + freezeFadeAmount * (yInt - yHermite);
     }
 
     inline void fastWriteSample (int channel, float value)
