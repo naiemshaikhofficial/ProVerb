@@ -32,8 +32,8 @@ namespace ProducerToy::UI
 
         addAndMakeVisible(continueButton);
         continueButton.setLookAndFeel(&buttonLnF);
-        continueButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff00f0ff));
-        continueButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xff05070a));
+        continueButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xffffffff));
+        continueButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xff121212));
         continueButton.onClick = [this]
         {
             if (state.isActivated && onClose)
@@ -42,8 +42,8 @@ namespace ProducerToy::UI
 
         addAndMakeVisible(buyButton);
         buyButton.setLookAndFeel(&buttonLnF);
-        buyButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff18181b));
-        buyButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xffe4e4e7));
+        buyButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff00f0ff));
+        buyButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xff09090b));
         buyButton.onClick = []
         {
             juce::URL(Licensing::ProductConfig::buyUrl).launchInDefaultBrowser();
@@ -51,13 +51,13 @@ namespace ProducerToy::UI
 
         addAndMakeVisible(deactivateButton);
         deactivateButton.setLookAndFeel(&buttonLnF);
-        deactivateButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff1f1315));
-        deactivateButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xffff4053));
+        deactivateButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff18181b));
+        deactivateButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xffa1a1aa));
         deactivateButton.onClick = [this] { handleDeactivate(); };
 
         addAndMakeVisible(supportButton);
         supportButton.setLookAndFeel(&buttonLnF);
-        supportButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff141416));
+        supportButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff18181b));
         supportButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xffa1a1aa));
         supportButton.onClick = []
         {
@@ -542,17 +542,6 @@ namespace ProducerToy::UI
                     static_cast<int>(contentW), 18), juce::Justification::centredLeft, 1);
             }
         }
-
-        // Bottom divider
-        const float dividerY = card.getBottom() - (state.isActivated ? 50.0f : 66.0f);
-        g.setColour(juce::Colour(0xff1a1e27));
-        g.drawHorizontalLine(static_cast<int>(dividerY), contentX, card.getRight() - 32.0f);
-
-        // Footer info
-        g.setFont(getPanelFont(9.5f));
-        g.setColour(juce::Colour(0xff64748b));
-        g.drawText(juce::CharPointer_UTF8 ("\xc2\xa9 2026 ProducerToy. All rights reserved."),
-                   juce::roundToInt(contentX), juce::roundToInt(dividerY + 6.0f), juce::roundToInt(contentW), 14, juce::Justification::centred);
     }
 
     void LicensePanel::resized()
