@@ -414,19 +414,14 @@ namespace ProducerToy::UI
     void LicensePanel::paint(juce::Graphics& g)
     {
         // Darkened backdrop with obsidian glow
-        g.fillAll(juce::Colour(0xf006070a));
+        g.fillAll(juce::Colour(0xd008080a));
         auto card = getCardBounds().toFloat();
 
-        // Card body
-        g.setColour(juce::Colour(0xff0d0f14));
+        // Card body - ProducerToy website charcoal theme
+        g.setColour(juce::Colour(0xff121214));
         g.fillRoundedRectangle(card, 12.0f);
-        g.setColour(juce::Colour(0xff1f242e));
+        g.setColour(juce::Colour(0xff27272a));
         g.drawRoundedRectangle(card, 12.0f, 1.0f);
-
-        // Subtle top accent line
-        auto strip = card.removeFromTop(2.0f);
-        g.setColour(juce::Colour(0xff22d3ee).withAlpha(0.70f));
-        g.fillRoundedRectangle(strip.reduced(24.0f, 0.0f), 1.0f);
 
         // Logo
         if (proverbLogoImage.isValid())
@@ -518,14 +513,14 @@ namespace ProducerToy::UI
 
                 if (activePairingCode.isNotEmpty())
                 {
-                    g.setFont(juce::FontOptions("Consolas", 22.0f, juce::Font::bold));
+                    g.setFont(juce::FontOptions("Consolas", 20.0f, juce::Font::bold));
                     g.setColour(juce::Colour(0xff00f0ff));
-                    g.drawText(activePairingCode, juce::roundToInt(contentX), juce::roundToInt(areaY + 24.0f), juce::roundToInt(contentW), 32, juce::Justification::centredLeft);
+                    g.drawText(activePairingCode, juce::roundToInt(contentX), juce::roundToInt(areaY + 20.0f), juce::roundToInt(contentW), 28, juce::Justification::centredLeft);
 
                     g.setFont(getPanelFont(11.0f));
-                    g.setColour(juce::Colour(0xff94a3b8));
+                    g.setColour(juce::Colour(0xffa1a1aa));
                     g.drawText("Expires in " + juce::String(pairingCountdown) + "s. Open browser to confirm authorization.",
-                               juce::roundToInt(contentX), juce::roundToInt(areaY + 60.0f), juce::roundToInt(contentW), 16, juce::Justification::centredLeft);
+                               juce::roundToInt(contentX), juce::roundToInt(areaY + 92.0f), juce::roundToInt(contentW), 16, juce::Justification::centredLeft);
                 }
                 else
                 {
@@ -536,14 +531,15 @@ namespace ProducerToy::UI
                 }
             }
 
-            // Status message
+            // Status message positioned cleanly above bottom divider
             if (statusMessage.isNotEmpty())
             {
                 g.setFont(getPanelFont(11.0f, isError ? juce::Font::bold : juce::Font::plain));
-                g.setColour(isError ? juce::Colour(0xffff4053) : juce::Colour(0xff34d399));
+                g.setColour(isError ? juce::Colour(0xfff87171) : juce::Colour(0xff34d399));
+                const float statusY = card.getBottom() - (state.isActivated ? 74.0f : 88.0f);
                 g.drawFittedText(statusMessage, juce::Rectangle<int>(
-                    static_cast<int>(contentX), static_cast<int>(card.getY() + 300.0f),
-                    static_cast<int>(contentW), 22), juce::Justification::centredLeft, 1);
+                    static_cast<int>(contentX), static_cast<int>(statusY),
+                    static_cast<int>(contentW), 18), juce::Justification::centredLeft, 1);
             }
         }
 
@@ -658,8 +654,8 @@ namespace ProducerToy::UI
                 }
                 else
                 {
-                    openBrowserButton.setBounds(contentX, activeAreaY + 12, 160, 32);
-                    cancelPairingButton.setBounds(contentX + 170, activeAreaY + 12, 100, 32);
+                    openBrowserButton.setBounds(contentX, tabY + 96, 150, 32);
+                    cancelPairingButton.setBounds(contentX + 160, tabY + 96, 110, 32);
                 }
             }
 
