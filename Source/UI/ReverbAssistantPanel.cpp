@@ -170,7 +170,7 @@ namespace ProducerToy::UI
 
             juce::Colour ringCol = (ring % 2 == 0) ? juce::Colour (0xff06b6d4) : juce::Colour (0xff38bdf8);
             if (currentState == State::Completed)
-                ringCol = juce::Colour (0xff10b981);
+                ringCol = juce::Colour (0xff38bdf8);
 
             g.setColour (ringCol.withAlpha (alpha));
             g.drawEllipse (centre.x - ringR, centre.y - ringR, ringR * 2.0f, ringR * 2.0f, 1.4f);
@@ -230,20 +230,38 @@ namespace ProducerToy::UI
         // 4. Subtext / Result Display
         if (currentState == State::Completed && detectedInstrument.isNotEmpty())
         {
-            // Sleek detected preset pill badge
-            float badgeW = juce::jmin (520.0f, bounds.getWidth() - 80.0f);
-            auto badgeRect = juce::Rectangle<float> (centre.x - badgeW * 0.5f, bounds.getBottom() - 106.0f, badgeW, 36.0f);
+            if (ProVerbAudioProcessor::isDevMode())
+            {
+                // Development / Diagnostic Mode: full classifier match info
+                float badgeW = juce::jmin (520.0f, bounds.getWidth() - 80.0f);
+                auto badgeRect = juce::Rectangle<float> (centre.x - badgeW * 0.5f, bounds.getBottom() - 106.0f, badgeW, 36.0f);
 
-            g.setColour (juce::Colour (0xff121620));
-            g.fillRoundedRectangle (badgeRect, 8.0f);
-            g.setColour (juce::Colour (0xff38bdf8).withAlpha (0.8f));
-            g.drawRoundedRectangle (badgeRect, 8.0f, 1.2f);
+                g.setColour (juce::Colour (0xff121620));
+                g.fillRoundedRectangle (badgeRect, 8.0f);
+                g.setColour (juce::Colour (0xff38bdf8).withAlpha (0.8f));
+                g.drawRoundedRectangle (badgeRect, 8.0f, 1.2f);
 
-            juce::String resultMsg = juce::String (juce::CharPointer_UTF8 ("\xe2\x9c\x94 DETECTED: ")) + detectedInstrument
-                                     + " (" + juce::String ((int) std::round (confidenceScore * 100.0f)) + "% MATCH)  \xe2\x86\x92  " + appliedPresetName;
-            g.setFont (juce::FontOptions ("Segoe UI", 12.0f, juce::Font::bold));
-            g.setColour (juce::Colour (0xff38bdf8));
-            g.drawText (resultMsg, badgeRect.toNearestInt(), juce::Justification::centred, false);
+                juce::String resultMsg = juce::String (juce::CharPointer_UTF8 ("\xe2\x9c\x94 DETECTED: ")) + detectedInstrument
+                                         + " (" + juce::String ((int) std::round (confidenceScore * 100.0f)) + "% MATCH)  \xe2\x86\x92  " + appliedPresetName;
+                g.setFont (juce::FontOptions ("Segoe UI", 12.0f, juce::Font::bold));
+                g.setColour (juce::Colour (0xff38bdf8));
+                g.drawText (resultMsg, badgeRect.toNearestInt(), juce::Justification::centred, false);
+            }
+            else
+            {
+                // Production: Minimalistic dark studio theme, no icons or logos
+                float badgeW = juce::jmin (280.0f, bounds.getWidth() - 80.0f);
+                auto badgeRect = juce::Rectangle<float> (centre.x - badgeW * 0.5f, bounds.getBottom() - 106.0f, badgeW, 34.0f);
+
+                g.setColour (juce::Colour (0xff121620));
+                g.fillRoundedRectangle (badgeRect, 8.0f);
+                g.setColour (juce::Colour (0xff252936));
+                g.drawRoundedRectangle (badgeRect, 8.0f, 1.0f);
+
+                g.setFont (juce::FontOptions ("Segoe UI", 13.0f, juce::Font::plain));
+                g.setColour (juce::Colour (0xffe2e8f0));
+                g.drawText ("Applied the best setting", badgeRect.toNearestInt(), juce::Justification::centred, false);
+            }
 
             // Done Pill Button
             auto doneBtn = getDoneButtonBounds();

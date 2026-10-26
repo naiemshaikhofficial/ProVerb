@@ -39,12 +39,13 @@ Name: "vst2"; Description: "VST2 (64-bit Legacy) — Older DAWs / Custom VST Fol
 FinishedHeadingLabel=Producer Toy ProVerb Installed
 FinishedLabel=Producer Toy ProVerb has been successfully installed on your computer.%n%nUniversal compatibility ready for all DAWs:%n• FL Studio: Effects -> Reverb -> ProVerb%n• Ableton Live: Plug-ins -> VST3 -> Producer Toy%n• Cubase / Nuendo: Reverb -> ProVerb%n• Studio One: Effects -> Producer Toy -> ProVerb%n• Reaper: VST3: ProVerb (Producer Toy)%n• Bitwig Studio: Devices -> Reverb -> ProVerb%n• Pro Tools: Avid Audio Plug-Ins (AAX)%n%nOpen your DAW to activate ProVerb with your license.%nClick Finish to complete setup.
 
-[Files]
-; 1a. Official Universal VST3 Plugin Bundle for DAWs (Root VST3 folder)
-Source: "..\..\build\ProVerb_artefacts\Release\VST3\ProVerb.vst3\*"; DestDir: "{commoncf64}\VST3\ProVerb.vst3"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: vst3; Excludes: "*.pdb,*.ilk,*.exp,*.lib,*.obj,*.cpp,*.h,*.py,*.npz,*.git*,*.md,*.txt"
+[InstallDelete]
+; Safely clean up legacy duplicate installation in vendor subfolder from earlier versions
+Type: filesandordirs; Name: "{commoncf64}\VST3\Producer Toy\ProVerb.vst3"
 
-; 1b. Producer Toy Vendor VST3 Subfolder (For DAWs organizing by vendor: FL Studio, Cubase, Studio One)
-Source: "..\..\build\ProVerb_artefacts\Release\VST3\ProVerb.vst3\*"; DestDir: "{commoncf64}\VST3\Producer Toy\ProVerb.vst3"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: vst3; Excludes: "*.pdb,*.ilk,*.exp,*.lib,*.obj,*.cpp,*.h,*.py,*.npz,*.git*,*.md,*.txt"
+[Files]
+; 1. Canonical Universal VST3 Plugin Bundle for all DAWs (Single Standard VST3 Location)
+Source: "..\..\build\ProVerb_artefacts\Release\VST3\ProVerb.vst3\*"; DestDir: "{commoncf64}\VST3\ProVerb.vst3"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: vst3; Excludes: "*.pdb,*.ilk,*.exp,*.lib,*.obj,*.cpp,*.h,*.py,*.npz,*.git*,*.md,*.txt"
 
 ; 2. Official AAX Plugin Bundle for Pro Tools (if built)
 Source: "..\..\build\ProVerb_artefacts\Release\AAX\ProVerb.aaxplugin\*"; DestDir: "{commoncf}\Avid\Audio\Plug-Ins\ProVerb.aaxplugin"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist; Components: aax

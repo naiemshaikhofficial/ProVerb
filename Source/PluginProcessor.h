@@ -105,6 +105,22 @@ public:
     juce::String getDetectedProfileName() const { return detectedPresetName; }
     AudioAnalyzerEngine::ProfileId getDetectedProfileId() const { return lastProfileId; }
 
+    static bool isDevMode() noexcept
+    {
+#if defined(DEBUG) || defined(_DEBUG) || JUCE_DEBUG || PROVERB_DEV_MODE
+        return true;
+#else
+        return juce::SystemStats::getEnvironmentVariable ("PROVERB_DEV", juce::String()).isNotEmpty();
+#endif
+    }
+
+    juce::String getAIPresetDisplayName() const
+    {
+        if (isDevMode())
+            return "AI: " + detectedPresetName;
+        return "Smart Space";
+    }
+
     bool canUndoAutoLearn() const noexcept { return hasUndoState; }
     void undoAutoLearn();
     void analyzeAudioFileAsync (const juce::File& audioFile);

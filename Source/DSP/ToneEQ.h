@@ -150,27 +150,27 @@ public:
         highShelfL.reset();
         highShelfR.reset();
 
-        // Parameter smoothers (35ms glide)
+        // Parameter smoothers (35ms glide, log2 pitch space for natural musical octave slewing)
         smoothLowCutPitch.reset (currentSampleRate, 0.035);
         smoothHighCutPitch.reset (currentSampleRate, 0.035);
         smoothLowCutPitch.setCurrentAndTargetValue (std::log2 (80.0f));
         smoothHighCutPitch.setCurrentAndTargetValue (std::log2 (14000.0f));
 
-        smoothLowShelfFreq.reset (currentSampleRate, 0.035);
+        smoothLowShelfPitch.reset (currentSampleRate, 0.035);
         smoothLowShelfGain.reset (currentSampleRate, 0.035);
-        smoothLowShelfFreq.setCurrentAndTargetValue (250.0f);
+        smoothLowShelfPitch.setCurrentAndTargetValue (std::log2 (250.0f));
         smoothLowShelfGain.setCurrentAndTargetValue (0.0f);
 
-        smoothMidFreq.reset (currentSampleRate, 0.035);
+        smoothMidPitch.reset (currentSampleRate, 0.035);
         smoothMidGain.reset (currentSampleRate, 0.035);
         smoothMidQ.reset (currentSampleRate, 0.035);
-        smoothMidFreq.setCurrentAndTargetValue (1200.0f);
+        smoothMidPitch.setCurrentAndTargetValue (std::log2 (1200.0f));
         smoothMidGain.setCurrentAndTargetValue (0.0f);
         smoothMidQ.setCurrentAndTargetValue (0.70f);
 
-        smoothHighShelfFreq.reset (currentSampleRate, 0.035);
+        smoothHighShelfPitch.reset (currentSampleRate, 0.035);
         smoothHighShelfGain.reset (currentSampleRate, 0.035);
-        smoothHighShelfFreq.setCurrentAndTargetValue (5000.0f);
+        smoothHighShelfPitch.setCurrentAndTargetValue (std::log2 (5000.0f));
         smoothHighShelfGain.setCurrentAndTargetValue (0.0f);
     }
 
@@ -217,12 +217,12 @@ public:
 
         smoothLowCutPitch.setTargetValue (std::log2 (safeLowCutHz));
         smoothHighCutPitch.setTargetValue (std::log2 (safeHighCutHz));
-        smoothLowShelfFreq.setTargetValue (safeLowShFreq);
+        smoothLowShelfPitch.setTargetValue (std::log2 (safeLowShFreq));
         smoothLowShelfGain.setTargetValue (safeLowShGain);
-        smoothMidFreq.setTargetValue (safeMidFreq);
+        smoothMidPitch.setTargetValue (std::log2 (safeMidFreq));
         smoothMidGain.setTargetValue (safeMidGain);
         smoothMidQ.setTargetValue (safeMidQ);
-        smoothHighShelfFreq.setTargetValue (safeHighShFreq);
+        smoothHighShelfPitch.setTargetValue (std::log2 (safeHighShFreq));
         smoothHighShelfGain.setTargetValue (safeHighShGain);
 
         const int numSamples = std::min (numSamplesToProcess, buffer.getNumSamples());
@@ -232,19 +232,19 @@ public:
 
         juce::dsp::AudioBlock<float> fullBlock (buffer.getArrayOfWritePointers(), static_cast<size_t> (numChannels), 0, static_cast<size_t> (numSamples));
 
-        constexpr int subBlockSize = 32;
+        constexpr int subBlockSize = 16;
         for (int offset = 0; offset < numSamples; offset += subBlockSize)
         {
             const int chunkSize = std::min (subBlockSize, numSamples - offset);
 
             const float curLowCut      = std::exp2 (smoothLowCutPitch.skip (chunkSize));
             const float curHighCut     = std::exp2 (smoothHighCutPitch.skip (chunkSize));
-            const float curLowShFreq   = smoothLowShelfFreq.skip (chunkSize);
+            const float curLowShFreq   = std::exp2 (smoothLowShelfPitch.skip (chunkSize));
             const float curLowShGain   = smoothLowShelfGain.skip (chunkSize);
-            const float curMidFreq     = smoothMidFreq.skip (chunkSize);
+            const float curMidFreq     = std::exp2 (smoothMidPitch.skip (chunkSize));
             const float curMidGain     = smoothMidGain.skip (chunkSize);
             const float curMidQ        = smoothMidQ.skip (chunkSize);
-            const float curHighShFreq  = smoothHighShelfFreq.skip (chunkSize);
+            const float curHighShFreq  = std::exp2 (smoothHighShelfPitch.skip (chunkSize));
             const float curHighShGain  = smoothHighShelfGain.skip (chunkSize);
 
             // Update TPT cut filters
@@ -323,12 +323,12 @@ private:
 
     juce::SmoothedValue<float> smoothLowCutPitch;
     juce::SmoothedValue<float> smoothHighCutPitch;
-    juce::SmoothedValue<float> smoothLowShelfFreq;
+    juce::SmoothedValue<float> smoothLowShelfPitch;
     juce::SmoothedValue<float> smoothLowShelfGain;
-    juce::SmoothedValue<float> smoothMidFreq;
+    juce::SmoothedValue<float> smoothMidPitch;
     juce::SmoothedValue<float> smoothMidGain;
     juce::SmoothedValue<float> smoothMidQ;
-    juce::SmoothedValue<float> smoothHighShelfFreq;
+    juce::SmoothedValue<float> smoothHighShelfPitch;
     juce::SmoothedValue<float> smoothHighShelfGain;
 };
 

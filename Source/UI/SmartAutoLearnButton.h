@@ -308,6 +308,14 @@ private:
         else cleanInst = cleanInst.upToFirstOccurrenceOf (" ", false, false);
         if (cleanInst.isEmpty()) cleanInst = "AI LEARN";
 
+#if defined(DEBUG) || defined(_DEBUG) || JUCE_DEBUG || PROVERB_DEV_MODE
+        const bool devMode = true;
+#else
+        const bool devMode = juce::SystemStats::getEnvironmentVariable ("PROVERB_DEV", juce::String()).isNotEmpty();
+#endif
+        if (! devMode)
+            cleanInst = "OPTIMIZED";
+
         juce::Font badgeFont (juce::FontOptions (9.5f, juce::Font::bold));
         float availBadgeW = std::max (30.0f, reanalyzeRect.getX() - badgeX - 4.0f);
         float badgeW = std::min (availBadgeW, static_cast<float> (badgeFont.getStringWidth (cleanInst)) + 18.0f);

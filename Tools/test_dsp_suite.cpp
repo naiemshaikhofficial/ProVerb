@@ -754,7 +754,10 @@ void testRoomSizeAudibleEffectiveness()
             reverb.process (inL.data(), inR.data(), outL.data(), outR.data(), blockSize,
                             size, 2.0f, 30.0f, 75.0f, false);
 
-            // Blocks 1 to 25: first ~267 ms (early reflections and first diffuse passes)
+            // Blocks 1 to 25: first ~267 ms post-direct-impulse (t = 10.67ms to 266.67ms at 48 kHz).
+            // NOTE: Block 0 (direct impulse & 0ms feedthrough) is excluded to evaluate early reflections.
+            // Metric: Temporal Energy Centroid Tc = (sum(n * e[n]) / sum(e[n])) * (1000 / fs) ms.
+            // Contrasts with discrete all-pass first tap (1.08ms-5.74ms) and first FDN tank delay (6.90ms-45.59ms).
             if (b <= 25)
             {
                 for (int s = 0; s < blockSize; ++s)
@@ -777,7 +780,7 @@ void testRoomSizeAudibleEffectiveness()
         earlyCentroids[idx] = sumEnergyEarly > 1e-9 ? (weightedSumEarly / sumEnergyEarly) : 0.0;
         lateEnergies[idx] = lateEnergy;
 
-        std::cout << "  Size " << std::setw(3) << (int)size << "%: Early Centroid = "
+        std::cout << "  Size " << std::setw(3) << (int)size << "%: Early Centroid (10.7-267ms window) = "
                   << std::fixed << std::setprecision(1) << earlyCentroids[idx] << " samples ("
                   << (earlyCentroids[idx] / sr * 1000.0) << " ms), Late Energy = "
                   << std::setprecision(5) << lateEnergies[idx] << "\n";
@@ -924,39 +927,62 @@ void testRoomSizeAudibleEffectiveness()
         EXPECT_TRUE (maxSampleDiff < 0.65f, "Dynamic Size sweeps exhibit smooth Hermite interpolation without sample discontinuities or clicks");
     }
 
-    // 5. RT60 DECAY TIME INVARIANCE AUDIT
+    // 5. REPRODUCIBLE SCHROEDER RT60 DECAY ANALYSIS & DIAGNOSTICS
     {
-        // Measure decay time (time to drop by -40dB from early peak, extrapolated to -60dB)
-        auto measureRT60 = [=](float sizeVal) -> double {
+        auto measureSchroederT30 = [=](float sizeVal, double& outCrudeT40) -> double {
             FDNReverb reverb;
             reverb.prepare (sr, blockSize, sizeVal);
             std::vector<float> inL (blockSize, 0.0f), inR (blockSize, 0.0f);
             std::vector<float> outL (blockSize, 0.0f), outR (blockSize, 0.0f);
 
+            const int totalSamples = static_cast<int> (3.5 * sr);
+            std::vector<float> ir (totalSamples, 0.0f);
+
             inL[0] = 1.0f; inR[0] = 1.0f;
             reverb.process (inL.data(), inR.data(), outL.data(), outR.data(), blockSize,
-                            sizeVal, 2.0f, 0.0f, 75.0f, false); // 2.0s target decay, 0% damping
+                            sizeVal, 2.0f, 0.0f, 75.0f, false);
+            for (int s = 0; s < blockSize; ++s) ir[s] = 0.5f * (outL[s] + outR[s]);
             inL[0] = 0.0f; inR[0] = 0.0f;
 
-            double peakEnergy = 0.0;
-            std::vector<double> blockEnergies;
-
-            for (int b = 1; b <= 280; ++b) // ~3.0s
+            for (int pos = blockSize; pos < totalSamples; pos += blockSize)
             {
-                reverb.process (inL.data(), inR.data(), outL.data(), outR.data(), blockSize,
+                int n = std::min (blockSize, totalSamples - pos);
+                reverb.process (inL.data(), inR.data(), outL.data(), outR.data(), n,
                                 sizeVal, 2.0f, 0.0f, 75.0f, false);
-                double be = 0.0;
-                for (int s = 0; s < blockSize; ++s)
-                    be += outL[s] * outL[s] + outR[s] * outR[s];
-                be /= (double)blockSize;
-                blockEnergies.push_back (be);
-                if (b <= 10 && be > peakEnergy)
-                    peakEnergy = be;
+                for (int s = 0; s < n; ++s) ir[pos + s] = 0.5f * (outL[s] + outR[s]);
             }
 
-            if (peakEnergy <= 1e-12) return 0.0;
+            // Standardized ISO 3382 Schroeder Backward Integration
+            std::vector<double> schroeder (totalSamples, 0.0);
+            double accum = 0.0;
+            for (int i = totalSamples - 1; i >= 0; --i)
+            {
+                accum += static_cast<double> (ir[i] * ir[i]);
+                schroeder[i] = accum;
+            }
+            const double e0 = schroeder[0] > 1e-12 ? schroeder[0] : 1e-12;
+            int idxM5 = -1, idxM35 = -1;
+            for (int i = 0; i < totalSamples; ++i)
+            {
+                const double db = 10.0 * std::log10 (std::max (schroeder[i] / e0, 1e-12));
+                if (idxM5 < 0 && db <= -5.0)   idxM5 = i;
+                if (idxM35 < 0 && db <= -35.0) idxM35 = i;
+            }
+            double t30 = (idxM5 >= 0 && idxM35 > idxM5) ? ((idxM35 - idxM5) / sr) * 2.0 : -1.0;
 
-            // Find block where energy drops below -40 dB (1e-4 of peak)
+            // Legacy crude peak-to-threshold T40 diagnostic (informative)
+            double peakEnergy = 0.0;
+            std::vector<double> blockEnergies;
+            const int numBlocks = totalSamples / blockSize;
+            for (int b = 0; b < numBlocks; ++b)
+            {
+                double be = 0.0;
+                for (int s = 0; s < blockSize; ++s)
+                    be += ir[b * blockSize + s] * ir[b * blockSize + s];
+                be /= (double)blockSize;
+                blockEnergies.push_back (be);
+                if (b <= 10 && be > peakEnergy) peakEnergy = be;
+            }
             double threshold = peakEnergy * 1e-4;
             double t40 = 2.0;
             for (size_t i = 15; i < blockEnergies.size(); ++i)
@@ -967,20 +993,164 @@ void testRoomSizeAudibleEffectiveness()
                     break;
                 }
             }
-            // RT60 is 1.5 * T40
-            return t40 * 1.5;
+            outCrudeT40 = t40 * 1.5;
+
+            return t30;
         };
 
-        double rt60Size0   = measureRT60 (0.0f);
-        double rt60Size50  = measureRT60 (50.0f);
-        double rt60Size100 = measureRT60 (100.0f);
+        const float sizesToTest[] = { 0.0f, 25.0f, 50.0f, 75.0f, 100.0f };
+        for (float sz : sizesToTest)
+        {
+            double crudeDiag = 0.0;
+            double schroederT30 = measureSchroederT30 (sz, crudeDiag);
+            std::cout << "  Size " << std::setw (3) << (int)sz << "%: Schroeder RT60 (T30*2) = "
+                      << std::fixed << std::setprecision (3) << schroederT30 << "s"
+                      << " [Diagnostic Legacy T40: " << std::setprecision (2) << crudeDiag << "s]\n";
 
-        std::cout << "  Measured RT60 at 2.0s target: Size 0% = " << std::fixed << std::setprecision(2) << rt60Size0
-                  << "s, Size 50% = " << rt60Size50 << "s, Size 100% = " << rt60Size100 << "s\n";
+            EXPECT_TRUE (schroederT30 > 1.70 && schroederT30 < 2.05,
+                         "Size " + std::to_string ((int)sz) + "% maintains ISO 3382 Schroeder RT60 within 15% tolerance of 2.0s target");
+        }
+    }
+}
 
-        EXPECT_TRUE (std::abs (rt60Size0 - 2.0) < 0.6, "Size 0% maintains RT60 decay target within reasonable acoustic tolerance");
-        EXPECT_TRUE (std::abs (rt60Size50 - 2.0) < 0.5, "Size 50% maintains RT60 decay target within reasonable acoustic tolerance");
-        EXPECT_TRUE (std::abs (rt60Size100 - 2.0) < 0.6, "Size 100% maintains RT60 decay target within reasonable acoustic tolerance");
+void testAlgorithmModeTransitionsClickResistance()
+{
+    std::cout << "\n--- TEST 16: Live Algorithm Mode Transition Click-Resistance ---\n";
+    constexpr double sr = 48000.0;
+    constexpr int blockSize = 256;
+
+    FDNReverb reverb;
+    reverb.prepare (sr, blockSize, 70.0f);
+
+    std::vector<float> inL (blockSize, 0.0f), inR (blockSize, 0.0f);
+    std::vector<float> outL (blockSize, 0.0f), outR (blockSize, 0.0f);
+
+    float lastOutL = 0.0f;
+    float maxSampleStep = 0.0f;
+    bool hasNanOrInf = false;
+
+    // Continuous sine tone input while switching through all 8 modes in sequence
+    const int modes[] = { 0, 1, 2, 3, 4, 5, 6, 7, 0, 2, 6, 7, 1 };
+    for (int mode : modes)
+    {
+        // Run 8 blocks per mode (~42ms per mode, triggering mode slewing)
+        for (int b = 0; b < 8; ++b)
+        {
+            for (int s = 0; s < blockSize; ++s)
+            {
+                double t = (double)(b * blockSize + s) / sr;
+                float sig = 0.35f * std::sin (2.0 * juce::MathConstants<double>::pi * 330.0 * t);
+                inL[s] = sig; inR[s] = sig;
+            }
+
+            reverb.process (inL.data(), inR.data(), outL.data(), outR.data(), blockSize,
+                            70.0f, 2.0f, 20.0f, 75.0f, false,
+                            0.5f, 1.0f, nullptr, nullptr, mode);
+
+            for (int s = 0; s < blockSize; ++s)
+            {
+                if (std::isnan (outL[s]) || std::isnan (outR[s]) || std::isinf (outL[s]) || std::isinf (outR[s]))
+                    hasNanOrInf = true;
+
+                float diff = std::abs (outL[s] - lastOutL);
+                if (diff > maxSampleStep)
+                    maxSampleStep = diff;
+                lastOutL = outL[s];
+            }
+        }
+    }
+
+    EXPECT_TRUE (!hasNanOrInf, "Live algorithm mode transitions produce NO NaN or infinite values");
+    EXPECT_TRUE (maxSampleStep < 0.65f, "Live algorithm mode transitions exhibit click-resistant parameter slewing (maxStep < 0.65)");
+}
+
+void testFiveBandEQContinuousParameterSweeps()
+{
+    std::cout << "\n--- TEST 17: Five-Band EQ Continuous Parameter Sweeps & Stability ---\n";
+    constexpr double sr = 48000.0;
+    constexpr int blockSize = 512;
+
+    ToneEQ eq;
+    juce::dsp::ProcessSpec spec;
+    spec.sampleRate = sr;
+    spec.maximumBlockSize = blockSize;
+    spec.numChannels = 2;
+    eq.prepare (spec);
+
+    juce::AudioBuffer<float> buffer (2, blockSize);
+    bool hasNanOrInf = false;
+    float maxAbsVal = 0.0f;
+
+    // Rapid sweeps across 100 blocks (~1.0s)
+    for (int b = 0; b < 100; ++b)
+    {
+        for (int s = 0; s < blockSize; ++s)
+        {
+            double t = (double)(b * blockSize + s) / sr;
+            float sig = 0.3f * std::sin (2.0 * juce::MathConstants<double>::pi * 440.0 * t);
+            buffer.setSample (0, s, sig);
+            buffer.setSample (1, s, sig);
+        }
+
+        // Sweep frequencies logarithmically in pitch space
+        float lowCutSweep   = 20.0f + 500.0f * (0.5f + 0.5f * std::sin ((double)b * 0.2));
+        float highCutSweep  = 2000.0f + 16000.0f * (0.5f + 0.5f * std::cos ((double)b * 0.15));
+        float lowShelfSweep = 50.0f + 400.0f * (0.5f + 0.5f * std::sin ((double)b * 0.25));
+        float lowShelfGain  = 12.0f * std::sin ((double)b * 0.3);
+        float midFreqSweep  = 200.0f + 6000.0f * (0.5f + 0.5f * std::cos ((double)b * 0.35));
+        float midGainSweep  = 12.0f * std::cos ((double)b * 0.2);
+        float midQSweep     = 0.5f + 7.5f * (0.5f + 0.5f * std::sin ((double)b * 0.4)); // Extreme high-Q
+        float highShFreq    = 2000.0f + 12000.0f * (0.5f + 0.5f * std::sin ((double)b * 0.1));
+        float highShGain    = 12.0f * std::sin ((double)b * 0.25);
+
+        eq.process (buffer, blockSize, lowCutSweep, highCutSweep,
+                    lowShelfSweep, lowShelfGain,
+                    midFreqSweep, midGainSweep, midQSweep,
+                    highShFreq, highShGain);
+
+        for (int ch = 0; ch < 2; ++ch)
+        {
+            const float* d = buffer.getReadPointer (ch);
+            for (int s = 0; s < blockSize; ++s)
+            {
+                if (std::isnan (d[s]) || std::isinf (d[s])) hasNanOrInf = true;
+                maxAbsVal = std::max (maxAbsVal, std::abs (d[s]));
+            }
+        }
+    }
+
+    EXPECT_TRUE (!hasNanOrInf, "Five-band EQ continuous automated sweeps produce NO NaN or infinite values");
+    EXPECT_TRUE (maxAbsVal < 5.0f, "Five-band EQ maintains unconditional stability during extreme high-Q sweeps");
+}
+
+void testInstallerPackagingCanonicalLocation()
+{
+    std::cout << "\n--- TEST 18: Installer Packaging Canonical Single Location ---\n";
+    juce::File issFile = juce::File::getCurrentWorkingDirectory()
+                             .getChildFile ("Installer")
+                             .getChildFile ("Windows")
+                             .getChildFile ("ProVerb_Windows_Installer.iss");
+
+    if (!issFile.existsAsFile())
+    {
+        issFile = juce::File::getCurrentWorkingDirectory().getParentDirectory()
+                      .getChildFile ("Installer")
+                      .getChildFile ("Windows")
+                      .getChildFile ("ProVerb_Windows_Installer.iss");
+    }
+
+    EXPECT_TRUE (issFile.existsAsFile(), "ProVerb_Windows_Installer.iss script exists");
+    if (issFile.existsAsFile())
+    {
+        juce::String content = issFile.loadFileAsString();
+        bool hasCanonical = content.contains ("DestDir: \"{commoncf64}\\VST3\\ProVerb.vst3\"");
+        bool hasDuplicate = content.contains ("DestDir: \"{commoncf64}\\VST3\\Producer Toy\\ProVerb.vst3\"");
+        bool hasInstallDelete = content.contains ("[InstallDelete]") &&
+                                content.contains ("Name: \"{commoncf64}\\VST3\\Producer Toy\\ProVerb.vst3\"");
+
+        EXPECT_TRUE (hasCanonical, "Installer targets canonical location {commoncf64}\\VST3\\ProVerb.vst3");
+        EXPECT_TRUE (!hasDuplicate, "Installer does NOT contain duplicate installation to {commoncf64}\\VST3\\Producer Toy");
+        EXPECT_TRUE (hasInstallDelete, "Installer includes [InstallDelete] to safely remove legacy duplicate installations");
     }
 }
 
@@ -1005,6 +1175,9 @@ int main()
     testEarlyLateSeparation();
     testTempoSyncPreDelayCalculations();
     testRoomSizeAudibleEffectiveness();
+    testAlgorithmModeTransitionsClickResistance();
+    testFiveBandEQContinuousParameterSweeps();
+    testInstallerPackagingCanonicalLocation();
 
     std::cout << "\n========================================================\n";
     std::cout << "  DSP SUITE EXECUTION SUMMARY:\n";

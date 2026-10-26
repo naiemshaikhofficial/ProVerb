@@ -142,6 +142,10 @@ public:
         smoothedEarlySend = 0.2f;
         smoothedDiffCoeff = 0.5f;
         freezeFade = 0.0f;
+        smoothedHallCrossfeed = 0.0f;
+        smoothedVintageLpCoeff = 0.0f;
+        smoothedSatAmount = 0.22f;
+        activeGateGain = 1.0f;
         gatedCounter = 0;
     }
 
@@ -164,7 +168,7 @@ public:
         // 3: Plate Character (fast initial diffusion 0.82x, bright high end, iron plate saturation)
         // 4: Smooth Chamber  (golden ratio prime delays, minimum flutter, warm even decay)
         // 5: Modulated Space (expanded dual LFO drift 1.8x, cosmic ambient movement)
-        // 6: Vintage Digital (10.5 kHz feedback bandwidth limiter, warm 12-bit tank saturation)
+        // 6: Vintage Digital (10.5 kHz feedback bandwidth limiter, warm soft tank saturation)
         // 7: Gated/Nonlinear (envelope shaper: sustained energy then fast clean musical cutoff)
         float modeDelayScale = 1.0f;
         float modeDiffMax = 0.72f;
@@ -290,10 +294,12 @@ public:
         const float betaBass = std::exp (-juce::MathConstants<float>::twoPi * safeCrossoverHz / static_cast<float> (currentSampleRate));
         const float bassDelta = (safeBassScale - 1.0f) * 0.65f;
 
-        // Vintage Digital low-pass filter coefficient (~10.5 kHz feedback roll-off)
-        const float vintageLpCoeff = (toneColor == 2 || algoMode == 6)
+        // Slew targets for click-resistant algorithm mode transitions
+        const float targetVintageLpCoeff = (toneColor == 2 || algoMode == 6)
             ? std::exp (-juce::MathConstants<float>::twoPi * 10500.0f / static_cast<float> (currentSampleRate))
             : 0.0f;
+        const float targetHallCrossfeed = (algoMode == 2) ? 0.25f : 0.0f;
+        const float targetSatAmount = (1.0f - freezeFade) * modeSatAmount;
 
         // Householder matrix factor for N=8: 2/N = 0.25
         constexpr float householderFactor = 2.0f / static_cast<float>(NUM_DELAYS);
@@ -338,6 +344,10 @@ public:
             smoothedEarlyCross += slewCoeff  * (targetEarlyCross - smoothedEarlyCross);
             smoothedEarlySend  += slewCoeff  * (targetEarlySend  - smoothedEarlySend);
             freezeFade         += slewFreeze * (targetFreeze     - freezeFade);
+
+            smoothedHallCrossfeed  += slewCoeff * (targetHallCrossfeed  - smoothedHallCrossfeed);
+            smoothedVintageLpCoeff += slewCoeff * (targetVintageLpCoeff - smoothedVintageLpCoeff);
+            smoothedSatAmount      += slewCoeff * (targetSatAmount      - smoothedSatAmount);
 
             if (isFrozen && freezeFade >= 0.999f)
                 freezeFade = 1.0f;
@@ -482,10 +492,10 @@ public:
 
                 float loopSignal = filterStates[i];
 
-                // 5C: Optional Vintage Digital 10.5 kHz feedback roll-off
-                if (vintageLpCoeff > 0.0f)
+                // 5C: Optional Vintage Digital 10.5 kHz feedback roll-off (smoothly slewed)
+                if (smoothedVintageLpCoeff > 0.0001f)
                 {
-                    vintageLpStates[i] = ((1.0f - vintageLpCoeff) * loopSignal) + (vintageLpCoeff * vintageLpStates[i]);
+                    vintageLpStates[i] = ((1.0f - smoothedVintageLpCoeff) * loopSignal) + (smoothedVintageLpCoeff * vintageLpStates[i]);
                     loopSignal = vintageLpStates[i];
                 }
 
@@ -493,12 +503,11 @@ public:
                 const float curLineGain = juce::jmap (freezeFade, smoothedFeedbackGains[i], 1.0f);
                 float feedbackSignal = (loopSignal * curLineGain) + inputVector[i];
 
-                // Continuous smooth rational soft-saturator
-                const float satAmount = (1.0f - freezeFade) * modeSatAmount;
-                if (satAmount > 1.0e-5f)
+                // Continuous smooth rational soft-saturator (smoothly slewed mode transition)
+                if (smoothedSatAmount > 1.0e-5f)
                 {
                     const float x2 = feedbackSignal * feedbackSignal;
-                    feedbackSignal = feedbackSignal / (1.0f + satAmount * x2);
+                    feedbackSignal = feedbackSignal / (1.0f + smoothedSatAmount * x2);
                 }
 
                 fastWriteSample (i, feedbackSignal);
@@ -514,36 +523,43 @@ public:
             float lateR = ( delayOutputs[0] - delayOutputs[1] + delayOutputs[2] - delayOutputs[3]
                           + delayOutputs[4] - delayOutputs[5] + delayOutputs[6] - delayOutputs[7]) * normFactor;
 
-            // In Wide Hall (Mode 2), enhance stereo width decorrelation
-            if (algoMode == 2)
+            // In Wide Hall (Mode 2), smoothly apply stereo width decorrelation crossfeed
+            if (smoothedHallCrossfeed > 0.0001f)
             {
-                const float hallDiff = (lateR - lateL) * 0.25f;
+                const float hallDiff = (lateR - lateL) * smoothedHallCrossfeed;
                 lateL -= hallDiff;
                 lateR += hallDiff;
             }
 
-            // In Gated Mode (Mode 7), apply nonlinear gate envelope
+            // In Gated Mode (Mode 7), apply nonlinear gate envelope with click-resistant glide
+            float targetGateGain = 1.0f;
             if (algoMode == 7)
             {
                 gatedCounter++;
-                float gateGain = 1.0f;
                 if (gatedCounter > gateHoldSamples)
                 {
                     const int relProgress = gatedCounter - gateHoldSamples;
                     if (relProgress < gateReleaseSamples)
                     {
                         const float rFrac = static_cast<float> (relProgress) / static_cast<float> (gateReleaseSamples);
-                        gateGain = 0.5f * (1.0f + std::cos (juce::MathConstants<float>::pi * rFrac));
-                        gateGain = juce::jlimit (0.01f, 1.0f, gateGain);
+                        targetGateGain = 0.5f * (1.0f + std::cos (juce::MathConstants<float>::pi * rFrac));
+                        targetGateGain = juce::jlimit (0.01f, 1.0f, targetGateGain);
                     }
                     else
                     {
-                        gateGain = 0.01f; // -40 dB cutoff
+                        targetGateGain = 0.01f; // -40 dB cutoff
                     }
                 }
-                lateL *= gateGain;
-                lateR *= gateGain;
             }
+            else
+            {
+                gatedCounter = 0;
+                targetGateGain = 1.0f;
+            }
+
+            activeGateGain += slewCoeff * (targetGateGain - activeGateGain);
+            lateL *= activeGateGain;
+            lateR *= activeGateGain;
 
             // Configurable Early Reflections vs Late Reverb balance
             const float erNorm    = juce::jlimit (0.0f, 1.0f, erLateBalance);
@@ -600,6 +616,10 @@ private:
     float smoothedEarlySend  { 0.20f };
     float smoothedDiffCoeff  { 0.50f };
     float freezeFade         { 0.0f };
+    float smoothedHallCrossfeed  { 0.0f };
+    float smoothedVintageLpCoeff { 0.0f };
+    float smoothedSatAmount      { 0.22f };
+    float activeGateGain         { 1.0f };
     int gatedCounter         { 0 };
 
     static int nextPowerOfTwo (int value) noexcept

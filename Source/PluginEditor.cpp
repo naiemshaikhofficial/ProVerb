@@ -438,7 +438,7 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
         smartAutoLearnButton.setLearnedResult (inst, prof, success);
         if (success && prof.isNotEmpty())
         {
-            presetBox.setText ("AI: " + prof, juce::dontSendNotification);
+            presetBox.setText (audioProcessor.getAIPresetDisplayName(), juce::dontSendNotification);
             undoAutoLearnButton.setVisible (true);
         }
         else
@@ -454,7 +454,7 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
                                                audioProcessor.getDetectedProfileName(),
                                                true);
         if (audioProcessor.getDetectedProfileName().isNotEmpty())
-            presetBox.setText ("AI: " + audioProcessor.getDetectedProfileName(), juce::dontSendNotification);
+            presetBox.setText (audioProcessor.getAIPresetDisplayName(), juce::dontSendNotification);
         undoAutoLearnButton.setVisible (audioProcessor.canUndoAutoLearn());
     }
 
@@ -552,7 +552,7 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
         menu.addItem (4, "4. Plate Character (Ultra-Dense Iron Sheen)", true, curAlgo == 3);
         menu.addItem (5, "5. Smooth Chamber (Low-Coloration Decay)", true, curAlgo == 4);
         menu.addItem (6, "6. Modulated Space (Lush Celestial Drift)", true, curAlgo == 5);
-        menu.addItem (7, "7. Vintage Digital (Warm 12-Bit 10.5kHz Rolloff)", true, curAlgo == 6);
+        menu.addItem (7, "7. Vintage Digital (Warm Analog 10.5kHz Rolloff)", true, curAlgo == 6);
         menu.addItem (8, "8. Gated / Nonlinear (80s Rhythmic Gated Tail)", true, curAlgo == 7);
 
         juce::Component::SafePointer<ProVerbAudioProcessorEditor> safeThis (this);
@@ -700,7 +700,7 @@ void ProVerbAudioProcessorEditor::timerCallback()
             {
                 smartAutoLearnButton.setLearnedResult (inst, prof, true);
                 if (prof.isNotEmpty())
-                    presetBox.setText ("AI: " + prof, juce::dontSendNotification);
+                    presetBox.setText (audioProcessor.getAIPresetDisplayName(), juce::dontSendNotification);
             }
         }
     }
@@ -1511,8 +1511,8 @@ void ProVerbAudioProcessorEditor::showAssistantPanel()
             [this]() { hideAssistantPanel(); },
             [this](const juce::String& inst, const juce::String& prof)
             {
-                juce::ignoreUnused (inst);
-                presetBox.setText ("AI: " + prof, juce::dontSendNotification);
+                juce::ignoreUnused (inst, prof);
+                presetBox.setText (audioProcessor.getAIPresetDisplayName(), juce::dontSendNotification);
                 undoAutoLearnButton.setVisible (true);
                 resized();
             }
