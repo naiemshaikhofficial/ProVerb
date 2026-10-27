@@ -238,22 +238,37 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
         syncSubMenu.addItem (40, "1/4", true, curSync == 10);
         menu.addSubMenu ("Pre-Delay Tempo Sync", syncSubMenu);
 
+        // Submenu: Sidechain Source
+        juce::PopupMenu scSubMenu;
+        auto* scParam = audioProcessor.getAPVTS().getRawParameterValue ("duckingSource");
+        const int curSc = scParam != nullptr ? static_cast<int> (scParam->load()) : 0;
+        scSubMenu.addItem (50, "Auto (Smart Detect)", true, curSc == 0);
+        scSubMenu.addItem (51, "Internal (Dry Signal)", true, curSc == 1);
+        scSubMenu.addItem (52, "External (DAW Sidechain Bus)", true, curSc == 2);
+        menu.addSubMenu ("Sidechain Routing", scSubMenu);
+
         menu.addSeparator();
-        menu.addItem (1, "GUI Scale: 100% (Standard)", true, currentScaleFactor == 1.0f);
-        menu.addItem (2, "GUI Scale: 125% (Medium)", true, currentScaleFactor == 1.25f);
-        menu.addItem (3, "GUI Scale: 150% (Large)", true, currentScaleFactor == 1.5f);
+        // Submenu: GUI Scale
+        juce::PopupMenu scaleSubMenu;
+        scaleSubMenu.addItem (1, "75%  (Compact)", true, currentScaleFactor == 0.75f);
+        scaleSubMenu.addItem (2, "100% (Standard)", true, currentScaleFactor == 1.0f);
+        scaleSubMenu.addItem (3, "125% (Large)", true, currentScaleFactor == 1.25f);
+        scaleSubMenu.addItem (4, "150% (Extra Large)", true, currentScaleFactor == 1.5f);
+        menu.addSubMenu ("GUI Scale", scaleSubMenu);
+
         menu.addSeparator();
-        menu.addItem (4, "About ProVerb...", true, false);
+        menu.addItem (5, "About ProVerb...", true, false);
 
         juce::Component::SafePointer<ProVerbAudioProcessorEditor> safeThis (this);
         menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&settingsButton),
             [safeThis](int r)
             {
-                if (safeThis == nullptr) return;
-                if (r == 1) safeThis->setGuiScale (1.0f);
-                else if (r == 2) safeThis->setGuiScale (1.25f);
-                else if (r == 3) safeThis->setGuiScale (1.5f);
-                else if (r == 4) safeThis->showLicensePanel();
+                if (safeThis == nullptr || r == 0) return;
+                if (r == 1) safeThis->setGuiScale (0.75f);
+                else if (r == 2) safeThis->setGuiScale (1.0f);
+                else if (r == 3) safeThis->setGuiScale (1.25f);
+                else if (r == 4) safeThis->setGuiScale (1.5f);
+                else if (r == 5) safeThis->showLicensePanel();
                 else if (r >= 10 && r <= 17)
                 {
                     if (auto* p = safeThis->audioProcessor.getAPVTS().getParameter ("algoMode"))
@@ -281,6 +296,15 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
                         p->endChangeGesture();
                     }
                 }
+                else if (r >= 50 && r <= 52)
+                {
+                    if (auto* p = safeThis->audioProcessor.getAPVTS().getParameter ("duckingSource"))
+                    {
+                        p->beginChangeGesture();
+                        p->setValueNotifyingHost (p->convertTo0to1 (static_cast<float> (r - 50)));
+                        p->endChangeGesture();
+                    }
+                }
             });
     };
 
@@ -303,11 +327,46 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
         menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&menuButton),
             [safeThis](int r)
             {
-                if (safeThis == nullptr) return;
-                if (r == 1) safeThis->saveUserToyPreset ("User Preset");
+                if (safeThis == nullptr || r == 0) return;
+                if (r == 1)
+                {
+                    auto* dialog = new juce::AlertWindow ("Save .toy Preset", "Enter a name for your custom ProVerb preset (.toy):", juce::AlertWindow::QuestionIcon);
+                    dialog->addTextEditor ("presetName", "My Custom Reverb", "Preset Name:");
+                    dialog->addButton ("Save", 1, juce::KeyPress (juce::KeyPress::returnKey));
+                    dialog->addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
+                    dialog->enterModalState (true, juce::ModalCallbackFunction::create ([safeThis, dialog](int result)
+                    {
+                        if (result == 1 && safeThis != nullptr)
+                        {
+                            juce::String name = dialog->getTextEditorContents ("presetName");
+                            safeThis->saveUserToyPreset (name);
+                        }
+                        delete dialog;
+                    }));
+                }
+                else if (r == 2)
+                {
+                    safeThis->fileChooser = std::make_shared<juce::FileChooser> ("Import .toy Preset", safeThis->getUserPresetDirectory(), "*.toy");
+                    safeThis->fileChooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                        [safeThis](const juce::FileChooser& fc)
+                        {
+                            if (safeThis == nullptr) return;
+                            auto file = fc.getResult();
+                            if (file.existsAsFile())
+                                safeThis->loadUserToyPreset (file);
+                        });
+                }
                 else if (r == 3) safeThis->getUserPresetDirectory().startAsProcess();
-                else if (r == 4) safeThis->presetBox.setSelectedId (1);
-                else if (r == 5) safeThis->copyABButton.triggerClick();
+                else if (r == 4)
+                {
+                    safeThis->audioProcessor.setCurrentProgram (0);
+                    safeThis->presetBox.setSelectedId (1, juce::dontSendNotification);
+                }
+                else if (r == 5)
+                {
+                    safeThis->captureSnapshot (safeThis->snapshotA);
+                    safeThis->snapshotB = safeThis->snapshotA;
+                }
                 else if (r == 6) safeThis->showLicensePanel();
             });
     };
@@ -386,17 +445,19 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
     scaleButton.onClick = [this]()
     {
         juce::PopupMenu menu;
-        menu.addItem (1, "100%  (Standard 1540x900)", true, currentScaleFactor == 1.0f);
-        menu.addItem (2, "125%  (Large 1925x1125)", true, currentScaleFactor == 1.25f);
-        menu.addItem (3, "75%   (Compact 1155x675)", true, currentScaleFactor == 0.75f);
+        menu.addItem (1, "75%   (Compact 1155x675)", true, currentScaleFactor == 0.75f);
+        menu.addItem (2, "100%  (Standard 1540x900)", true, currentScaleFactor == 1.0f);
+        menu.addItem (3, "125%  (Large 1925x1125)", true, currentScaleFactor == 1.25f);
+        menu.addItem (4, "150%  (Extra Large 2310x1350)", true, currentScaleFactor == 1.5f);
         juce::Component::SafePointer<ProVerbAudioProcessorEditor> safeThis (this);
         menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&scaleButton),
             [safeThis](int result)
             {
-                if (safeThis == nullptr) return;
-                if (result == 1) safeThis->setGuiScale (1.0f);
-                else if (result == 2) safeThis->setGuiScale (1.25f);
-                else if (result == 3) safeThis->setGuiScale (0.75f);
+                if (safeThis == nullptr || result == 0) return;
+                if (result == 1) safeThis->setGuiScale (0.75f);
+                else if (result == 2) safeThis->setGuiScale (1.0f);
+                else if (result == 3) safeThis->setGuiScale (1.25f);
+                else if (result == 4) safeThis->setGuiScale (1.5f);
             });
     };
 
@@ -1197,7 +1258,6 @@ void ProVerbAudioProcessorEditor::resized()
 void ProVerbAudioProcessorEditor::setGuiScale (float scale)
 {
     currentScaleFactor = scale;
-    setScaleFactor (scale);
     scaleButton.setButtonText (juce::String (static_cast<int> (std::round (scale * 100.0f))) + "%");
     setSize (static_cast<int> (ProVerbTokens::Metrics::defaultWindowWidth * scale),
              static_cast<int> (ProVerbTokens::Metrics::defaultWindowHeight * scale));

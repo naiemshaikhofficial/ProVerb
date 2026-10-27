@@ -172,7 +172,7 @@ namespace ProducerToy::UI
 
     juce::Rectangle<int> LicensePanel::getCardBounds() const
     {
-        return getLocalBounds().withSizeKeepingCentre(state.isActivated ? 480 : 630, state.isActivated ? 290 : 420);
+        return getLocalBounds().withSizeKeepingCentre(state.isActivated ? 480 : 630, state.isActivated ? 300 : 420);
     }
 
     void LicensePanel::mouseDown(const juce::MouseEvent& event)
@@ -441,11 +441,25 @@ namespace ProducerToy::UI
 
         if (state.isActivated)
         {
-            float y = card.getY() + 74.0f;
+            float y = card.getY() + 70.0f;
 
             g.setFont(getPanelFont(11.0f));
             g.setColour(juce::Colour(0xff94a3b8));
             g.drawText("Smart Algorithmic Reverb", juce::roundToInt(contentX), juce::roundToInt(y), juce::roundToInt(contentW), 18, juce::Justification::centred);
+            y += 20.0f;
+
+            // Minimalist Version Tag Pill
+            const juce::String versionText = "v1.0.0";
+            g.setFont(getPanelFont(10.5f, juce::Font::bold));
+            const int vW = 54;
+            const int vH = 18;
+            const float vX = card.getCentreX() - vW * 0.5f;
+            g.setColour(juce::Colour(0xff18181b));
+            g.fillRoundedRectangle(vX, y, (float)vW, (float)vH, 4.0f);
+            g.setColour(juce::Colour(0xff27272a));
+            g.drawRoundedRectangle(vX, y, (float)vW, (float)vH, 4.0f, 1.0f);
+            g.setColour(juce::Colour(0xffa1a1aa));
+            g.drawText(versionText, juce::roundToInt(vX), juce::roundToInt(y), vW, vH, juce::Justification::centred);
             y += 24.0f;
 
             g.setColour(juce::Colour(0xff12141a));
@@ -465,6 +479,12 @@ namespace ProducerToy::UI
         }
         else
         {
+            // Minimalist Version Tag in Unactivated / Trial State
+            float subY = card.getY() + 64.0f;
+            g.setFont(getPanelFont(10.5f));
+            g.setColour(juce::Colour(0xff71717a));
+            g.drawText("v1.0.0", juce::roundToInt(contentX), juce::roundToInt(subY), juce::roundToInt(contentW), 16, juce::Justification::centred);
+
             // Tab underline highlight
             float tabY = card.getY() + 88.0f;
             float tabW = (contentW - 16.0f) / 3.0f;
