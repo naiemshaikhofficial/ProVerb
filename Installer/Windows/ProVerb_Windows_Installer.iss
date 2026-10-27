@@ -23,9 +23,17 @@ WizardStyle=modern
 WizardImageFile=..\wizard_large.bmp,..\wizard_large_2x.bmp
 WizardSmallImageFile=..\wizard_small.bmp
 SetupIconFile=..\proverb.ico
+UninstallDisplayName=Producer Toy ProVerb
 UninstallDisplayIcon={commoncf64}\ProducerToy\ProVerb\proverb.ico
 UninstallFilesDir={commoncf64}\ProducerToy\ProVerb
 DisableReadyPage=no
+VersionInfoVersion=1.0.0.0
+VersionInfoCompany=Producer Toy
+VersionInfoDescription=Producer Toy ProVerb
+VersionInfoTextVersion=1.0.0
+VersionInfoProductName=Producer Toy ProVerb
+VersionInfoProductVersion=1.0.0.0
+VersionInfoCopyright=Copyright (C) 2026 Producer Toy
 
 [Types]
 Name: "full"; Description: "Standard Installation (Universal VST3 - All DAWs Recommended)"
@@ -39,11 +47,20 @@ Name: "vst2"; Description: "VST2 (Legacy) — Older DAWs / Custom VST Folder"; T
 [Messages]
 FinishedHeadingLabel=Producer Toy ProVerb Installed
 FinishedLabel=Producer Toy ProVerb has been successfully installed on your computer.%n%nUniversal 32-bit and 64-bit compatibility ready for all DAWs:%n• FL Studio: Effects -> Reverb -> ProVerb%n• Ableton Live: Plug-ins -> VST3 -> Producer Toy%n• Cubase / Nuendo: Reverb -> ProVerb%n• Studio One: Effects -> Producer Toy -> ProVerb%n• Reaper: VST3: ProVerb (Producer Toy)%n• Bitwig Studio: Devices -> Reverb -> ProVerb%n• Pro Tools: Avid Audio Plug-Ins (AAX)%n%nOpen your DAW to activate ProVerb with your license.%nClick Finish to complete setup.
+ConfirmUninstall=Are you sure you want to completely remove Producer Toy ProVerb and all of its components from your computer?
 
 [InstallDelete]
 ; Safely clean up legacy duplicate installation in vendor subfolder from earlier versions
 Type: filesandordirs; Name: "{commoncf64}\VST3\Producer Toy\ProVerb.vst3"
 Type: filesandordirs; Name: "{commoncf32}\VST3\Producer Toy\ProVerb.vst3"; Check: IsWin64
+
+[UninstallDelete]
+Type: files; Name: "{commoncf64}\ProducerToy\ProVerb\ProducerToy_ProVerb_Uninstall.exe"
+Type: files; Name: "{commoncf64}\ProducerToy\ProVerb\ProducerToy_ProVerb_Uninstall.dat"
+Type: files; Name: "{commoncf64}\ProducerToy\ProVerb\proverb.ico"
+Type: files; Name: "{commoncf64}\ProducerToy\ProVerb\unins000.exe"
+Type: files; Name: "{commoncf64}\ProducerToy\ProVerb\unins000.dat"
+Type: dirifempty; Name: "{commoncf64}\ProducerToy\ProVerb"
 
 [Files]
 ; 0. Official Producer Toy ProVerb Logo for Windows Installed Apps / Control Panel
@@ -107,4 +124,38 @@ end;
 function GetVST2Dir(Param: String): String;
 begin
   Result := VST2DirPage.Values[0];
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  UninstExe, NewUninstExe: String;
+  UninstDat, NewUninstDat: String;
+  RegKey: String;
+begin
+  if CurStep = ssPostInstall then
+  begin
+    UninstExe := ExpandConstant('{commoncf64}\ProducerToy\ProVerb\unins000.exe');
+    NewUninstExe := ExpandConstant('{commoncf64}\ProducerToy\ProVerb\ProducerToy_ProVerb_Uninstall.exe');
+    UninstDat := ExpandConstant('{commoncf64}\ProducerToy\ProVerb\unins000.dat');
+    NewUninstDat := ExpandConstant('{commoncf64}\ProducerToy\ProVerb\ProducerToy_ProVerb_Uninstall.dat');
+
+    // Clean up any existing renamed files from prior installations
+    if FileExists(NewUninstExe) and (UninstExe <> NewUninstExe) then
+      DeleteFile(NewUninstExe);
+    if FileExists(NewUninstDat) and (UninstDat <> NewUninstDat) then
+      DeleteFile(NewUninstDat);
+
+    // Rename unins000.* to ProducerToy_ProVerb_Uninstall.*
+    if FileExists(UninstExe) then
+      RenameFile(UninstExe, NewUninstExe);
+    if FileExists(UninstDat) then
+      RenameFile(UninstDat, NewUninstDat);
+
+    // Update Windows Uninstall Registry entry with branded uninstaller executable path
+    RegKey := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\Producer Toy ProVerb_is1';
+    RegWriteStringValue(HKEY_LOCAL_MACHINE, RegKey, 'UninstallString', '"' + NewUninstExe + '"');
+    RegWriteStringValue(HKEY_LOCAL_MACHINE, RegKey, 'QuietUninstallString', '"' + NewUninstExe + '" /VERYSILENT');
+    RegWriteStringValue(HKEY_LOCAL_MACHINE, RegKey, 'DisplayIcon', ExpandConstant('{commoncf64}\ProducerToy\ProVerb\proverb.ico'));
+    RegWriteStringValue(HKEY_LOCAL_MACHINE, RegKey, 'DisplayName', 'Producer Toy ProVerb');
+  end;
 end;
