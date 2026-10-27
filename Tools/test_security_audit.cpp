@@ -2,10 +2,8 @@
 #include <juce_events/juce_events.h>
 #include <juce_audio_basics/juce_audio_basics.h>
 #include "Licensing/LicenseClient.h"
-#include "Licensing/Ed25519Verifier.h"
 #include <iostream>
 #include <chrono>
-#include <vector>
 
 static int gPassed = 0;
 static int gFailed = 0;
