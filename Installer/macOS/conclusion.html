@@ -5,28 +5,61 @@
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            color: #333333;
+            color: #1f2937;
             line-height: 1.5;
             font-size: 13px;
-            padding: 10px;
+            padding: 10px 15px;
+            margin: 0;
         }
-        h1 {
-            color: #10b981;
-            font-size: 18px;
-            margin-top: 0;
+        .header {
+            text-align: center;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .header img {
+            max-width: 170px;
+            height: auto;
+            display: inline-block;
+        }
+        h2 {
+            color: #059669;
+            font-size: 16px;
+            margin: 8px 0 4px 0;
+            font-weight: 700;
+        }
+        .card {
+            background-color: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 10px 14px;
+            margin-top: 10px;
         }
         .step {
             margin-bottom: 8px;
+            font-size: 12.5px;
+        }
+        .step strong {
+            color: #111827;
         }
     </style>
 </head>
 <body>
-    <h1>Installation Complete!</h1>
-    <p>Producer Toy ProVerb has been successfully installed on your Mac.</p>
-    <p><strong>Next Steps:</strong></p>
-    <div class="step">1. <strong>Restart your DAW</strong> (Logic Pro, FL Studio, Ableton Live, Cubase, etc.) if it was open during installation.</div>
-    <div class="step">2. Logic Pro will automatically validate the new Audio Unit component on startup.</div>
-    <div class="step">3. In FL Studio / Ableton / Cubase, run a quick plugin rescan if ProVerb does not appear immediately.</div>
-    <p>Enjoy crafting lush, immersive spaces with ProVerb!</p>
+    <div class="header">
+        <img src="welcome_logo.png" alt="ProVerb" />
+        <h2>Installation Complete!</h2>
+    </div>
+    
+    <p>ProVerb has been successfully installed into your macOS audio plugin library.</p>
+    
+    <div class="card">
+        <p style="margin-top:0; font-weight:600; color:#111827;">Quick DAW Setup:</p>
+        <div class="step">• <strong>Apple Logic Pro / GarageBand:</strong> Audio Units are validated on launch. Access via <em>Audio Units &gt; Producer Toy &gt; ProVerb</em>.</div>
+        <div class="step">• <strong>FL Studio (Mac):</strong> Rescan plugins in Plugin Manager. Access via <em>Effects &gt; Reverb &gt; ProVerb</em>.</div>
+        <div class="step">• <strong>Ableton Live:</strong> Locate under <em>Plug-ins &gt; Audio Units / VST3 &gt; Producer Toy</em>.</div>
+        <div class="step">• <strong>Cubase / Studio One / Reaper:</strong> Ready to insert on any Audio/Aux track.</div>
+    </div>
+    
+    <p style="margin-top: 12px; font-size: 12px; color: #6b7280; text-align: center;">Open your DAW to begin shaping your spaces with ProVerb.</p>
 </body>
 </html>

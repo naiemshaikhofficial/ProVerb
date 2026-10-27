@@ -9,7 +9,7 @@ on:
 
 jobs:
   build-windows:
-    name: Build Windows VST3 & AAX Installer (.exe)
+    name: Build Windows Universal Installer (.exe)
     runs-on: windows-latest
 
     steps:
@@ -26,7 +26,7 @@ jobs:
       - name: Configure CMake
         run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
 
-      - name: Build All Targets (VST3, AAX, Standalone)
+      - name: Build All Targets (VST3)
         run: cmake --build build --config Release --parallel
 
       - name: Install Inno Setup
@@ -39,11 +39,11 @@ jobs:
       - name: Upload Windows Installer Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ProducerToy_ProVerb_Windows_Installer
-          path: Output/ProducerToy_ProVerb_Windows_Installer.exe
+          name: ProVerb-Windows-Installer
+          path: Output/ProVerb.exe
 
   build-macos:
-    name: Build macOS VST3, AU & AAX Installer (.pkg)
+    name: Build macOS Universal PKG & DMG (.pkg, .dmg)
     runs-on: macos-latest
 
     steps:
@@ -58,13 +58,21 @@ jobs:
           cmake-version: '3.28'
 
       - name: Make Build Script Executable
-        run: chmod +x Installer/macOS/build_mac_installer.sh
+        run: |
+          chmod +x Installer/macOS/build_mac_installer.sh
+          chmod +x "Installer/macOS/Uninstall ProVerb.command"
 
-      - name: Build Universal VST3, AU & AAX and Package .pkg
+      - name: Build Universal VST3, AU & AAX and Package .pkg & .dmg
         run: ./Installer/macOS/build_mac_installer.sh
 
-      - name: Upload macOS Installer Artifact
+      - name: Upload macOS Installer Package (.pkg)
         uses: actions/upload-artifact@v4
         with:
-          name: ProducerToy_ProVerb_macOS_Installer
-          path: Output/ProducerToy_ProVerb_macOS_Installer.pkg
+          name: ProVerb-macOS-PKG
+          path: Output/ProVerb.pkg
+
+      - name: Upload macOS Disk Image (.dmg)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ProVerb-macOS-DMG
+          path: Output/ProVerb.dmg
