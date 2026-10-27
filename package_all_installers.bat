@@ -10,8 +10,6 @@ set "SCRIPT_DIR=%~dp0"
 set "VST3_PE=%SCRIPT_DIR%build\ProVerb_artefacts\Release\VST3\ProVerb.vst3\Contents\x86_64-win\ProVerb.vst3"
 set "OUTPUT_INSTALLER=%SCRIPT_DIR%Output\ProVerb.exe"
 set "ROOT_INSTALLER=%SCRIPT_DIR%ProVerb.exe"
-set "OUTPUT_INSTALLER_ALT=%SCRIPT_DIR%Output\ProVerb_Installer.exe"
-set "ROOT_INSTALLER_ALT=%SCRIPT_DIR%ProVerb_Installer.exe"
 set "ISS_FILE=%SCRIPT_DIR%Installer\Windows\ProVerb_Windows_Installer.iss"
 
 :: 1. Verify VST3 Binary Exists
@@ -57,13 +55,19 @@ if exist "%OUTPUT_INSTALLER%" (
     call "%SCRIPT_DIR%Installer\Windows\sign_binaries.bat" "%OUTPUT_INSTALLER%"
 )
 
-:: Replicate signed installer to all desired distribution names
+:: Clean up any duplicate or legacy installer binaries from Output and root
+if exist "%SCRIPT_DIR%Output\ProVerb_Installer.exe" del /F /Q "%SCRIPT_DIR%Output\ProVerb_Installer.exe" >nul 2>&1
+if exist "%SCRIPT_DIR%Output\ProducerToy_ProVerb_Installer.exe" del /F /Q "%SCRIPT_DIR%Output\ProducerToy_ProVerb_Installer.exe" >nul 2>&1
+if exist "%SCRIPT_DIR%Output\ProducerToy_ProVerb_Setup.exe" del /F /Q "%SCRIPT_DIR%Output\ProducerToy_ProVerb_Setup.exe" >nul 2>&1
+if exist "%SCRIPT_DIR%Output\ProducerToy_ProVerb_Windows_Installer.exe" del /F /Q "%SCRIPT_DIR%Output\ProducerToy_ProVerb_Windows_Installer.exe" >nul 2>&1
+if exist "%SCRIPT_DIR%ProVerb_Installer.exe" del /F /Q "%SCRIPT_DIR%ProVerb_Installer.exe" >nul 2>&1
+if exist "%SCRIPT_DIR%ProducerToy_ProVerb_Installer.exe" del /F /Q "%SCRIPT_DIR%ProducerToy_ProVerb_Installer.exe" >nul 2>&1
+
+:: Deploy single root copy
 if exist "%OUTPUT_INSTALLER%" (
     copy /Y "%OUTPUT_INSTALLER%" "%ROOT_INSTALLER%" >nul
-    copy /Y "%OUTPUT_INSTALLER%" "%OUTPUT_INSTALLER_ALT%" >nul
-    copy /Y "%OUTPUT_INSTALLER%" "%ROOT_INSTALLER_ALT%" >nul
 )
-echo [OK] Signed installer deployed to root and alternative targets.
+echo [OK] Single signed ProVerb.exe installer ready.
 echo.
 
 echo ======================================================================

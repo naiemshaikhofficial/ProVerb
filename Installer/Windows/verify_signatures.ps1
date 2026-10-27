@@ -39,9 +39,7 @@ if (-not $Artifacts -or $Artifacts.Count -eq 0) {
         (Join-Path $projectRoot "build\ProVerb_artefacts\Release\VST3\ProVerb.vst3\Contents\x86_64-win\ProVerb.vst3"),
         (Join-Path $projectRoot "build\ProVerb_artefacts\Release\VST3\ProVerb.vst3\Contents\x86-win\ProVerb.vst3"),
         (Join-Path $projectRoot "Output\ProVerb.exe"),
-        (Join-Path $projectRoot "ProVerb.exe"),
-        (Join-Path $projectRoot "Output\ProVerb_Installer.exe"),
-        (Join-Path $projectRoot "ProVerb_Installer.exe")
+        (Join-Path $projectRoot "ProVerb.exe")
     )
 }
 
