@@ -45,9 +45,14 @@ namespace ProducerToy::Licensing
         juce::String getHardwareDeviceName() const;
         juce::String getEffectiveApiUrl() const;
 
-        bool verifyToken(const juce::String& token, LicenseState& outState) const;
+        bool verifyToken(const juce::String& token, LicenseState& outState, uint64_t* outProof = nullptr) const;
         bool installLicenseToken(const juce::String& token, juce::String& error);
         bool installLicenseFile(const juce::File& source, juce::String& error);
+
+        // Multi-Layer DSP Entitlement Proof & Real-time Verification Engine
+        uint64_t getEntitlementProof() const noexcept { return activeEntitlementProof.load(std::memory_order_relaxed); }
+        static bool verifyEntitlementProofStatic(uint64_t proof) noexcept;
+        static float computeEntitlementMultiplier(uint64_t proof) noexcept;
 
         // Method 1: Serial Key Activation (Async HTTP to dedicated self-hosted server)
         void activateWithSerial(const juce::String& serialKey,
@@ -67,6 +72,7 @@ namespace ProducerToy::Licensing
 
     private:
         std::atomic<bool> isActivatedAtomic { false };
+        std::atomic<uint64_t> activeEntitlementProof { 0ULL };
         mutable juce::CriticalSection stateLock;
         LicenseState currentState;
 

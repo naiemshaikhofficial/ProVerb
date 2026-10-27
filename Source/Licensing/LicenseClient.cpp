@@ -92,6 +92,84 @@ namespace ProducerToy::Licensing
                 output[i] = static_cast<uint8_t>((nibble(hex[i * 2]) << 4) | nibble(hex[i * 2 + 1]));
         }
 
+        // 8-bit CRC lookup table with polynomial 0x07 (CRC-8-CCITT)
+        static constexpr uint8_t s_crc8Table[256] = {
+            0x00, 0x07, 0x0E, 0x09, 0x1C, 0x1B, 0x12, 0x15, 0x38, 0x3F, 0x36, 0x31, 0x24, 0x23, 0x2A, 0x2D,
+            0x70, 0x77, 0x7E, 0x79, 0x6C, 0x6B, 0x62, 0x65, 0x48, 0x4F, 0x46, 0x41, 0x54, 0x53, 0x5A, 0x5D,
+            0xE0, 0xE7, 0xEE, 0xE9, 0xFC, 0xFB, 0xF2, 0xF5, 0xD8, 0xDF, 0xD6, 0xD1, 0xC4, 0xC3, 0xCA, 0xCD,
+            0x90, 0x97, 0x9E, 0x99, 0x8C, 0x8B, 0x82, 0x85, 0xA8, 0xAF, 0xA6, 0xA1, 0xB4, 0xB3, 0xBA, 0xBD,
+            0xC7, 0xC0, 0xC9, 0xCE, 0xDB, 0xDC, 0xD5, 0xD2, 0xFF, 0xF8, 0xF1, 0xF6, 0xE3, 0xE4, 0xED, 0xEA,
+            0xB7, 0xB0, 0xB9, 0xBE, 0xAB, 0xAC, 0xA5, 0xA2, 0x8F, 0x88, 0x81, 0x86, 0x93, 0x94, 0x9D, 0x9A,
+            0x27, 0x20, 0x29, 0x2E, 0x3B, 0x3C, 0x35, 0x32, 0x1F, 0x18, 0x11, 0x16, 0x03, 0x04, 0x0D, 0x0A,
+            0x57, 0x50, 0x59, 0x5E, 0x4B, 0x4C, 0x45, 0x42, 0x6F, 0x68, 0x61, 0x66, 0x73, 0x74, 0x7D, 0x7A,
+            0x89, 0x8E, 0x87, 0x80, 0x95, 0x92, 0x9B, 0x9C, 0xB1, 0xB6, 0xBF, 0xB8, 0xAD, 0xAA, 0xA3, 0xA4,
+            0xF9, 0xFE, 0xF7, 0xF0, 0xE5, 0xE2, 0xEB, 0xEC, 0xC1, 0xC6, 0xCF, 0xC8, 0xDD, 0xDA, 0xD3, 0xD4,
+            0x69, 0x6E, 0x67, 0x60, 0x75, 0x72, 0x7B, 0x7C, 0x51, 0x56, 0x5F, 0x58, 0x4D, 0x4A, 0x43, 0x44,
+            0x19, 0x1E, 0x17, 0x10, 0x05, 0x02, 0x0B, 0x0C, 0x21, 0x26, 0x2F, 0x28, 0x3D, 0x3A, 0x33, 0x34,
+            0x4E, 0x49, 0x40, 0x47, 0x52, 0x55, 0x5C, 0x5B, 0x76, 0x71, 0x78, 0x7F, 0x6A, 0x6D, 0x64, 0x63,
+            0x3E, 0x39, 0x30, 0x37, 0x22, 0x25, 0x2C, 0x2B, 0x06, 0x01, 0x08, 0x0F, 0x1A, 0x1D, 0x14, 0x13,
+            0xAE, 0xA9, 0xA0, 0xA7, 0xB2, 0xB5, 0xBC, 0xBB, 0x96, 0x91, 0x98, 0x9F, 0x8A, 0x8D, 0x84, 0x83,
+            0xDE, 0xD9, 0xD0, 0xD7, 0xC2, 0xC5, 0xCC, 0xCB, 0xE6, 0xE1, 0xE8, 0xEF, 0xFA, 0xFD, 0xF4, 0xF3
+        };
+
+        static inline uint8_t computeCrc8(uint64_t val) noexcept
+        {
+            uint8_t crc = 0xAA;
+            for (int i = 0; i < 7; ++i)
+            {
+                const uint8_t byte = static_cast<uint8_t>((val >> (i * 8)) & 0xFF);
+                crc = s_crc8Table[crc ^ byte];
+            }
+            return crc;
+        }
+
+        static uint64_t computeTokenProof(const uint8_t* sigBytes, const juce::String& cleanLocalDev) noexcept
+        {
+            // 64-bit FNV-1a Hash folded with verified signature and local device binding
+            uint64_t h = 0xcbf29ce484222325ULL;
+            for (int i = 0; i < 64; ++i)
+            {
+                h ^= static_cast<uint64_t>(sigBytes[i]);
+                h *= 0x100000001b3ULL;
+            }
+
+            const auto devUtf8 = cleanLocalDev.toRawUTF8();
+            const auto devLen = static_cast<size_t>(cleanLocalDev.getNumBytesAsUTF8());
+            for (size_t i = 0; i < devLen; ++i)
+            {
+                h ^= static_cast<uint64_t>(static_cast<uint8_t>(devUtf8[i]));
+                h *= 0x100000001b3ULL;
+            }
+
+            // Salt with invariant product word 'smartver'
+            h ^= 0x736d617274766572ULL;
+            h *= 0x100000001b3ULL;
+
+            // Invariant checksum in lower 8 bits
+            const uint64_t high56 = h & 0xFFFFFFFFFFFFFF00ULL;
+            const uint8_t crc = computeCrc8(high56 ^ 0xA5A5A5A5A5A5A5A5ULL);
+            return high56 | static_cast<uint64_t>(crc);
+        }
+
+        // 32-byte Ed25519 public key XOR masked to prevent plain string/byte pattern extraction
+        static constexpr uint8_t s_pkMask = 0x5a;
+        static constexpr uint8_t s_maskedPk[32] = {
+            0x87 ^ s_pkMask, 0x43 ^ s_pkMask, 0x92 ^ s_pkMask, 0xbb ^ s_pkMask,
+            0x5c ^ s_pkMask, 0x67 ^ s_pkMask, 0xa3 ^ s_pkMask, 0xe2 ^ s_pkMask,
+            0xd9 ^ s_pkMask, 0x1a ^ s_pkMask, 0xf3 ^ s_pkMask, 0xbf ^ s_pkMask,
+            0x4d ^ s_pkMask, 0x4d ^ s_pkMask, 0xe8 ^ s_pkMask, 0x20 ^ s_pkMask,
+            0x4b ^ s_pkMask, 0x39 ^ s_pkMask, 0xe8 ^ s_pkMask, 0x56 ^ s_pkMask,
+            0x84 ^ s_pkMask, 0xdf ^ s_pkMask, 0x76 ^ s_pkMask, 0x90 ^ s_pkMask,
+            0x0f ^ s_pkMask, 0x87 ^ s_pkMask, 0xa8 ^ s_pkMask, 0x80 ^ s_pkMask,
+            0xc8 ^ s_pkMask, 0xfb ^ s_pkMask, 0xd2 ^ s_pkMask, 0xe9 ^ s_pkMask
+        };
+
+        static void getUnmaskedPublicKey(uint8_t outPk[32]) noexcept
+        {
+            for (size_t i = 0; i < 32; ++i)
+                outPk[i] = static_cast<uint8_t>(s_maskedPk[i] ^ s_pkMask);
+        }
+
         juce::String extractErrorMessage(const juce::var& jsonVar, const juce::String& fallback)
         {
             if (auto* obj = jsonVar.getDynamicObject())
@@ -166,8 +244,14 @@ namespace ProducerToy::Licensing
         juce::String hardwareId;
 
 #if JUCE_WINDOWS
+        // Query the canonical 64-bit registry view so 32-bit and 64-bit DAW hosts produce bit-exact identical device hashes
         hardwareId = juce::WindowsRegistry::getValue(
-            "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Cryptography\\MachineGuid", "").trim();
+            "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Cryptography\\MachineGuid", "", juce::WindowsRegistry::WoW64_64bit).trim();
+        if (hardwareId.isEmpty())
+        {
+            hardwareId = juce::WindowsRegistry::getValue(
+                "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Cryptography\\MachineGuid", "").trim();
+        }
 #elif JUCE_MAC
         hardwareId = juce::SystemStats::getUniqueDeviceDescription().trim();
 #else
@@ -198,10 +282,12 @@ namespace ProducerToy::Licensing
         if (licenseFile.existsAsFile() && licenseFile.getSize() > 0 && licenseFile.getSize() <= 8192)
         {
             const auto token = licenseFile.loadFileAsString().trim();
-            if (verifyToken(token, state))
+            uint64_t proof = 0ULL;
+            if (verifyToken(token, state, &proof))
             {
                 const juce::ScopedLock lock(stateLock);
                 currentState = state;
+                activeEntitlementProof.store(proof, std::memory_order_relaxed);
                 isActivatedAtomic.store(true, std::memory_order_relaxed);
                 return;
             }
@@ -209,6 +295,7 @@ namespace ProducerToy::Licensing
 
         const juce::ScopedLock lock(stateLock);
         currentState = LicenseState();
+        activeEntitlementProof.store(0ULL, std::memory_order_relaxed);
         isActivatedAtomic.store(false, std::memory_order_relaxed);
     }
 
@@ -218,8 +305,11 @@ namespace ProducerToy::Licensing
         return currentState;
     }
 
-    bool LicenseClient::verifyToken(const juce::String& token, LicenseState& outState) const
+    bool LicenseClient::verifyToken(const juce::String& token, LicenseState& outState, uint64_t* outProof) const
     {
+        if (outProof != nullptr)
+            *outProof = 0ULL;
+
         outState = LicenseState();
         if (token.isEmpty() || token.length() > 8192)
             return false;
@@ -238,7 +328,7 @@ namespace ProducerToy::Licensing
             return false;
 
         uint8_t publicKey[32] = {};
-        hexToBytes(ProductConfig::publicKeyHex, publicKey, sizeof(publicKey));
+        getUnmaskedPublicKey(publicKey);
 
         const auto* message = reinterpret_cast<const uint8_t*>(encodedPayload.toRawUTF8());
         const auto messageLength = static_cast<size_t>(encodedPayload.getNumBytesAsUTF8());
@@ -291,6 +381,12 @@ namespace ProducerToy::Licensing
             || activationId.length() > 128)
             return false;
 
+        const uint64_t proof = computeTokenProof(
+            static_cast<const uint8_t*>(signatureBytes.getData()), cleanLocalDev);
+
+        if (outProof != nullptr)
+            *outProof = proof;
+
         outState.isActivated = true;
         outState.registeredName = userName;
         outState.maskedEmail = maskedEmail;
@@ -300,6 +396,24 @@ namespace ProducerToy::Licensing
         outState.deviceHash = cleanLocalDev;
         outState.rawToken = token;
         return true;
+    }
+
+    bool LicenseClient::verifyEntitlementProofStatic(uint64_t proof) noexcept
+    {
+        if (proof == 0ULL || proof == 0xFFFFFFFFFFFFFFFFULL)
+            return false;
+
+        const uint64_t high56 = proof & 0xFFFFFFFFFFFFFF00ULL;
+        if (high56 == 0ULL)
+            return false;
+
+        const uint8_t expectedCrc = computeCrc8(high56 ^ 0xA5A5A5A5A5A5A5A5ULL);
+        return (static_cast<uint8_t>(proof & 0xFFULL) == expectedCrc);
+    }
+
+    float LicenseClient::computeEntitlementMultiplier(uint64_t proof) noexcept
+    {
+        return verifyEntitlementProofStatic(proof) ? 1.0f : 0.0f;
     }
 
     bool LicenseClient::installLicenseToken(const juce::String& token, juce::String& error)
@@ -608,6 +722,7 @@ namespace ProducerToy::Licensing
             const juce::ScopedLock lock(stateLock);
             actId = currentState.activationId;
             currentState = LicenseState();
+            activeEntitlementProof.store(0ULL, std::memory_order_relaxed);
             isActivatedAtomic.store(false, std::memory_order_relaxed);
         }
 

@@ -195,6 +195,7 @@ public:
 
     // Fast, zero-allocation license checks for audio and GUI threads
     bool isLicenseValid() const noexcept { return isLicensedAtomic.load (std::memory_order_relaxed); }
+    uint64_t getEntitlementProof() const noexcept { return entitlementProofAtomic.load (std::memory_order_relaxed); }
     void updateLicenseStatus() noexcept;
 
 private:
@@ -278,6 +279,7 @@ private:
 
     // Real-Time Audio-Thread Safe Cached License State (Zero Allocations, Zero File I/O)
     std::atomic<bool> isLicensedAtomic { false };
+    std::atomic<uint64_t> entitlementProofAtomic { 0ULL };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ProVerbAudioProcessor)
 };

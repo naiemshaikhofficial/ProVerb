@@ -453,12 +453,30 @@ namespace ProducerToy::Crypto
             return 0;
         }
 
+        static inline bool is_scalar_reduced(const u8 s[32])
+        {
+            // RFC 8032 Section 5.1.7: Reject malleable signatures where S >= L
+            for (int i = 31; i >= 0; --i)
+            {
+                const u8 l_byte = static_cast<u8>(L_order[i]);
+                if (s[i] < l_byte)
+                    return true;
+                if (s[i] > l_byte)
+                    return false;
+            }
+            return false; // Equal to L is invalid
+        }
+
         // Verifies detached 64-byte Ed25519 signature over message (m, mlen) with public key (32 bytes)
         inline bool verify(const uint8_t sig[64], const uint8_t* m, size_t mlen, const uint8_t pk[32])
         {
             u8 t[32] = {};
             u8 h[64] = {};
             gf p[4], q[4];
+
+            // Reject malleable signatures where scalar S >= L
+            if (!is_scalar_reduced(sig + 32))
+                return false;
 
             if (unpackneg(q, pk) != 0)
                 return false;
@@ -478,7 +496,12 @@ namespace ProducerToy::Crypto
             add(p, q);
             pack(t, p);
 
-            return (std::memcmp(sig, t, 32) == 0);
+            // Constant-time 32-byte equality comparison to prevent timing side channels
+            u32 diff = 0;
+            for (int i = 0; i < 32; ++i)
+                diff |= static_cast<u32>(sig[i] ^ t[i]);
+
+            return (diff == 0);
         }
     }
 

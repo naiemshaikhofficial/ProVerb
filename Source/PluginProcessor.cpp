@@ -4,6 +4,10 @@
 #include "Licensing/LicenseClient.h"
 #include <juce_audio_formats/juce_audio_formats.h>
 
+#if JUCE_WINDOWS
+extern "C" __declspec(dllimport) int __stdcall SetDefaultDllDirectories (unsigned long DirectoryFlags);
+#endif
+
 ProVerbAudioProcessor::ProVerbAudioProcessor()
 #ifndef JucePlugin_PreferredChannelConfigurations
     : AudioProcessor (BusesProperties()
@@ -27,6 +31,13 @@ ProVerbAudioProcessor::ProVerbAudioProcessor()
     aiWorker.autoDiscoverModel();
     aiWorker.startWorker();
 
+#if JUCE_WINDOWS
+    // Secure DLL search path to mitigate DLL search order hijacking
+    constexpr unsigned long s_secureDllFlags = 0x00001000UL /* LOAD_LIBRARY_SEARCH_DEFAULT_DIRS */
+                                             | 0x00000800UL /* LOAD_LIBRARY_SEARCH_SYSTEM32 */;
+    SetDefaultDllDirectories (s_secureDllFlags);
+#endif
+
     // Initialize licensing engine once on UI/host instantiation thread (never on audio thread)
     ProducerToy::Licensing::LicenseClient::getInstance().initialize();
     updateLicenseStatus();
@@ -34,8 +45,12 @@ ProVerbAudioProcessor::ProVerbAudioProcessor()
 
 void ProVerbAudioProcessor::updateLicenseStatus() noexcept
 {
-    isLicensedAtomic.store (ProducerToy::Licensing::LicenseClient::getInstance().isLicenseValid(),
-                            std::memory_order_relaxed);
+    auto& client = ProducerToy::Licensing::LicenseClient::getInstance();
+    const bool valid = client.isLicenseValid();
+    const uint64_t proof = client.getEntitlementProof();
+
+    isLicensedAtomic.store (valid, std::memory_order_relaxed);
+    entitlementProofAtomic.store (proof, std::memory_order_relaxed);
 }
 
 ProVerbAudioProcessor::~ProVerbAudioProcessor()
@@ -781,15 +796,21 @@ void ProVerbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     const float earlySendVal  = apvts.getRawParameterValue ("earlySend") != nullptr ? apvts.getRawParameterValue ("earlySend")->load() : 20.0f;
     const int predelaySyncIdx = apvts.getRawParameterValue ("predelaySync") != nullptr ? static_cast<int> (apvts.getRawParameterValue ("predelaySync")->load()) : 0;
 
-    // Zero-allocation, zero-lock real-time audio thread license read
-    const bool isUnlocked  = isLicensedAtomic.load (std::memory_order_relaxed);
+    // Multi-layer zero-allocation, lock-free real-time audio thread entitlement verification
+    const bool isUnlockedBool = isLicensedAtomic.load (std::memory_order_relaxed);
+    const uint64_t proofVal   = entitlementProofAtomic.load (std::memory_order_relaxed);
+    const bool isProofValid   = ProducerToy::Licensing::LicenseClient::verifyEntitlementProofStatic (proofVal);
+    const float licenseWeight = ProducerToy::Licensing::LicenseClient::computeEntitlementMultiplier (proofVal);
+
+    // Multi-gate check: Both atomic flag and cryptographic proof must be verified
+    const bool isUnlocked  = isUnlockedBool && isProofValid;
     const bool isFrozen    = isUnlocked && (apvts.getRawParameterValue ("freeze")->load() > 0.5f);
     const bool isBypassed  = apvts.getRawParameterValue ("bypass")->load() > 0.5f;
     const bool isMidSide   = apvts.getRawParameterValue ("midSide") != nullptr
                                 && apvts.getRawParameterValue ("midSide")->load() > 0.5f;
 
-    // When locked/unregistered, wet reverb engine is completely silenced (zero audio tail)
-    const float effectiveWet = isUnlocked ? (wetPct / 100.0f) : 0.0f;
+    // When locked/unregistered or tampered, wet reverb engine is completely silenced (zero audio tail)
+    const float effectiveWet = isUnlocked ? ((wetPct / 100.0f) * licenseWeight) : 0.0f;
 
     // Set smoothed targets
     smoothedInputGain.setTargetValue (juce::Decibels::decibelsToGain (inGainDb));

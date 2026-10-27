@@ -19,6 +19,15 @@ if(WIN32)
     endif()
     if(MSVC)
         add_compile_options(/utf-8)
+        # Release Binary Security Hardening:
+        # /GS: Buffer Security Check
+        # /guard:cf: Control Flow Guard
+        add_compile_options("$<$<CONFIG:Release>:/GS;/guard:cf>")
+        if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+            add_link_options("$<$<CONFIG:Release>:/DYNAMICBASE;/HIGHENTROPYVA;/NXCOMPAT;/GUARD:CF>")
+        else()
+            add_link_options("$<$<CONFIG:Release>:/DYNAMICBASE;/NXCOMPAT;/GUARD:CF>")
+        endif()
     endif()
 else()
     message(STATUS "[ProVerb] Targeted OS: Cross-platform POSIX")
@@ -352,6 +361,27 @@ target_link_libraries(ProVerb_DSPSuiteTest PRIVATE
 add_test(
     NAME ProVerb_DSPSuiteTest
     COMMAND ProVerb_DSPSuiteTest
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+
+# Automated Cryptographic Security, Threat Model & Anti-Tamper Test Suite
+add_executable(ProVerb_SecurityAuditTest
+    Tools/test_security_audit.cpp
+    Source/Licensing/LicenseClient.cpp
+)
+target_include_directories(ProVerb_SecurityAuditTest PRIVATE Source)
+target_link_libraries(ProVerb_SecurityAuditTest PRIVATE
+    juce::juce_core
+    juce::juce_events
+    juce::juce_audio_basics
+    juce::juce_dsp
+    juce::juce_recommended_config_flags
+    juce::juce_recommended_warning_flags
+)
+
+add_test(
+    NAME ProVerb_SecurityAuditTest
+    COMMAND ProVerb_SecurityAuditTest
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
 )
 

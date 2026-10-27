@@ -659,8 +659,9 @@ ProVerbAudioProcessorEditor::ProVerbAudioProcessorEditor (ProVerbAudioProcessor&
     setResizeLimits (ProVerbTokens::Metrics::minWindowWidth, ProVerbTokens::Metrics::minWindowHeight,
                      ProVerbTokens::Metrics::maxWindowWidth, ProVerbTokens::Metrics::maxWindowHeight);
 
-    // If not activated, immediately show mandatory activation dialog on open
-    if (! ProducerToy::Licensing::LicenseClient::getInstance().isLicenseValid())
+    // If not activated or entitlement proof is invalid, immediately show mandatory activation dialog on open
+    auto& licClient = ProducerToy::Licensing::LicenseClient::getInstance();
+    if (! licClient.isLicenseValid() || ! ProducerToy::Licensing::LicenseClient::verifyEntitlementProofStatic (licClient.getEntitlementProof()))
     {
         showLicensePanel();
     }
@@ -1555,7 +1556,8 @@ void ProVerbAudioProcessorEditor::hideLicensePanel()
     // This callback also runs after a local license removal so the audio-thread cache is refreshed.
     audioProcessor.updateLicenseStatus();
 
-    if (! ProducerToy::Licensing::LicenseClient::getInstance().isLicenseValid())
+    auto& licClient = ProducerToy::Licensing::LicenseClient::getInstance();
+    if (! licClient.isLicenseValid() || ! ProducerToy::Licensing::LicenseClient::verifyEntitlementProofStatic (licClient.getEntitlementProof()))
         return;
 
     if (licensePanel != nullptr)
