@@ -1,5 +1,6 @@
 # Build artifacts
 build/
+build32/
 build_mac/
 build_win/
 *.dir/
