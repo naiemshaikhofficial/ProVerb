@@ -4,7 +4,9 @@
 ; ==============================================================
 
 [Setup]
-AppName=Producer Toy ProVerb
+AppId=ProVerb
+AppName=ProVerb
+AppVerName=ProVerb
 AppVersion=1.0.0
 AppPublisher=Producer Toy
 AppPublisherURL=https://producertoy.com
@@ -13,7 +15,7 @@ DefaultDirName={commoncf64}\VST3\ProVerb.vst3
 DisableDirPage=yes
 DefaultGroupName=Producer Toy
 DisableProgramGroupPage=yes
-OutputBaseFilename=ProducerToy_ProVerb_Windows_Installer
+OutputBaseFilename=ProVerb
 OutputDir=..\..\Output
 Compression=lzma2/ultra64
 SolidCompression=yes
@@ -21,17 +23,17 @@ ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=admin
 WizardStyle=modern
 WizardImageFile=..\wizard_large.bmp,..\wizard_large_2x.bmp
-WizardSmallImageFile=..\wizard_small.bmp
+WizardSmallImageFile=..\wizard_small.png,..\wizard_small_2x.png
 SetupIconFile=..\proverb.ico
-UninstallDisplayName=Producer Toy ProVerb
+UninstallDisplayName=ProVerb
 UninstallDisplayIcon={commoncf64}\ProducerToy\ProVerb\proverb.ico
 UninstallFilesDir={commoncf64}\ProducerToy\ProVerb
 DisableReadyPage=no
 VersionInfoVersion=1.0.0.0
 VersionInfoCompany=Producer Toy
-VersionInfoDescription=Producer Toy ProVerb
+VersionInfoDescription=ProVerb
 VersionInfoTextVersion=1.0.0
-VersionInfoProductName=Producer Toy ProVerb
+VersionInfoProductName=ProVerb
 VersionInfoProductVersion=1.0.0.0
 VersionInfoCopyright=Copyright (C) 2026 Producer Toy
 
@@ -45,9 +47,9 @@ Name: "aax"; Description: "AAX (64-bit) — Avid Pro Tools 11+"; Types: custom
 Name: "vst2"; Description: "VST2 (Legacy) — Older DAWs / Custom VST Folder"; Types: custom; ExtraDiskSpaceRequired: 13107200
 
 [Messages]
-FinishedHeadingLabel=Producer Toy ProVerb Installed
-FinishedLabel=Producer Toy ProVerb has been successfully installed on your computer.%n%nUniversal 32-bit and 64-bit compatibility ready for all DAWs:%n• FL Studio: Effects -> Reverb -> ProVerb%n• Ableton Live: Plug-ins -> VST3 -> Producer Toy%n• Cubase / Nuendo: Reverb -> ProVerb%n• Studio One: Effects -> Producer Toy -> ProVerb%n• Reaper: VST3: ProVerb (Producer Toy)%n• Bitwig Studio: Devices -> Reverb -> ProVerb%n• Pro Tools: Avid Audio Plug-Ins (AAX)%n%nOpen your DAW to activate ProVerb with your license.%nClick Finish to complete setup.
-ConfirmUninstall=Are you sure you want to completely remove Producer Toy ProVerb and all of its components from your computer?
+FinishedHeadingLabel=ProVerb Installed
+FinishedLabel=ProVerb has been successfully installed on your computer.%n%nUniversal 32-bit and 64-bit compatibility ready for all DAWs:%n• FL Studio: Effects -> Reverb -> ProVerb%n• Ableton Live: Plug-ins -> VST3 -> Producer Toy%n• Cubase / Nuendo: Reverb -> ProVerb%n• Studio One: Effects -> Producer Toy -> ProVerb%n• Reaper: VST3: ProVerb (Producer Toy)%n• Bitwig Studio: Devices -> Reverb -> ProVerb%n• Pro Tools: Avid Audio Plug-Ins (AAX)%n%nOpen your DAW to activate ProVerb with your license.%nClick Finish to complete setup.
+ConfirmUninstall=Are you sure you want to completely remove ProVerb and all of its components from your computer?
 
 [InstallDelete]
 ; Safely clean up legacy duplicate installation in vendor subfolder from earlier versions
@@ -152,10 +154,13 @@ begin
       RenameFile(UninstDat, NewUninstDat);
 
     // Update Windows Uninstall Registry entry with branded uninstaller executable path
-    RegKey := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\Producer Toy ProVerb_is1';
+    RegKey := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\ProVerb_is1';
     RegWriteStringValue(HKEY_LOCAL_MACHINE, RegKey, 'UninstallString', '"' + NewUninstExe + '"');
     RegWriteStringValue(HKEY_LOCAL_MACHINE, RegKey, 'QuietUninstallString', '"' + NewUninstExe + '" /VERYSILENT');
     RegWriteStringValue(HKEY_LOCAL_MACHINE, RegKey, 'DisplayIcon', ExpandConstant('{commoncf64}\ProducerToy\ProVerb\proverb.ico'));
-    RegWriteStringValue(HKEY_LOCAL_MACHINE, RegKey, 'DisplayName', 'Producer Toy ProVerb');
+    RegWriteStringValue(HKEY_LOCAL_MACHINE, RegKey, 'DisplayName', 'ProVerb');
+
+    // Clean up legacy registry key from earlier versions if present
+    RegDeleteKeyIncludingSubkeys(HKEY_LOCAL_MACHINE, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\Producer Toy ProVerb_is1');
   end;
 end;

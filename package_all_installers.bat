@@ -8,8 +8,10 @@ echo.
 
 set "SCRIPT_DIR=%~dp0"
 set "VST3_PE=%SCRIPT_DIR%build\ProVerb_artefacts\Release\VST3\ProVerb.vst3\Contents\x86_64-win\ProVerb.vst3"
-set "OUTPUT_INSTALLER=%SCRIPT_DIR%Output\ProducerToy_ProVerb_Windows_Installer.exe"
-set "ROOT_INSTALLER=%SCRIPT_DIR%ProducerToy_ProVerb_Installer.exe"
+set "OUTPUT_INSTALLER=%SCRIPT_DIR%Output\ProVerb.exe"
+set "ROOT_INSTALLER=%SCRIPT_DIR%ProVerb.exe"
+set "OUTPUT_INSTALLER_ALT=%SCRIPT_DIR%Output\ProVerb_Installer.exe"
+set "ROOT_INSTALLER_ALT=%SCRIPT_DIR%ProVerb_Installer.exe"
 set "ISS_FILE=%SCRIPT_DIR%Installer\Windows\ProVerb_Windows_Installer.iss"
 
 :: 1. Verify VST3 Binary Exists
@@ -49,20 +51,19 @@ if %ERRORLEVEL% NEQ 0 (
     exit /b %ERRORLEVEL%
 )
 
-if exist "%OUTPUT_INSTALLER%" (
-    copy /Y "%OUTPUT_INSTALLER%" "%ROOT_INSTALLER%" >nul
-)
-echo [OK] Inno Setup compilation completed.
-echo.
-
 :: 4. Post-Sign Setup Installer (Optional Authenticode)
 echo [4/4] Checking Authenticode Code Signing for Final Installer...
 if exist "%OUTPUT_INSTALLER%" (
     call "%SCRIPT_DIR%Installer\Windows\sign_binaries.bat" "%OUTPUT_INSTALLER%"
 )
-if exist "%ROOT_INSTALLER%" (
-    call "%SCRIPT_DIR%Installer\Windows\sign_binaries.bat" "%ROOT_INSTALLER%"
+
+:: Replicate signed installer to all desired distribution names
+if exist "%OUTPUT_INSTALLER%" (
+    copy /Y "%OUTPUT_INSTALLER%" "%ROOT_INSTALLER%" >nul
+    copy /Y "%OUTPUT_INSTALLER%" "%OUTPUT_INSTALLER_ALT%" >nul
+    copy /Y "%OUTPUT_INSTALLER%" "%ROOT_INSTALLER_ALT%" >nul
 )
+echo [OK] Signed installer deployed to root and alternative targets.
 echo.
 
 echo ======================================================================
