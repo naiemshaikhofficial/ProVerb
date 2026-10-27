@@ -123,6 +123,25 @@ begin
     Result := False;
 end;
 
+function InitializeSetup(): Boolean;
+var
+  UninstExe, BrandedUninstExe: String;
+  UninstDat, BrandedUninstDat: String;
+begin
+  UninstExe := ExpandConstant('{commoncf64}\ProducerToy\ProVerb\unins000.exe');
+  BrandedUninstExe := ExpandConstant('{commoncf64}\ProducerToy\ProVerb\ProducerToy_ProVerb_Uninstall.exe');
+  UninstDat := ExpandConstant('{commoncf64}\ProducerToy\ProVerb\unins000.dat');
+  BrandedUninstDat := ExpandConstant('{commoncf64}\ProducerToy\ProVerb\ProducerToy_ProVerb_Uninstall.dat');
+
+  // If previous build renamed unins000 to ProducerToy_ProVerb_Uninstall, immediately recover it
+  if (not FileExists(UninstExe)) and FileExists(BrandedUninstExe) then
+    CopyFile(BrandedUninstExe, UninstExe, False);
+  if (not FileExists(UninstDat)) and FileExists(BrandedUninstDat) then
+    CopyFile(BrandedUninstDat, UninstDat, False);
+
+  Result := True;
+end;
+
 function GetVST2Dir(Param: String): String;
 begin
   Result := VST2DirPage.Values[0];
@@ -130,33 +149,33 @@ end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 var
-  UninstExe, NewUninstExe: String;
-  UninstDat, NewUninstDat: String;
+  UninstExe, BrandedUninstExe: String;
+  UninstDat, BrandedUninstDat: String;
   RegKey: String;
 begin
   if CurStep = ssPostInstall then
   begin
     UninstExe := ExpandConstant('{commoncf64}\ProducerToy\ProVerb\unins000.exe');
-    NewUninstExe := ExpandConstant('{commoncf64}\ProducerToy\ProVerb\ProducerToy_ProVerb_Uninstall.exe');
+    BrandedUninstExe := ExpandConstant('{commoncf64}\ProducerToy\ProVerb\ProducerToy_ProVerb_Uninstall.exe');
     UninstDat := ExpandConstant('{commoncf64}\ProducerToy\ProVerb\unins000.dat');
-    NewUninstDat := ExpandConstant('{commoncf64}\ProducerToy\ProVerb\ProducerToy_ProVerb_Uninstall.dat');
+    BrandedUninstDat := ExpandConstant('{commoncf64}\ProducerToy\ProVerb\ProducerToy_ProVerb_Uninstall.dat');
 
-    // Clean up any existing renamed files from prior installations
-    if FileExists(NewUninstExe) and (UninstExe <> NewUninstExe) then
-      DeleteFile(NewUninstExe);
-    if FileExists(NewUninstDat) and (UninstDat <> NewUninstDat) then
-      DeleteFile(NewUninstDat);
+    // Ensure unins000.exe exists even if legacy version only had branded executable
+    if (not FileExists(UninstExe)) and FileExists(BrandedUninstExe) then
+      CopyFile(BrandedUninstExe, UninstExe, False);
+    if (not FileExists(UninstDat)) and FileExists(BrandedUninstDat) then
+      CopyFile(BrandedUninstDat, UninstDat, False);
 
-    // Rename unins000.* to ProducerToy_ProVerb_Uninstall.*
-    if FileExists(UninstExe) then
-      RenameFile(UninstExe, NewUninstExe);
-    if FileExists(UninstDat) then
-      RenameFile(UninstDat, NewUninstDat);
+    // Maintain branded alias for backward compatibility
+    if FileExists(UninstExe) and (not FileExists(BrandedUninstExe)) then
+      CopyFile(UninstExe, BrandedUninstExe, False);
+    if FileExists(UninstDat) and (not FileExists(BrandedUninstDat)) then
+      CopyFile(UninstDat, BrandedUninstDat, False);
 
-    // Update Windows Uninstall Registry entry with branded uninstaller executable path
+    // Update Windows Uninstall Registry entry with canonical unins000.exe launcher and transparent icon
     RegKey := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\ProVerb_is1';
-    RegWriteStringValue(HKEY_LOCAL_MACHINE, RegKey, 'UninstallString', '"' + NewUninstExe + '"');
-    RegWriteStringValue(HKEY_LOCAL_MACHINE, RegKey, 'QuietUninstallString', '"' + NewUninstExe + '" /VERYSILENT');
+    RegWriteStringValue(HKEY_LOCAL_MACHINE, RegKey, 'UninstallString', '"' + UninstExe + '"');
+    RegWriteStringValue(HKEY_LOCAL_MACHINE, RegKey, 'QuietUninstallString', '"' + UninstExe + '" /VERYSILENT');
     RegWriteStringValue(HKEY_LOCAL_MACHINE, RegKey, 'DisplayIcon', ExpandConstant('{commoncf64}\ProducerToy\ProVerb\proverb.ico'));
     RegWriteStringValue(HKEY_LOCAL_MACHINE, RegKey, 'DisplayName', 'ProVerb');
 
