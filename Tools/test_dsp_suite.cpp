@@ -4,8 +4,7 @@
 #include <iomanip>
 #include <cassert>
 #include <algorithm>
-#include <numeric>
-
+ 
 #include <juce_core/juce_core.h>
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_dsp/juce_dsp.h>
@@ -13,9 +12,6 @@
 #include "DSP/FDNReverb.h"
 #include "DSP/ToneEQ.h"
 #include "DSP/DuckingEngine.h"
-#include "DSP/ShimmerEngine.h"
-#include "DSP/AudioAnalyzerEngine.h"
-#include "Parameters/ParameterDef.h"
 
 // Objective Metric Verification Helpers
 static int gPassed = 0;

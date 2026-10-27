@@ -1,5 +1,6 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "DSP/Presets.h"
 #include "Licensing/LicenseClient.h"
 #include <BinaryData.h>
 #include "UI/ProVerbTokens.h"

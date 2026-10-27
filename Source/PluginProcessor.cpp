@@ -1,6 +1,8 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "Parameters/ParameterDef.h"
+#include "DSP/Presets.h"
 #include "Licensing/LicenseClient.h"
 #include <juce_audio_formats/juce_audio_formats.h>
 

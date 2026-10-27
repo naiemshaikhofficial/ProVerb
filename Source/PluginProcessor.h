@@ -2,13 +2,11 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
-#include "Parameters/ParameterDef.h"
 #include "DSP/FDNReverb.h"
 #include "DSP/DuckingEngine.h"
 #include "DSP/ShimmerEngine.h"
 #include "DSP/ToneEQ.h"
 #include "DSP/AudioAnalyzerEngine.h"
-#include "DSP/Presets.h"
 #include "AI/AIInferenceWorker.h"
 #include "AI/SourceDetector.h"
 
