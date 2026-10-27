@@ -23,6 +23,7 @@ WizardStyle=modern
 WizardImageFile=..\wizard_large.bmp,..\wizard_large_2x.bmp
 WizardSmallImageFile=..\wizard_small.bmp
 SetupIconFile=..\proverb.ico
+UninstallDisplayIcon={commoncf64}\ProducerToy\ProVerb\proverb.ico
 UninstallFilesDir={commoncf64}\ProducerToy\ProVerb
 DisableReadyPage=no
 
@@ -33,7 +34,7 @@ Name: "custom"; Description: "Custom Plugin Formats"; Flags: iscustom
 [Components]
 Name: "vst3"; Description: "VST3 (Universal 32-bit & 64-bit) — (FL Studio, Ableton Live, Cubase, Studio One, Reaper, Bitwig)"; Types: full custom; Flags: fixed
 Name: "aax"; Description: "AAX (64-bit) — Avid Pro Tools 11+"; Types: custom
-Name: "vst2"; Description: "VST2 (Legacy) — Older DAWs / Custom VST Folder"; Types: custom
+Name: "vst2"; Description: "VST2 (Legacy) — Older DAWs / Custom VST Folder"; Types: custom; ExtraDiskSpaceRequired: 13107200
 
 [Messages]
 FinishedHeadingLabel=Producer Toy ProVerb Installed
@@ -45,6 +46,9 @@ Type: filesandordirs; Name: "{commoncf64}\VST3\Producer Toy\ProVerb.vst3"
 Type: filesandordirs; Name: "{commoncf32}\VST3\Producer Toy\ProVerb.vst3"; Check: IsWin64
 
 [Files]
+; 0. Official Producer Toy ProVerb Logo for Windows Installed Apps / Control Panel
+Source: "..\proverb.ico"; DestDir: "{commoncf64}\ProducerToy\ProVerb"; Flags: ignoreversion uninsneveruninstall
+
 ; 1a. Canonical Universal VST3 Plugin Bundle for 64-bit DAWs (contains both x86_64 and x86 binaries)
 Source: "..\..\build\ProVerb_artefacts\Release\VST3\ProVerb.vst3\*"; DestDir: "{commoncf64}\VST3\ProVerb.vst3"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: vst3; Excludes: "*.pdb,*.ilk,*.exp,*.lib,*.obj,*.cpp,*.h,*.py,*.npz,*.git*,*.md,*.txt"
 
