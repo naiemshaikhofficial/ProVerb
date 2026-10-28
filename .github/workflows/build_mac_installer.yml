@@ -38,14 +38,27 @@ jobs:
           xcodebuild -version || true
           echo "CMake Version:"
           cmake --version
+          echo "Clang Version:"
+          clang++ --version
 
-      - name: Prepare Build Scripts
+      - name: Configure CMake (Universal arm64 + x86_64)
+        run: |
+          cmake -B build_mac \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" \
+                -DCMAKE_OSX_DEPLOYMENT_TARGET="10.15"
+
+      - name: Build ProVerb Universal VST3 Plugin
+        run: cmake --build build_mac --config Release --target ProVerb_VST3 --parallel
+
+      - name: Build ProVerb Universal Audio Unit (AU) Plugin
+        run: cmake --build build_mac --config Release --target ProVerb_AU --parallel
+
+      - name: Assemble Apple PKG & Branded DMG Installer
         run: |
           chmod +x Installer/macOS/build_mac_installer.sh
           chmod +x "Installer/macOS/Uninstall ProVerb.command"
-
-      - name: Build Universal AU/VST3 Plugins & Generate PKG / DMG
-        run: ./Installer/macOS/build_mac_installer.sh
+          ./Installer/macOS/build_mac_installer.sh --skip-build
 
       - name: Upload macOS Installer Package (.pkg)
         uses: actions/upload-artifact@v4

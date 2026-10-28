@@ -25,17 +25,28 @@ mkdir -p "${STAGING_DIR}/VST3/Library/Audio/Plug-Ins/VST3"
 mkdir -p "${STAGING_DIR}/AU/Library/Audio/Plug-Ins/Components"
 mkdir -p "${STAGING_DIR}/AAX/Library/Application Support/Avid/Audio/Plug-Ins"
 
-# 1. Compile with CMake for both arm64 (Apple Silicon) and x86_64 (Intel)
-cd "${ROOT_DIR}"
-echo "[1/5] Configuring CMake for Universal Binaries (arm64 + x86_64)..."
-cmake -B build_mac \
-      -DCMAKE_BUILD_TYPE=Release \
-      -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" \
-      -DCMAKE_OSX_DEPLOYMENT_TARGET="10.15"
+# Check for --skip-build flag
+SKIP_BUILD=false
+for arg in "$@"; do
+    if [ "$arg" == "--skip-build" ]; then
+        SKIP_BUILD=true
+    fi
+done
 
-echo "[2/5] Compiling ProVerb VST3 and Audio Unit (AU) targets..."
-cmake --build build_mac --config Release --target ProVerb_VST3 --parallel
-cmake --build build_mac --config Release --target ProVerb_AU --parallel
+cd "${ROOT_DIR}"
+if [ "$SKIP_BUILD" = false ]; then
+    echo "[1/5] Configuring CMake for Universal Binaries (arm64 + x86_64)..."
+    cmake -B build_mac \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" \
+          -DCMAKE_OSX_DEPLOYMENT_TARGET="10.15"
+
+    echo "[2/5] Compiling ProVerb VST3 and Audio Unit (AU) targets..."
+    cmake --build build_mac --config Release --target ProVerb_VST3 --parallel
+    cmake --build build_mac --config Release --target ProVerb_AU --parallel
+else
+    echo "[INFO] Skipping CMake build step (--skip-build flag specified)."
+fi
 
 # 2. Locate and Stage Built Artifacts
 echo "[3/5] Locating and staging plugin bundles..."
