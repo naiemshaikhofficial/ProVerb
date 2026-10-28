@@ -253,9 +253,9 @@ namespace ProducerToy::Licensing
                 "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Cryptography\\MachineGuid", "").trim();
         }
 #elif JUCE_MAC
-        hardwareId = juce::SystemStats::getUniqueDeviceDescription().trim();
+        hardwareId = juce::SystemStats::getDeviceDescription().trim();
 #else
-        hardwareId = juce::SystemStats::getUniqueDeviceDescription().trim();
+        hardwareId = juce::SystemStats::getDeviceDescription().trim();
 #endif
 
         if (hardwareId.isEmpty())
