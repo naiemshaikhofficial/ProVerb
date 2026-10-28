@@ -34,8 +34,8 @@ cmake -B build_mac \
       -DCMAKE_OSX_DEPLOYMENT_TARGET="10.15"
 
 echo "[2/5] Compiling ProVerb VST3 and Audio Unit (AU) targets..."
-cmake --build build_mac --config Release --target ProVerb_VST3 ProVerb_AU --parallel || \
-cmake --build build_mac --config Release --parallel
+cmake --build build_mac --config Release --target ProVerb_VST3 --parallel
+cmake --build build_mac --config Release --target ProVerb_AU --parallel
 
 # 2. Locate and Stage Built Artifacts
 echo "[3/5] Locating and staging plugin bundles..."

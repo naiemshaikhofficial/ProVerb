@@ -343,6 +343,7 @@ target_include_directories(ProVerb_LicensingTest PRIVATE Source)
 target_link_libraries(ProVerb_LicensingTest PRIVATE
     juce::juce_core
     juce::juce_events
+    juce::juce_gui_basics
     juce::juce_recommended_config_flags
     juce::juce_recommended_warning_flags
 )
@@ -373,6 +374,7 @@ target_include_directories(ProVerb_SecurityAuditTest PRIVATE Source)
 target_link_libraries(ProVerb_SecurityAuditTest PRIVATE
     juce::juce_core
     juce::juce_events
+    juce::juce_gui_basics
     juce::juce_audio_basics
     juce::juce_dsp
     juce::juce_recommended_config_flags
