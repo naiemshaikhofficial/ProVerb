@@ -3,11 +3,58 @@ name: Build ProVerb Windows & macOS Installers
 on:
   push:
     branches: [ main, master ]
+    tags:
+      - 'v*'
   pull_request:
     branches: [ main, master ]
   workflow_dispatch:
+    inputs:
+      publish_release:
+        description: 'Publish as GitHub Release'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
 
 jobs:
+  build-macos:
+    name: Build macOS Universal PKG & DMG (.pkg, .dmg)
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Make Build Script Executable
+        run: |
+          chmod +x Installer/macOS/build_mac_installer.sh
+          chmod +x "Installer/macOS/Uninstall ProVerb.command"
+
+      - name: Build Universal VST3 & AU and Package .pkg & .dmg
+        run: ./Installer/macOS/build_mac_installer.sh
+
+      - name: Upload macOS Installer Package (.pkg)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ProVerb-macOS-PKG
+          path: Output/ProVerb.pkg
+
+      - name: Upload macOS Disk Image (.dmg)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ProVerb-macOS-DMG
+          path: Output/ProVerb.dmg
+
+      - name: Upload macOS Checksums
+        uses: actions/upload-artifact@v4
+        with:
+          name: ProVerb-macOS-Checksums
+          path: Output/ProVerb_macOS_SHA256.txt
+
   build-windows:
     name: Build Windows Universal Installer (.exe)
     runs-on: windows-latest
@@ -18,16 +65,11 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Setup CMake
-        uses: jwlawson/actions-setup-cmake@v2
-        with:
-          cmake-version: '3.28'
-
       - name: Configure CMake
-        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
+        run: cmake -B build -S .
 
-      - name: Build All Targets (VST3)
-        run: cmake --build build --config Release --parallel
+      - name: Build VST3 Plugin
+        run: cmake --build build --config Release --target ProVerb_VST3 --parallel
 
       - name: Install Inno Setup
         run: choco install innosetup -y --no-progress
@@ -42,37 +84,30 @@ jobs:
           name: ProVerb-Windows-Installer
           path: Output/ProVerb.exe
 
-  build-macos:
-    name: Build macOS Universal PKG & DMG (.pkg, .dmg)
-    runs-on: macos-latest
+  publish-release:
+    name: Publish Multiplatform GitHub Release
+    needs: [ build-macos, build-windows ]
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_release == true)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - name: Download all built artifacts
+        uses: actions/download-artifact@v4
         with:
-          submodules: recursive
+          path: release_assets
+          merge-multiple: true
 
-      - name: Setup CMake
-        uses: jwlawson/actions-setup-cmake@v2
+      - name: Create Official GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          cmake-version: '3.28'
-
-      - name: Make Build Script Executable
-        run: |
-          chmod +x Installer/macOS/build_mac_installer.sh
-          chmod +x "Installer/macOS/Uninstall ProVerb.command"
-
-      - name: Build Universal VST3, AU & AAX and Package .pkg & .dmg
-        run: ./Installer/macOS/build_mac_installer.sh
-
-      - name: Upload macOS Installer Package (.pkg)
-        uses: actions/upload-artifact@v4
-        with:
-          name: ProVerb-macOS-PKG
-          path: Output/ProVerb.pkg
-
-      - name: Upload macOS Disk Image (.dmg)
-        uses: actions/upload-artifact@v4
-        with:
-          name: ProVerb-macOS-DMG
-          path: Output/ProVerb.dmg
+          name: "ProVerb Production Release ${{ github.ref_name }}"
+          files: |
+            release_assets/ProVerb.dmg
+            release_assets/ProVerb.pkg
+            release_assets/ProVerb_macOS_SHA256.txt
+            release_assets/ProVerb.exe
+          generate_release_notes: true
+          draft: false
+          prerelease: false

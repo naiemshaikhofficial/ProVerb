@@ -1,0 +1,25 @@
+# Enforce LF for shell scripts and Unix tools
+*.sh text eol=lf
+*.command text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.xml text eol=lf
+*.html text eol=lf
+*.txt text eol=lf
+
+# Windows specific
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+*.iss text eol=crlf
+
+# Binary files
+*.png binary
+*.icns binary
+*.ico binary
+*.bmp binary
+*.onnx binary
+*.vst3 binary
+*.component binary
+*.dmg binary
+*.pkg binary

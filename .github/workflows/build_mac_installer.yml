@@ -1,0 +1,82 @@
+name: Build ProVerb macOS Installer (.pkg & .dmg)
+
+on:
+  push:
+    branches: [ main, master ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: 'Publish as GitHub Release (Direct Download)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    name: Build macOS Universal PKG & DMG
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Verify Environment & Tools
+        run: |
+          echo "macOS Version:"
+          sw_vers
+          echo "Xcode Version:"
+          xcodebuild -version || true
+          echo "CMake Version:"
+          cmake --version
+
+      - name: Prepare Build Scripts
+        run: |
+          chmod +x Installer/macOS/build_mac_installer.sh
+          chmod +x "Installer/macOS/Uninstall ProVerb.command"
+
+      - name: Build Universal AU/VST3 Plugins & Generate PKG / DMG
+        run: ./Installer/macOS/build_mac_installer.sh
+
+      - name: Upload macOS Installer Package (.pkg)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ProVerb-macOS-PKG
+          path: Output/ProVerb.pkg
+          if-no-files-found: error
+
+      - name: Upload macOS Disk Image (.dmg)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ProVerb-macOS-DMG
+          path: Output/ProVerb.dmg
+          if-no-files-found: error
+
+      - name: Upload Checksums
+        uses: actions/upload-artifact@v4
+        with:
+          name: ProVerb-macOS-Checksums
+          path: Output/ProVerb_macOS_SHA256.txt
+          if-no-files-found: warn
+
+      - name: Publish to GitHub Releases
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_release == true)
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "ProVerb macOS Release ${{ github.ref_name }}"
+          files: |
+            Output/ProVerb.dmg
+            Output/ProVerb.pkg
+            Output/ProVerb_macOS_SHA256.txt
+          generate_release_notes: true
+          draft: false
+          prerelease: false
